@@ -25,7 +25,7 @@ func (c *configServiceProvider) mysqlConfig() mysql.Config {
 		Port:     "3306",
 		Database: "go-shop",
 		Username: "root",
-		Password: "123456",
+		Password: "12345678",
 	}
 }
 

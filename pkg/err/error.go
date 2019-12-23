@@ -19,7 +19,7 @@ func err2code(err *Status) int {
 }
 
 var Err404 = NewFromCode(http.StatusNotFound)
-
+var Err401 = NewFromCode(http.StatusUnauthorized)
 var Err422 = NewFromCode(http.StatusUnprocessableEntity)
 
 type err struct {

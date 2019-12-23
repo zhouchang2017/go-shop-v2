@@ -13,7 +13,7 @@ import (
 )
 
 func init() {
-	register(NewCategory)
+	register(NewCategoryResource)
 }
 
 type Category struct {
@@ -22,8 +22,8 @@ type Category struct {
 	rep   *repositories.CategoryRep
 }
 
-func NewCategory(model *models.Category, rep *repositories.CategoryRep) *Category {
-	return &Category{model: model, rep: rep}
+func NewCategoryResource(rep *repositories.CategoryRep) *Category {
+	return &Category{model: &models.Category{}, rep: rep}
 }
 
 type categoryForm struct {
@@ -131,8 +131,8 @@ func (this *Category) CustomHttpRouters(router gin.IRouter, uri string, singular
 	this.deleteOption(router, uri, singularLabel)
 }
 
-func (c *Category) IndexQuery(ctx *gin.Context, request *request.IndexRequest) {
-
+func (c *Category) IndexQuery(ctx *gin.Context, request *request.IndexRequest) error {
+	return nil
 }
 
 func (c *Category) Model() interface{} {
@@ -155,6 +155,7 @@ func (c Category) Title() string {
 	return "产品类目"
 }
 
+// 左侧导航栏分组
 func (Category) Group() string {
 	return "Product"
 }

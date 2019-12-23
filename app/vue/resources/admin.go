@@ -23,8 +23,8 @@ type Admin struct {
 	service *services.AdminService
 }
 
-func NewAdminResource(model *models.Admin, rep *repositories.AdminRep, service *services.AdminService) *Admin {
-	return &Admin{model: model, rep: rep, service: service}
+func NewAdminResource(rep *repositories.AdminRep, service *services.AdminService) *Admin {
+	return &Admin{model: &models.Admin{}, rep: rep, service: service}
 }
 
 type adminForm struct {
@@ -104,8 +104,8 @@ func (a *Admin) Updated(ctx *gin.Context, resource interface{}) {
 	event.Dispatch(events.AdminUpdated{Admin: resource.(*models.Admin)})
 }
 
-func (a *Admin) IndexQuery(ctx *gin.Context, request *request.IndexRequest) {
-
+func (a *Admin) IndexQuery(ctx *gin.Context, request *request.IndexRequest) error {
+	return nil
 }
 
 func (a *Admin) Model() interface{} {

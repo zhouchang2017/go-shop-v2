@@ -60,5 +60,9 @@ func (v *vueResourceServiceProvider) Boot() fx.Option {
 			vue.RegisterResource(resource)
 		}),
 
+		fx.Invoke(func(vue *vue.Vue, resource *ManualInventoryAction) {
+			vue.RegisterResource(resource)
+		}),
+
 	)
 }

@@ -101,7 +101,7 @@ func (l loginResponse) String() string {
 	return l.TokenType + " " + l.AccessToken
 }
 
-// Create a token for a user.
+// Make a token for a user.
 func (this *JWTGuard) Login(user Authenticatable) (data interface{}, err error) {
 	token, err := this.jwt.FromUser(user)
 	if err != nil {

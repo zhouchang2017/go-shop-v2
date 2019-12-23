@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
+	"go-shop-v2/pkg/request"
+	"go-shop-v2/pkg/response"
 	"go.mongodb.org/mongo-driver/bson"
 	"log"
 )
@@ -20,8 +22,39 @@ type InventoryService struct {
 	itemRep *repositories.ItemRep
 }
 
+func (this *InventoryService) GetRepository() *repositories.InventoryRep {
+	return this.rep
+}
+
 func NewInventoryService(rep *repositories.InventoryRep, shopRep *repositories.ShopRep, itemRep *repositories.ItemRep) *InventoryService {
 	return &InventoryService{rep: rep, shopRep: shopRep, itemRep: itemRep}
+}
+
+func (this *InventoryService) Aggregate(ctx context.Context, req *request.IndexRequest) (data []*models.AggregateInventory, pagination response.Pagination, err error) {
+	// 获取所有门店
+	var shops []*models.InventoryUnitShop
+	shopsRes := <-this.shopRep.FindAll(ctx)
+	if shopsRes.Error != nil {
+		return nil, pagination, shopsRes.Error
+	}
+	s := shopsRes.Result.([]*models.Shop)
+	for _, shop := range s {
+		shops = append(shops, &models.InventoryUnitShop{
+			Id:          shop.GetID(),
+			Name:        shop.Name,
+			Qty:         0,
+		})
+	}
+	req.SetSearchField("item.code")
+	aggregateRes := <-this.rep.AggregatePagination(ctx, req)
+	if aggregateRes.Error != nil {
+		return nil, aggregateRes.Pagination, aggregateRes.Error
+	}
+	data = aggregateRes.Result.([]*models.AggregateInventory)
+	for _, item := range data {
+		item.WarpShops(shops)
+	}
+	return data, aggregateRes.Pagination, nil
 }
 
 // 入库

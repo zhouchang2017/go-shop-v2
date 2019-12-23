@@ -23,8 +23,8 @@ type Shop struct {
 	service *services.ShopService
 }
 
-func NewShopResource(model *models.Shop, rep *repositories.ShopRep, service *services.ShopService) *Shop {
-	return &Shop{model: model, rep: rep, service: service}
+func NewShopResource(rep *repositories.ShopRep, service *services.ShopService) *Shop {
+	return &Shop{model: &models.Shop{}, rep: rep, service: service}
 }
 
 type shopForm struct {
@@ -74,8 +74,8 @@ func (s *Shop) Updated(ctx *gin.Context, resource interface{}) {
 }
 
 // 列表页搜索处理
-func (s *Shop) IndexQuery(ctx *gin.Context, request *request.IndexRequest) {
-
+func (s *Shop) IndexQuery(ctx *gin.Context, request *request.IndexRequest) error {
+	return nil
 }
 
 func (s *Shop) Model() interface{} {

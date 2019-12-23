@@ -486,6 +486,118 @@ func (this *mongoRep) Restore(ctx context.Context, id string) <-chan repository.
 	return result
 }
 
+type AggregateMetadata struct {
+	Total int64 `bson:"total"`
+}
+
+// 聚合分页
+func (this *mongoRep) AggregatePagination(ctx context.Context, entities interface{}, req *request.IndexRequest, pipe ...bson.D) <-chan repository.QueryPaginationResult {
+	result := make(chan repository.QueryPaginationResult)
+
+	go func() {
+		defer close(result)
+		// 初始化
+		pipeline := mongo.Pipeline{}
+
+		// match阶段
+		// query builder
+		filter := bson.M{}
+		// trashed
+		if !req.Trashed {
+			filter["deleted_at"] = bson.D{{"$eq", nil}}
+		}
+		// search
+		if req.Search != "" && req.GetSearchField() != "" {
+			filter[req.GetSearchField()] = primitive.Regex{Pattern: req.Search, Options: "i"}
+		}
+
+		// 自定义过滤
+		for key, value := range req.Query() {
+			filter[key] = value
+		}
+
+		if len(filter) > 0 {
+			pipeline = append(pipeline, bson.D{{"$match", filter}})
+		}
+
+		// 合并 groupBy 阶段
+		pipeline = append(pipeline, pipe...)
+
+		// SELECT
+		if opt, ok := req.Projection(); ok {
+			pipeline = append(pipeline, bson.D{{"$project", opt}})
+		}
+
+		// 排序
+		if opt, ok := req.Sort(); ok {
+			pipeline = append(pipeline, bson.D{{"$sort", opt}})
+		}
+
+		// 当前页
+		page := req.GetPage()
+		// facet
+		facet := bson.M{
+			"metadata": bson.A{bson.D{{"$count", "total"}}},
+		}
+		limit := req.GetPerPage()
+		skip := (page - 1) * req.GetPerPage()
+		if page > 0 {
+			// 分页
+			facet["data"] = bson.A{
+				bson.D{{"$skip", skip}},
+				bson.D{{"$limit", limit}},
+			}
+		} else {
+			//data: [{ $replaceRoot: { newRoot: "$$ROOT" } }]
+			facet["data"] = bson.A{
+				bson.D{{"$replaceRoot", bson.D{{"newRoot", "$$ROOT"}}}},
+			}
+		}
+
+		pipeline = append(pipeline, bson.D{{"$facet", facet}})
+
+		cursor, err := this.Collection().Aggregate(ctx, pipeline)
+		if err != nil {
+			result <- repository.QueryPaginationResult{Error: err}
+			return
+		}
+		var total int64 = 0
+		var metadata []AggregateMetadata
+		defer cursor.Close(ctx)
+
+		if cursor.Next(ctx) {
+			lookup := cursor.Current.Lookup("data")
+			err := lookup.Unmarshal(entities)
+			if err != nil {
+				result <- repository.QueryPaginationResult{Error: err}
+				return
+			}
+
+			value := cursor.Current.Lookup("metadata")
+			err = value.Unmarshal(&metadata)
+			if err != nil {
+				result <- repository.QueryPaginationResult{Error: err}
+				return
+			}
+			if len(metadata) > 0 {
+				total = metadata[0].Total
+			}
+		}
+
+		pagination := response.Pagination{
+			Total: total,
+		}
+		if page != -1 {
+			pagination.CurrentPage = page
+			pagination.PerPage = limit
+			pagination.HasNextPage = page*limit < total
+		}
+
+		result <- repository.QueryPaginationResult{Result: entities, Pagination: pagination}
+	}()
+	return result
+}
+
 func (this *mongoRep) setTimeNow(entity interface{}, field string) {
 	this.setValue(entity, field, time.Now())
 }
@@ -551,6 +663,9 @@ func (this *mongoRep) CreateIndexes(ctx context.Context, models []mongo.IndexMod
 		log.Printf("model %s create indexs error:%s\n", this.table, err)
 		return err
 	}
-	log.Printf("model %s create indexs %s\n", res)
+	for _, key := range res {
+		log.Printf("model %s create indexs %s\n", this.table, key)
+	}
+
 	return nil
 }

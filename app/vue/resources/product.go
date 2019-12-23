@@ -22,8 +22,8 @@ type Product struct {
 	service *services.ProductService
 }
 
-func NewProductResource(model *models.Product, rep *repositories.ProductRep, service *services.ProductService) *Product {
-	return &Product{model: model, rep: rep, service: service}
+func NewProductResource(rep *repositories.ProductRep, service *services.ProductService) *Product {
+	return &Product{model: &models.Product{}, rep: rep, service: service}
 }
 
 // 自定义详情页数据
@@ -92,8 +92,8 @@ func (this *Product) CreateFormParse(ctx *gin.Context) (entity interface{}, err 
 	return product, nil
 }
 
-func (this *Product) IndexQuery(ctx *gin.Context, request *request.IndexRequest) {
-
+func (this *Product) IndexQuery(ctx *gin.Context, request *request.IndexRequest) error {
+	return nil
 }
 
 func (this *Product) Model() interface{} {

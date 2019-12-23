@@ -5,6 +5,7 @@ import (
 	"go-shop-v2/pkg/auth"
 	ctx2 "go-shop-v2/pkg/ctx"
 	"go-shop-v2/pkg/err"
+	"reflect"
 )
 
 // 资源权限管理
@@ -132,4 +133,26 @@ func (this *ResourceWarp) AuthorizedToViewAny(ctx *gin.Context) bool {
 		}
 	}
 	return true
+}
+
+func (this *ResourceWarp) AuthorizedTo(ctx *gin.Context, method string) bool {
+	if policy, b := this.root.resolvePolicy(this.resource); b {
+		of := reflect.ValueOf(policy)
+		name := of.MethodByName(method)
+		if !name.IsValid() {
+			return false
+		}
+		call := name.Call([]reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(ctx2.GetUser(ctx).(auth.Authenticatable))})
+		if len(call) > 0 {
+			return call[0].Interface().(bool)
+		}
+	}
+	return true
+}
+
+func (this *ResourceWarp) Authorized(ctx *gin.Context, method string) {
+	if !this.AuthorizedTo(ctx, method) {
+		ctx.AbortWithStatus(403)
+		return
+	}
 }

@@ -65,7 +65,7 @@ func (this *JWT) Refresh(user Authenticatable) (string, error) {
 	return this.encode(payload)
 }
 
-// Create a Payload instance.
+// Make a Payload instance.
 func (this *JWT) MakePayload(user Authenticatable, exp time.Time) jwt.Claims {
 	claims := make(jwt.MapClaims)
 	claims["exp"] = exp.Unix()

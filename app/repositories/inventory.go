@@ -2,9 +2,12 @@ package repositories
 
 import (
 	"context"
+	"github.com/davecgh/go-spew/spew"
+	"github.com/mitchellh/mapstructure"
 	"go-shop-v2/app/models"
 	"go-shop-v2/pkg/db/mongodb"
 	"go-shop-v2/pkg/repository"
+	"go-shop-v2/pkg/request"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -18,6 +21,78 @@ func init() {
 
 type InventoryRep struct {
 	*mongoRep
+}
+
+
+func (this *InventoryRep) AggregatePagination(ctx context.Context, req *request.IndexRequest) <-chan repository.QueryPaginationResult {
+	result := make(chan repository.QueryPaginationResult)
+
+	go func() {
+		defer close(result)
+
+		es := []*models.AggregateInventory{}
+		filters := req.Filters.Unmarshal()
+		options := &QueryOption{}
+		err := mapstructure.Decode(filters, options)
+		spew.Dump(options)
+		if err != nil {
+			result <- repository.QueryPaginationResult{Error: err}
+			return
+		}
+		if len(options.Status) > 0 {
+			req.AppendFilter("status", bson.D{{"$in", options.Status}})
+		}
+		if len(options.Shops) > 0 {
+			req.AppendFilter("shop.id", bson.D{{"$in", options.Shops}})
+		}
+
+		pipelines := mongo.Pipeline{
+			// 状态分组统计
+			bson.D{{"$group", bson.M{
+				"_id": bson.M{
+					"item_id": "$item.id",
+					"status":  "$status",
+				},
+				"item": bson.D{{"$mergeObjects", "$item"}},
+				"qty":  bson.D{{"$sum", "$qty"}},
+				"shops": bson.D{{"$push", bson.M{
+					"id":           "$shop.id",
+					"name":         "$shop.name",
+					"qty":          "$qty",
+					"inventory_id": "$_id",
+				}}},
+			}}},
+			// 合并状态统计
+			bson.D{{"$group", bson.M{
+				"_id": bson.M{
+					"item_id": "$_id.item_id",
+				},
+				"item": bson.D{{"$mergeObjects", "$item"}},
+				"qty":  bson.D{{"$sum", "$qty"}},
+				"inventories": bson.D{{"$push", bson.M{
+					"status": "$_id.status",
+					"qty":    "$qty",
+					"shops":  "$shops",
+				}}},
+			}}},
+			// 改变数据结构
+			bson.D{{"$replaceRoot",
+				bson.D{{"newRoot",
+					bson.D{{"$mergeObjects",
+						bson.A{"$item", bson.M{
+							"qty":         "$qty",
+							"inventories": "$inventories",
+						}}}}}}}},
+		}
+		aggregateRes := <-this.mongoRep.AggregatePagination(ctx, &es, req, pipelines...)
+		if aggregateRes.Error != nil {
+			result <- repository.QueryPaginationResult{Error: aggregateRes.Error}
+			return
+		}
+		result <- repository.QueryPaginationResult{Result: es, Pagination: aggregateRes.Pagination, Error: aggregateRes.Error}
+	}()
+
+	return result
 }
 
 func (this *InventoryRep) IncQty(ctx context.Context, filter interface{}, qty int64) <-chan repository.QueryResult {
@@ -45,49 +120,50 @@ func (this *InventoryRep) IncQty(ctx context.Context, filter interface{}, qty in
 }
 
 type QueryOption struct {
-	ItemCode    string
-	ItemId      string
-	ProductId   string
-	ProductCode string
-	ShopId      string
+	Brands      []string `json:"brands"`
+	ItemCode    string   `json:"item_code"`
+	ItemId      string   `json:"item_id"`
+	ProductId   string   `json:"product_id"`
+	ProductCode string   `json:"product_code"`
+	Shops       []string `json:"shops"`
 	Location    *models.Location
-	Status      *int8
+	Status      []int8
 }
 
-func (q *QueryOption) SetStatus(status int8) {
-	q.Status = &status
-}
+//func (q *QueryOption) SetStatus(status int8) {
+//	q.Status = &status
+//}
 
 func (this *InventoryRep) Query(ctx context.Context, opt *QueryOption) {
 	filter := bson.M{}
-	if opt.ItemCode != "" {
-		filter["item.code"] = opt.ItemCode
-	}
-	if opt.ItemId != "" {
-		filter["item.id"] = opt.ItemId
-		delete(filter, "item.code")
-	}
-	if opt.ProductCode != "" {
-		filter["product.code"] = opt.ProductCode
-	}
-	if opt.ProductId != "" {
-		filter["product.id"] = opt.ProductId
-		delete(filter, "product.code")
-	}
-	if opt.ShopId != "" {
-		filter["shop.id"] = opt.ShopId
-	}
-	// 状态过滤
-	if opt.Status != nil {
-		filter["status"] = *opt.Status
-	}
-	// 位置搜索
-	if opt.Location != nil {
-		filter["shop.location"] = bson.M{
-			"$near":        opt.Location.GeoJSON(),
-			"$maxDistance": 1000,
-		}
-	}
+	//if opt.ItemCode != "" {
+	//	filter["item.code"] = opt.ItemCode
+	//}
+	//if opt.ItemId != "" {
+	//	filter["item.id"] = opt.ItemId
+	//	delete(filter, "item.code")
+	//}
+	//if opt.ProductCode != "" {
+	//	filter["product.code"] = opt.ProductCode
+	//}
+	//if opt.ProductId != "" {
+	//	filter["product.id"] = opt.ProductId
+	//	delete(filter, "product.code")
+	//}
+	//if opt.ShopId != "" {
+	//	filter["shop.id"] = opt.ShopId
+	//}
+	//// 状态过滤
+	//if opt.Status != nil {
+	//	filter["status"] = *opt.Status
+	//}
+	//// 位置搜索
+	//if opt.Location != nil {
+	//	filter["shop.location"] = bson.M{
+	//		"$near":        opt.Location.GeoJSON(),
+	//		"$maxDistance": 1000,
+	//	}
+	//}
 	this.Collection().Find(ctx, filter, options.Find().SetSort(bson.M{"qty": -1}))
 }
 

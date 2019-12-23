@@ -7,7 +7,11 @@ import (
 
 type ResourceHttpIndex interface {
 	ResourceHttpIndex() bool
-	IndexQuery(ctx *gin.Context, request *request.IndexRequest)
+	IndexQuery(ctx *gin.Context, request *request.IndexRequest) error
+}
+
+type CustomResourceHttpIndex interface {
+	CustomResourceHttpIndex(ctx *gin.Context, request *request.IndexRequest)
 }
 
 type ResourceHttpShow interface {

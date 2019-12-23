@@ -24,7 +24,6 @@ type Resource interface {
 	HasIndexRoute(ctx *gin.Context) bool
 	HasDetailRoute(ctx *gin.Context) bool
 	HasEditRoute(ctx *gin.Context) bool
-	HasCreateRoute(ctx *gin.Context) bool
 	Observer
 }
 
@@ -33,7 +32,7 @@ type ResourceWarp struct {
 	root     *Vue
 }
 
-func NewResourceWarp(resource Resource, root *Vue) *ResourceWarp {
+func newResourceWarp(resource Resource, root *Vue) *ResourceWarp {
 	return &ResourceWarp{resource: resource, root: root}
 }
 
@@ -88,12 +87,16 @@ func (this *ResourceWarp) CreateRouterName() string {
 }
 
 // 生成前端路由对象
-func (this *ResourceWarp) Routers(ctx *gin.Context) []*Router {
+func (this *ResourceWarp) routers(ctx *gin.Context) []*Router {
 	var routers []*Router
 	uri := this.UriKey()
 
 	var authorizedToCreate = this.AuthorizedToCreate(ctx)
-
+	// 自定义路由
+	if customVueRouter, ok := this.resource.(CustomVueRouter); ok {
+		router := customVueRouter.CustomVueRouter(ctx, this)
+		routers = append(routers, router...)
+	}
 	// 列表页路由
 	if this.resource.HasIndexRoute(ctx) {
 		router := &Router{
@@ -106,6 +109,7 @@ func (this *ResourceWarp) Routers(ctx *gin.Context) []*Router {
 		router.WithMeta("AuthorizedToCreate", authorizedToCreate)
 		router.WithMeta("Title", this.resource.Title())
 		router.WithMeta("ResourceName", this.SingularLabel())
+
 		router.WithMeta("CreateButtonText", this.CreateButtonName())
 		router.WithMeta("CreateRouterName", this.CreateRouterName())
 		router.WithMeta("DetailRouterName", this.DetailRouterName())
@@ -122,14 +126,14 @@ func (this *ResourceWarp) Routers(ctx *gin.Context) []*Router {
 	}
 
 	// 创建页面路由
-	if this.resource.HasCreateRoute(ctx) && authorizedToCreate {
+	if  authorizedToCreate {
 		router := &Router{
 			Path:      fmt.Sprintf("%s/create", uri),
 			Name:      this.CreateRouterName(),
-			Component: fmt.Sprintf(`%s/Create`, uri),
+			Component: fmt.Sprintf(`%s/Make`, uri),
 			Hidden:    true,
 		}
-		router.WithMeta("Title", "创建"+""+this.resource.Title())
+		router.WithMeta("Title", this.CreateButtonName())
 		router.WithMeta("DetailRouterName", this.DetailRouterName())
 		router.WithMeta("IndexRouterName", this.IndexRouterName())
 		if listener, ok := this.resource.(ListenerCreateRouteCreated); ok {
@@ -175,7 +179,7 @@ func (this *ResourceWarp) Routers(ctx *gin.Context) []*Router {
 }
 
 // 列表页数据格式
-func (this *ResourceWarp) SerializeForIndex(ctx *gin.Context) Metable {
+func (this *ResourceWarp) serializeForIndex(ctx *gin.Context) Metable {
 	warp := &responseWarp{}
 	var maps = map[string]bool{}
 	maps["AuthorizedToView"], _ = this.AuthorizedToView(ctx)
@@ -209,7 +213,7 @@ type detailResourceWarp struct {
 }
 
 // 详情页数据格式
-func (this *ResourceWarp) SerializeForDetail(ctx *gin.Context) Metable {
+func (this *ResourceWarp) serializeForDetail(ctx *gin.Context) Metable {
 	warp := &responseWarp{}
 	var maps = map[string]bool{}
 	maps["AuthorizedToUpdate"], _ = this.AuthorizedToUpdate(ctx)

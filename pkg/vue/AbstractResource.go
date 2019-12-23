@@ -4,29 +4,31 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// 资源基本结构
 type AbstractResource struct {
 }
 
+// 是否有列表页路由
 func (this *AbstractResource) HasIndexRoute(ctx *gin.Context) bool {
 	return true
 }
 
+// 是否有详情页路由
 func (this *AbstractResource) HasDetailRoute(ctx *gin.Context) bool {
 	return true
 }
 
+// 是否有编辑页面路由
 func (this *AbstractResource) HasEditRoute(ctx *gin.Context) bool {
 	return true
 }
 
-func (this *AbstractResource) HasCreateRoute(ctx *gin.Context) bool {
-	return true
-}
-
+// 左侧导航栏分组
 func (this *AbstractResource) Group() string {
 	return "App"
 }
 
+// 是否显示在导航栏
 func (this *AbstractResource) DisplayInNavigation(ctx *gin.Context) bool {
 	return true
 }
@@ -75,11 +77,11 @@ func (this *AbstractResource) Deleted(ctx *gin.Context, id string) {
 }
 
 // 恢复成功钩子
-func (this *AbstractResource) Restored(ctx *gin.Context,resource interface{})  {
+func (this *AbstractResource) Restored(ctx *gin.Context, resource interface{}) {
 
 }
 
 // 销毁成功钩子
-func (this *AbstractResource) ForceDeleted(ctx *gin.Context,id string)  {
+func (this *AbstractResource) ForceDeleted(ctx *gin.Context, id string) {
 
 }

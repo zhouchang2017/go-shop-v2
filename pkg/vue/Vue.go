@@ -88,7 +88,7 @@ func (this *Vue) HttpHandler(router gin.IRouter) {
 
 	// RESTFUL API
 	for _, resource := range this.resources {
-		NewResourceWarp(resource, this).HttpHandler(router)
+		newResourceWarp(resource, this).HttpHandler(router)
 	}
 
 	// 自定义路由
@@ -107,7 +107,7 @@ func (this *Vue) ProviderVueRouteConfig(router gin.IRouter) {
 func (this *Vue) VueRouters(ctx *gin.Context) []*Router {
 	var routers []*Router
 	for _, resource := range this.resources {
-		routers = append(routers, NewResourceWarp(resource, this).Routers(ctx)...)
+		routers = append(routers, newResourceWarp(resource, this).routers(ctx)...)
 	}
 	return routers
 }

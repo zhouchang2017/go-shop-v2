@@ -25,7 +25,11 @@ func (this *ResourceWarp) resourceIndexHandle(router gin.IRouter) {
 				return
 			}
 			// hook 自定义查询
-			r.IndexQuery(c, filter)
+			err := r.IndexQuery(c, filter)
+			if err != nil {
+				err2.ErrorEncoder(nil, err, c.Writer)
+				return
+			}
 
 			results := <-this.resource.Repository().Pagination(c, filter)
 			if results.Error != nil {
@@ -38,7 +42,7 @@ func (this *ResourceWarp) resourceIndexHandle(router gin.IRouter) {
 				len := valueOf.Len()
 				for i := 0; i < len; i++ {
 					model := valueOf.Index(i).Interface()
-					indexResources = append(indexResources, NewResourceWarp(this.resource.Make(model), this.root).SerializeForIndex(c))
+					indexResources = append(indexResources, newResourceWarp(this.resource.Make(model), this.root).serializeForIndex(c))
 				}
 			}
 

@@ -1,5 +1,7 @@
 package vue
 
+import "github.com/gin-gonic/gin"
+
 type CustomCreateTitle interface {
 	CreateTitle() string
 }
@@ -18,6 +20,11 @@ type CustomDetailTitle interface {
 
 type CustomCreateButtonName interface {
 	CreateButtonName() string
+}
+
+// 自定义vue路由
+type CustomVueRouter interface {
+	CustomVueRouter(ctx *gin.Context, warp *ResourceWarp) []*Router
 }
 
 type Router struct {

@@ -5,6 +5,7 @@ import (
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
 	"go-shop-v2/app/services"
+	"go-shop-v2/app/vue/policies"
 	"go-shop-v2/app/vue/resources"
 	"go-shop-v2/config"
 	"go-shop-v2/pkg/auth"
@@ -26,22 +27,7 @@ var Providers []func() support.ServiceProvider = []func() support.ServiceProvide
 	db.NewMysqlServiceProvider,
 	auth.NewAuthServiceProvider,
 	vue.NewVueServiceProvider,
-	models.NewModelServiceProvider,
-	repositories.NewRepositoryServiceProvider,
-	services.NewServiceServiceProvider,
-	resources.NewVueResourceServiceProvider,
-}
-
-var TestProvider []func() support.ServiceProvider = []func() support.ServiceProvider{
-	event.NewEventServiceProvider,
-	config.NewConfigServiceProvider,
-	listeners.NewListenerServiceProvider,
-	qiniu.NewQiniuServiceProvider,
-	//http.NewHttpServiceProvider,
-	db.NewMongodbServiceProvider,
-	db.NewMysqlServiceProvider,
-	auth.NewAuthServiceProvider,
-	//vue.NewVueServiceProvider,
+	policies.NewPolicyServiceProvider,
 	models.NewModelServiceProvider,
 	repositories.NewRepositoryServiceProvider,
 	services.NewServiceServiceProvider,

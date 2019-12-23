@@ -17,7 +17,7 @@ func TestNewAdminRep(t *testing.T) {
 		Username: "zhouchang",
 		Nickname: "小周",
 		Type:     "root",
-		Shops:    nil,
+		Shops:    []*models.AssociatedShop{},
 	}
 	admin.SetPassword("123456")
 	created := <-rep.Create(context.Background(), admin)
@@ -27,4 +27,3 @@ func TestNewAdminRep(t *testing.T) {
 	}
 	t.Logf("%+v", created.Result)
 }
-

@@ -10,7 +10,7 @@ import (
 )
 
 func init() {
-	register(NewBrand)
+	register(NewBrandResource)
 }
 
 type Brand struct {
@@ -19,8 +19,8 @@ type Brand struct {
 	rep   *repositories.BrandRep
 }
 
-func NewBrand(model *models.Brand, rep *repositories.BrandRep) *Brand {
-	return &Brand{model: model, rep: rep}
+func NewBrandResource(rep *repositories.BrandRep) *Brand {
+	return &Brand{model: &models.Brand{}, rep: rep}
 }
 
 type brandForm struct {
@@ -47,8 +47,9 @@ func (b *Brand) CreateFormParse(ctx *gin.Context) (entity interface{}, err error
 	return &models.Brand{Name: form.Name}, nil
 }
 
-func (b *Brand) IndexQuery(ctx *gin.Context, request *request.IndexRequest) {
+func (b *Brand) IndexQuery(ctx *gin.Context, request *request.IndexRequest) error {
 	request.SetSearchField("name")
+	return nil
 }
 
 func (b *Brand) Model() interface{} {
