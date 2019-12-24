@@ -5,15 +5,13 @@ import (
 	"go-shop-v2/pkg/request"
 )
 
+// 列表页api接口
 type ResourceHttpIndex interface {
 	ResourceHttpIndex() bool
 	IndexQuery(ctx *gin.Context, request *request.IndexRequest) error
 }
 
-type CustomResourceHttpIndex interface {
-	CustomResourceHttpIndex(ctx *gin.Context, request *request.IndexRequest)
-}
-
+// 详情页api接口
 type ResourceHttpShow interface {
 	ResourceHttpShow() bool
 }
@@ -50,7 +48,7 @@ type CustomHttpRouter interface {
 }
 
 // api路由生成
-func (this *ResourceWarp) HttpHandler(router gin.IRouter) {
+func (this *ResourceWarp) httpHandler(router gin.IRouter) {
 	this.resourceIndexHandle(router)
 	this.resourceDetailHandle(router)
 	this.resourceCreateHandle(router)

@@ -42,7 +42,10 @@ func (this *ResourceWarp) resourceIndexHandle(router gin.IRouter) {
 				len := valueOf.Len()
 				for i := 0; i < len; i++ {
 					model := valueOf.Index(i).Interface()
-					indexResources = append(indexResources, newResourceWarp(this.resource.Make(model), this.root).serializeForIndex(c))
+
+					resource:= this.resource.Make(model)
+					resource.SetRoot(this.root)
+					indexResources = append(indexResources, newResourceWarp(resource, this.root).serializeForIndex(c))
 				}
 			}
 

@@ -6,6 +6,11 @@ import (
 
 // 资源基本结构
 type AbstractResource struct {
+	Root *Vue
+}
+
+func (this *AbstractResource) SetRoot(vue *Vue) {
+	this.Root = vue
 }
 
 // 是否有列表页路由
@@ -24,7 +29,7 @@ func (this *AbstractResource) HasEditRoute(ctx *gin.Context) bool {
 }
 
 // 左侧导航栏分组
-func (this *AbstractResource) Group() string {
+func (this AbstractResource) Group() string {
 	return "App"
 }
 
@@ -33,30 +38,39 @@ func (this *AbstractResource) DisplayInNavigation(ctx *gin.Context) bool {
 	return true
 }
 
+// 是否有列表页api
 func (this *AbstractResource) ResourceHttpIndex() bool {
 	return true
 }
 
+// 是否有详情页api
 func (this *AbstractResource) ResourceHttpShow() bool {
 	return true
 }
 
+// 是否有更新api
+// 需要实现 ResourceHttpUpdate接口
 func (this *AbstractResource) ResourceHttpUpdate() bool {
 	return true
 }
 
+// 是否有创建api
+// 需要实现 ResourceHttpCreate接口
 func (this *AbstractResource) ResourceHttpCreate() bool {
 	return true
 }
 
+// 是否有删除api
 func (this *AbstractResource) ResourceHttpDelete() bool {
 	return true
 }
 
+// 是否有硬删除api
 func (this *AbstractResource) ResourceHttpForceDelete() bool {
 	return true
 }
 
+// 是否有恢复api
 func (this *AbstractResource) ResourceHttpRestore() bool {
 	return true
 }
@@ -85,3 +99,11 @@ func (this *AbstractResource) Restored(ctx *gin.Context, resource interface{}) {
 func (this *AbstractResource) ForceDeleted(ctx *gin.Context, id string) {
 
 }
+
+// 自定义聚合
+func (this *AbstractResource) Lenses() []Lens {
+	return []Lens{}
+}
+
+// 自定义Cards
+// 暂未写

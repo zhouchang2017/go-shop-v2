@@ -42,7 +42,7 @@ func (v *vueServiceProvider) start(lifecycle fx.Lifecycle, vue *Vue) {
 
 	lifecycle.Append(fx.Hook{
 		OnStart: func(context context.Context) error {
-			vue.HttpHandler(group)
+			vue.httpHandler(group)
 			v.server = &http.Server{
 				Addr:           port,
 				Handler:        v.app,

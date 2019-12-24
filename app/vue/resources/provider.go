@@ -52,6 +52,10 @@ func (v *vueResourceServiceProvider) Boot() fx.Option {
 			vue.RegisterResource(resource)
 		}),
 
+		fx.Invoke(func(vue *vue.Vue, resource *Item) {
+			vue.RegisterResource(resource)
+		}),
+
 		fx.Invoke(func(vue *vue.Vue, resource *Shop) {
 			vue.RegisterResource(resource)
 		}),

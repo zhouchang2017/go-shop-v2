@@ -3,8 +3,9 @@ package vue
 import (
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"go-shop-v2/pkg/auth"
+	ctx2 "go-shop-v2/pkg/ctx"
 	"go-shop-v2/pkg/repository"
-	"go-shop-v2/pkg/utils"
 )
 
 // 可展示icon图标
@@ -19,21 +20,25 @@ type Resource interface {
 	Repository() repository.IRepository        // 数据仓库
 	Make(model interface{}) Resource           // 实例化方法
 	SetModel(model interface{})
+	SetRoot(vue *Vue)
 	Title() string
 	// 前端路由定义
 	HasIndexRoute(ctx *gin.Context) bool
 	HasDetailRoute(ctx *gin.Context) bool
 	HasEditRoute(ctx *gin.Context) bool
+
+	Lenses() []Lens // 自定义聚合查询等
 	Observer
 }
 
 type ResourceWarp struct {
 	resource Resource
 	root     *Vue
+	*ResourceHelper
 }
 
 func newResourceWarp(resource Resource, root *Vue) *ResourceWarp {
-	return &ResourceWarp{resource: resource, root: root}
+	return &ResourceWarp{resource: resource, root: root, ResourceHelper: NewResourceHelper(resource)}
 }
 
 func (this *ResourceWarp) CreateButtonName() string {
@@ -43,53 +48,10 @@ func (this *ResourceWarp) CreateButtonName() string {
 	return fmt.Sprintf("创建%s", this.resource.Title())
 }
 
-// Get the displayable label of the resource.
-func (this *ResourceWarp) Label() string {
-	return utils.StrToPlural(utils.StructToName(this.resource))
-}
-
-// Get the displayable singular label of the resource.
-func (this *ResourceWarp) SingularLabel() string {
-	return StructToSingularLabel(this.resource)
-}
-
-func StructToSingularLabel(resource interface{}) string {
-	return utils.StrToSingular(utils.StructToName(resource))
-}
-
-func ResourceID(resource interface{}) string {
-	return utils.StrToSingular(utils.StructToName(resource))
-}
-
-// Get the URI key for the resource.
-func (this *ResourceWarp) UriKey() string {
-	return utils.StructNameToSnakeAndPlural(this.resource)
-}
-
-// vue列表路由
-func (this *ResourceWarp) IndexRouterName() string {
-	return fmt.Sprintf("%s.index", this.SingularLabel())
-}
-
-// vue详情路由
-func (this *ResourceWarp) DetailRouterName() string {
-	return fmt.Sprintf("%s.detail", this.SingularLabel())
-}
-
-// vue编辑路由
-func (this *ResourceWarp) EditRouterName() string {
-	return fmt.Sprintf("%s.edit", this.SingularLabel())
-}
-
-// vue创建路由
-func (this *ResourceWarp) CreateRouterName() string {
-	return fmt.Sprintf("%s.create", this.SingularLabel())
-}
-
 // 生成前端路由对象
 func (this *ResourceWarp) routers(ctx *gin.Context) []*Router {
 	var routers []*Router
-	uri := this.UriKey()
+	uri := this.VueUriKey()
 
 	var authorizedToCreate = this.AuthorizedToCreate(ctx)
 	// 自定义路由
@@ -109,6 +71,7 @@ func (this *ResourceWarp) routers(ctx *gin.Context) []*Router {
 		router.WithMeta("AuthorizedToCreate", authorizedToCreate)
 		router.WithMeta("Title", this.resource.Title())
 		router.WithMeta("ResourceName", this.SingularLabel())
+		router.WithMeta("ResourceUriKey", this.UriKey())
 
 		router.WithMeta("CreateButtonText", this.CreateButtonName())
 		router.WithMeta("CreateRouterName", this.CreateRouterName())
@@ -126,11 +89,11 @@ func (this *ResourceWarp) routers(ctx *gin.Context) []*Router {
 	}
 
 	// 创建页面路由
-	if  authorizedToCreate {
+	if authorizedToCreate {
 		router := &Router{
 			Path:      fmt.Sprintf("%s/create", uri),
 			Name:      this.CreateRouterName(),
-			Component: fmt.Sprintf(`%s/Make`, uri),
+			Component: fmt.Sprintf(`%s/Create`, uri),
 			Hidden:    true,
 		}
 		router.WithMeta("Title", this.CreateButtonName())
@@ -173,6 +136,24 @@ func (this *ResourceWarp) routers(ctx *gin.Context) []*Router {
 			listener.OnUpdateRouteCreated(ctx, router)
 		}
 		routers = append(routers, router)
+	}
+
+	// lenses routers
+	for _, lens := range this.resource.Lenses() {
+		if lens.AuthorizedTo(ctx, ctx2.GetUser(ctx).(auth.Authenticatable)) {
+			router := &Router{
+				Path:      fmt.Sprintf("%s/lenses/%s", uri, lens.UriKey()),
+				Name:      lensRouterName(lens, uri),
+				Component: lens.Component(),
+				Hidden:    true,
+			}
+			router.WithMeta("Title", lens.Title())
+			router.WithMeta("IndexRouterName", this.IndexRouterName())
+			router.WithMeta("ResourceName", this.SingularLabel())
+			router.WithMeta("IndexTitle", this.resource.Title())
+			router.WithMeta("LensApiUri", lensApiUri(lens, this.UriKey()))
+			routers = append(routers, router)
+		}
 	}
 
 	return routers

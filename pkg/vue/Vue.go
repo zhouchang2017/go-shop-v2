@@ -15,6 +15,7 @@ type Vue struct {
 	guard            string
 	policies         map[string]interface{}
 	customHttpHandle []func(router gin.IRouter)
+	warps            map[string]*ResourceWarp
 }
 
 func (this *Vue) SetGuard(guard string) {
@@ -47,7 +48,7 @@ type adminCredentials struct {
 	Password string `json:"password" form:"password"`
 }
 
-func (this *Vue) AuthHttpHandler(router gin.IRouter) {
+func (this *Vue) authHttpHandler(router gin.IRouter) {
 	router.POST("/auth/login", func(c *gin.Context) {
 		form := &adminCredentials{}
 		if err := c.ShouldBind(form); err != nil {
@@ -78,18 +79,37 @@ func (this *Vue) AuthHttpHandler(router gin.IRouter) {
 		c.JSON(http.StatusOK, ctx.GetUser(c))
 	})
 }
-func (this *Vue) HttpHandler(router gin.IRouter) {
 
-	this.AuthHttpHandler(router)
+func (this *Vue) addWarp(resource Resource, warp *ResourceWarp) {
+	this.warps[utils.StructToName(resource)] = warp
+}
+
+func (this *Vue) ResolveWarp(resource Resource) (warp *ResourceWarp, ok bool) {
+	if warp, ok = this.warps[utils.StructToName(resource)]; ok {
+		return warp, true
+	}
+	return nil, false
+}
+
+func (this *Vue) httpHandler(router gin.IRouter) {
+
+	this.authHttpHandler(router)
 	router.Use(auth.AuthMiddleware(this.guard))
-
-	// vue路由配置
-	this.ProviderVueRouteConfig(router)
 
 	// RESTFUL API
 	for _, resource := range this.resources {
-		newResourceWarp(resource, this).HttpHandler(router)
+		warp := newResourceWarp(resource, this)
+		resource.SetRoot(this)
+
+		this.addWarp(resource, warp) // 保存warp
+
+		warp.httpHandler(router)
+		warp.resourceLensesIndexHandle(router)
+		warp.resourceLensesDetailHandle(router)
 	}
+
+	// vue路由配置
+	this.providerVueRouteConfig(router)
 
 	// 自定义路由
 	for _, handle := range this.customHttpHandle {
@@ -97,17 +117,17 @@ func (this *Vue) HttpHandler(router gin.IRouter) {
 	}
 }
 
-func (this *Vue) ProviderVueRouteConfig(router gin.IRouter) {
+func (this *Vue) providerVueRouteConfig(router gin.IRouter) {
 	router.GET("/routers", func(c *gin.Context) {
-		routers := this.VueRouters(c)
+		routers := this.vueRouters(c)
 		c.JSON(http.StatusOK, routers)
 	})
 }
 
-func (this *Vue) VueRouters(ctx *gin.Context) []*Router {
+func (this *Vue) vueRouters(ctx *gin.Context) []*Router {
 	var routers []*Router
-	for _, resource := range this.resources {
-		routers = append(routers, newResourceWarp(resource, this).routers(ctx)...)
+	for _, warp := range this.warps {
+		routers = append(routers, warp.routers(ctx)...)
 	}
 	return routers
 }
@@ -115,5 +135,6 @@ func (this *Vue) VueRouters(ctx *gin.Context) []*Router {
 func NewVue() *Vue {
 	return &Vue{
 		policies: map[string]interface{}{},
+		warps:    map[string]*ResourceWarp{},
 	}
 }

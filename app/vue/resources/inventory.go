@@ -1,18 +1,16 @@
 package resources
 
 import (
-	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/mitchellh/mapstructure"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
 	"go-shop-v2/app/services"
-	err2 "go-shop-v2/pkg/err"
+	"go-shop-v2/app/vue/lenses"
 	"go-shop-v2/pkg/repository"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/vue"
 	"go.mongodb.org/mongo-driver/bson"
-	"net/http"
 )
 
 func init() {
@@ -25,68 +23,34 @@ type Inventory struct {
 	model   *models.Inventory
 	rep     *repositories.InventoryRep
 	service *services.InventoryService
+	helper  *vue.ResourceHelper
 }
 
-// vue列表页路由创建后置hook
-func (i *Inventory) OnIndexRouteCreated(ctx *gin.Context, router *vue.Router) {
-	router.WithMeta("Lenses", []map[string]string{
-		{
-			"name":       "多门店聚合",
-			"routerName": fmt.Sprintf("%s.aggregate", vue.StructToSingularLabel(Inventory{})),
-		},
-	})
-}
-
-// 自定义vue路由
-func (i *Inventory) CustomVueRouter(ctx *gin.Context, warp *vue.ResourceWarp) []*vue.Router {
-	var routers []*vue.Router
-	routers = append(routers, i.aggregateRouter(ctx, warp))
-	return routers
-}
-
-// vue首页聚合路由
-func (i *Inventory) aggregateRouter(ctx *gin.Context, warp *vue.ResourceWarp) *vue.Router {
-	router := &vue.Router{
-		Path:      fmt.Sprintf("%s/aggregate", warp.UriKey()),
-		Name:      fmt.Sprintf("%s.aggregate", warp.SingularLabel()),
-		Component: fmt.Sprintf(`%s/Aggregate`, warp.UriKey()),
-		Hidden:    true,
+func (this *Inventory) OnIndexRouteCreated(ctx *gin.Context, router *vue.Router) {
+	// 库存操作权限
+	authorizedToAction := false
+	if action, ok := this.Root.ResolveWarp(&ManualInventoryAction{}); ok {
+		authorizedToAction = action.AuthorizedToCreate(ctx)
+		router.WithMeta("ActionButtonText", "库存操作")
+		router.WithMeta("ActionRouterName", action.CreateRouterName())
 	}
-	router.WithMeta("Title", "多门店聚合")
-	router.WithMeta("ResourceName", warp.SingularLabel())
-	router.WithMeta("IndexRouterName", warp.IndexRouterName())
-	router.WithMeta("IndexTitle", i.Title())
-	return router
+	router.WithMeta("AuthorizedToAction", authorizedToAction)
 }
 
-// 自定义api
-func (i *Inventory) CustomHttpRouters(router gin.IRouter, uri string, singularLabel string) {
-	i.aggregate(router, uri, singularLabel)
+func (this *Inventory) ResourceHttpDelete() bool {
+	return false
 }
 
-// 首页聚合
-func (i *Inventory) aggregate(router gin.IRouter, uri string, singularLabel string) {
-	router.GET(fmt.Sprintf("aggregate/%s", uri, ), func(c *gin.Context) {
-		filter := &request.IndexRequest{}
-		if err := c.ShouldBind(filter); err != nil {
-			err2.ErrorEncoder(nil, err, c.Writer)
-			return
-		}
+func (this *Inventory) ResourceHttpForceDelete() bool {
+	return false
+}
 
-		data, pagination, err := i.service.Aggregate(c, filter)
-		if err != nil {
-			err2.ErrorEncoder(nil, err, c.Writer)
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{
-			"pagination": pagination,
-			"data":       data,
-		})
-	})
+func (this *Inventory) ResourceHttpRestore() bool {
+	return false
 }
 
 func NewInventoryResource(rep *repositories.InventoryRep, service *services.InventoryService) *Inventory {
-	return &Inventory{model: &models.Inventory{}, rep: rep, service: service}
+	return &Inventory{model: &models.Inventory{}, rep: rep, service: service, helper: vue.NewResourceHelper(&Inventory{})}
 }
 
 func (i *Inventory) IndexQuery(ctx *gin.Context, request *request.IndexRequest) error {
@@ -140,4 +104,11 @@ func (Inventory) Group() string {
 // 自定义创建Resource按钮文字
 func (Inventory) CreateButtonName() string {
 	return "产品入库"
+}
+
+// 自定义聚合
+func (i Inventory) Lenses() []vue.Lens {
+	return []vue.Lens{
+		lenses.NewInventoryAggregateLens(&Inventory{}, i.service),
+	}
 }

@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
@@ -21,10 +22,32 @@ type ManualInventoryAction struct {
 	model   *models.ManualInventoryAction
 	rep     *repositories.ManualInventoryActionRep
 	service *services.ManualInventoryActionService
+	helper  *vue.ResourceHelper
+}
+
+func (m *ManualInventoryAction) OnUpdateRouteCreated(ctx *gin.Context, router *vue.Router) {
+	router.WithMeta("types", m.model.Types())
+}
+
+func (m *ManualInventoryAction) OnCreateRouteCreated(ctx *gin.Context, router *vue.Router) {
+	router.WithMeta("types", m.model.Types())
+}
+
+// 自定义vue路由uri
+func (m *ManualInventoryAction) CustomVueUriKey() string {
+	if inventory, ok := m.Root.ResolveWarp(&Inventory{}); ok {
+		return fmt.Sprintf("%s/%s", inventory.VueUriKey(), m.helper.UriKey())
+	}
+	return m.helper.UriKey()
 }
 
 func NewManualInventoryActionResource(rep *repositories.ManualInventoryActionRep, service *services.ManualInventoryActionService) *ManualInventoryAction {
-	return &ManualInventoryAction{model: &models.ManualInventoryAction{}, rep: rep, service: service}
+	return &ManualInventoryAction{
+		model:   &models.ManualInventoryAction{},
+		rep:     rep,
+		service: service,
+		helper:  vue.NewResourceHelper(&ManualInventoryAction{}),
+	}
 }
 
 type manualInventoryActionForm struct {
@@ -105,6 +128,6 @@ func (ManualInventoryAction) Group() string {
 	return "Shop"
 }
 
-func (ManualInventoryAction) Icon() string {
-	return "i-repeat"
+func (ManualInventoryAction) DisplayInNavigation(ctx *gin.Context) bool {
+	return false
 }

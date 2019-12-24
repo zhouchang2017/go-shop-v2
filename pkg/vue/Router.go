@@ -27,6 +27,11 @@ type CustomVueRouter interface {
 	CustomVueRouter(ctx *gin.Context, warp *ResourceWarp) []*Router
 }
 
+// 自定义vue路由uri
+type CustomVueUriKey interface {
+	CustomVueUriKey() string
+}
+
 type Router struct {
 	Path      string    `json:"path"`
 	Component string    `json:"component"`

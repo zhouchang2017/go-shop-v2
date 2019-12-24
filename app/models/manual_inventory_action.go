@@ -52,6 +52,19 @@ type ManualInventoryAction struct {
 	Status           manualInventoryActionStatus  `json:"status"`
 }
 
+func (this *ManualInventoryAction) Types() []map[string]interface{} {
+	return []map[string]interface{}{
+		{
+			"name":  "入库",
+			"value": MANUAL_TYPE_PUT,
+		},
+		{
+			"name":   "出库",
+			"values": MANUAL_TYPE_TAKE,
+		},
+	}
+}
+
 func (this *ManualInventoryAction) SetType(t int8) (error) {
 	res, err := this.Type.Make(t)
 	if err != nil {

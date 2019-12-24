@@ -30,5 +30,8 @@ func (*PolicyServiceProvider) Boot() fx.Option {
 		fx.Invoke(func(vue *vue.Vue, policy *InventoryPolicy) {
 			vue.RegisterPolice(policy)
 		}),
+		fx.Invoke(func(vue *vue.Vue, policy *ManualInventoryActionPolicy) {
+			vue.RegisterPolice(policy)
+		}),
 	)
 }
