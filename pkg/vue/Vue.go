@@ -98,7 +98,7 @@ func (this *Vue) httpHandler(router gin.IRouter) {
 
 	// RESTFUL API
 	for _, resource := range this.resources {
-		warp := newResourceWarp(resource, this)
+		warp := NewResourceWarp(resource, this)
 		resource.SetRoot(this)
 
 		this.addWarp(resource, warp) // 保存warp
@@ -106,6 +106,7 @@ func (this *Vue) httpHandler(router gin.IRouter) {
 		warp.httpHandler(router)
 		warp.resourceLensesIndexHandle(router)
 		warp.resourceLensesDetailHandle(router)
+		warp.resourceLinksIndexHandle(router)
 	}
 
 	// vue路由配置

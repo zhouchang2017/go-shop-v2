@@ -28,6 +28,7 @@ type Resource interface {
 	HasEditRoute(ctx *gin.Context) bool
 
 	Lenses() []Lens // 自定义聚合查询等
+	Links() []Link  // 自定义Link
 	Observer
 }
 
@@ -37,7 +38,7 @@ type ResourceWarp struct {
 	*ResourceHelper
 }
 
-func newResourceWarp(resource Resource, root *Vue) *ResourceWarp {
+func NewResourceWarp(resource Resource, root *Vue) *ResourceWarp {
 	return &ResourceWarp{resource: resource, root: root, ResourceHelper: NewResourceHelper(resource)}
 }
 
@@ -142,7 +143,7 @@ func (this *ResourceWarp) routers(ctx *gin.Context) []*Router {
 	for _, lens := range this.resource.Lenses() {
 		if lens.AuthorizedTo(ctx, ctx2.GetUser(ctx).(auth.Authenticatable)) {
 			router := &Router{
-				Path:      fmt.Sprintf("%s/lenses/%s", uri, lens.UriKey()),
+				Path:      fmt.Sprintf("%s/lenses/%s", uri, lens.RouterName()),
 				Name:      lensRouterName(lens, uri),
 				Component: lens.Component(),
 				Hidden:    true,
@@ -152,6 +153,11 @@ func (this *ResourceWarp) routers(ctx *gin.Context) []*Router {
 			router.WithMeta("ResourceName", this.SingularLabel())
 			router.WithMeta("IndexTitle", this.resource.Title())
 			router.WithMeta("LensApiUri", lensApiUri(lens, this.UriKey()))
+
+			if listener, ok := lens.(ListenerLensRouteCreated); ok {
+				listener.OnLensRouteCreated(ctx, router)
+			}
+
 			routers = append(routers, router)
 		}
 	}
@@ -160,7 +166,7 @@ func (this *ResourceWarp) routers(ctx *gin.Context) []*Router {
 }
 
 // 列表页数据格式
-func (this *ResourceWarp) serializeForIndex(ctx *gin.Context) Metable {
+func (this *ResourceWarp) SerializeForIndex(ctx *gin.Context) Metable {
 	warp := &responseWarp{}
 	var maps = map[string]bool{}
 	maps["AuthorizedToView"], _ = this.AuthorizedToView(ctx)
@@ -194,7 +200,7 @@ type detailResourceWarp struct {
 }
 
 // 详情页数据格式
-func (this *ResourceWarp) serializeForDetail(ctx *gin.Context) Metable {
+func (this *ResourceWarp) SerializeForDetail(ctx *gin.Context) Metable {
 	warp := &responseWarp{}
 	var maps = map[string]bool{}
 	maps["AuthorizedToUpdate"], _ = this.AuthorizedToUpdate(ctx)

@@ -7,6 +7,7 @@ import (
 	"go-shop-v2/app/repositories"
 	"go-shop-v2/app/services"
 	"go-shop-v2/app/vue/lenses"
+	"go-shop-v2/pkg/auth"
 	"go-shop-v2/pkg/repository"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/vue"
@@ -110,5 +111,28 @@ func (Inventory) CreateButtonName() string {
 func (i Inventory) Lenses() []vue.Lens {
 	return []vue.Lens{
 		lenses.NewInventoryAggregateLens(&Inventory{}, i.service),
+	}
+}
+
+type manualActionsLink struct {
+}
+
+func (manualActionsLink) AuthorizedTo(ctx *gin.Context, user auth.Authenticatable) bool {
+	admin := user.(*models.Admin)
+	return len(admin.Shops) > 0
+}
+
+func (manualActionsLink) Title() string {
+	return "库存操作"
+}
+
+func (manualActionsLink) RouterName() string {
+	return vue.NewResourceHelper(&ManualInventoryAction{}).IndexRouterName()
+}
+
+// 自定义link
+func (i Inventory) Links() []vue.Link {
+	return []vue.Link{
+		manualActionsLink{},
 	}
 }

@@ -105,5 +105,10 @@ func (this *AbstractResource) Lenses() []Lens {
 	return []Lens{}
 }
 
+// 自定义Link
+func (this *AbstractResource) Links() []Link  {
+	return []Link{}
+}
+
 // 自定义Cards
 // 暂未写

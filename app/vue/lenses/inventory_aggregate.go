@@ -18,7 +18,7 @@ type InventoryAggregateLens struct {
 	helper   *vue.ResourceHelper
 }
 
-func (this InventoryAggregateLens) UriKey() string {
+func (this InventoryAggregateLens) RouterName() string {
 	return "aggregate"
 }
 
@@ -36,10 +36,6 @@ func (InventoryAggregateLens) Title() string {
 
 func (this *InventoryAggregateLens) Component() string {
 	return fmt.Sprintf(`%s/Aggregate`, this.helper.UriKey())
-}
-
-func (*InventoryAggregateLens) VueRouter() vue.Router {
-	panic("implement me")
 }
 
 func (i *InventoryAggregateLens) HttpHandle() func(ctx *gin.Context) {

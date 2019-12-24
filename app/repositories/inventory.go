@@ -23,7 +23,6 @@ type InventoryRep struct {
 	*mongoRep
 }
 
-
 func (this *InventoryRep) AggregatePagination(ctx context.Context, req *request.IndexRequest) <-chan repository.QueryPaginationResult {
 	result := make(chan repository.QueryPaginationResult)
 
@@ -134,8 +133,27 @@ type QueryOption struct {
 //	q.Status = &status
 //}
 
-func (this *InventoryRep) Query(ctx context.Context, opt *QueryOption) {
-	filter := bson.M{}
+func (this *InventoryRep) Pagination(ctx context.Context, req *request.IndexRequest) <-chan repository.QueryPaginationResult {
+	result := make(chan repository.QueryPaginationResult)
+	req.SetSearchField("item.code")
+	filters := req.Filters.Unmarshal()
+	options := &QueryOption{}
+	err := mapstructure.Decode(filters, options)
+	spew.Dump(options)
+	if err != nil {
+		defer close(result)
+		result <- repository.QueryPaginationResult{Error: err}
+		return result
+	}
+	if len(options.Status) > 0 {
+		req.AppendFilter("status", bson.D{{"$in", options.Status}})
+	}
+	if len(options.Shops) > 0 {
+		req.AppendFilter("shop.id", bson.D{{"$in", options.Shops}})
+	}
+
+	return this.mongoRep.Pagination(ctx, req)
+
 	//if opt.ItemCode != "" {
 	//	filter["item.code"] = opt.ItemCode
 	//}
@@ -164,7 +182,6 @@ func (this *InventoryRep) Query(ctx context.Context, opt *QueryOption) {
 	//		"$maxDistance": 1000,
 	//	}
 	//}
-	this.Collection().Find(ctx, filter, options.Find().SetSort(bson.M{"qty": -1}))
 }
 
 // 索引

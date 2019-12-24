@@ -85,9 +85,9 @@ func (this *ManualInventoryAction) SetStatusToSaved() {
 
 // 标准库存操作子项
 type ManualInventoryActionItem struct {
-	ItemId string          `json:"item_id"`
-	Qty    int64           `json:"qty"`
-	Status InventoryStatus `json:"status"`
+	AssociatedItem `inline`
+	Qty            int64           `json:"qty"`
+	Status         InventoryStatus `json:"status"`
 }
 
 func (this *ManualInventoryActionItem) SetStatus(status int8) {

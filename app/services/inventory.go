@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
+	"go-shop-v2/pkg/repository"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"go.mongodb.org/mongo-driver/bson"
@@ -17,17 +18,18 @@ func init() {
 }
 
 type InventoryService struct {
-	rep     *repositories.InventoryRep
-	shopRep *repositories.ShopRep
-	itemRep *repositories.ItemRep
+	rep       *repositories.InventoryRep
+	shopRep   *repositories.ShopRep
+	itemRep   *repositories.ItemRep
+	actionRep *repositories.ManualInventoryActionRep
 }
 
 func (this *InventoryService) GetRepository() *repositories.InventoryRep {
 	return this.rep
 }
 
-func NewInventoryService(rep *repositories.InventoryRep, shopRep *repositories.ShopRep, itemRep *repositories.ItemRep) *InventoryService {
-	return &InventoryService{rep: rep, shopRep: shopRep, itemRep: itemRep}
+func NewInventoryService(rep *repositories.InventoryRep, shopRep *repositories.ShopRep, itemRep *repositories.ItemRep, actionRep *repositories.ManualInventoryActionRep) *InventoryService {
+	return &InventoryService{rep: rep, shopRep: shopRep, itemRep: itemRep, actionRep: actionRep}
 }
 
 func (this *InventoryService) Aggregate(ctx context.Context, req *request.IndexRequest) (data []*models.AggregateInventory, pagination response.Pagination, err error) {
@@ -40,9 +42,9 @@ func (this *InventoryService) Aggregate(ctx context.Context, req *request.IndexR
 	s := shopsRes.Result.([]*models.Shop)
 	for _, shop := range s {
 		shops = append(shops, &models.InventoryUnitShop{
-			Id:          shop.GetID(),
-			Name:        shop.Name,
-			Qty:         0,
+			Id:   shop.GetID(),
+			Name: shop.Name,
+			Qty:  0,
 		})
 	}
 	req.SetSearchField("item.code")
@@ -93,10 +95,6 @@ func (this *InventoryService) Put(ctx context.Context, shopId string, itemId str
 	return inventory, nil
 }
 
-//func (this *InventoryService)  {
-//
-//}
-
 // 出库
 func (this *InventoryService) Take(ctx context.Context, id string, qty int64) (inventory *models.Inventory, err error) {
 	byIdRes := <-this.rep.FindById(ctx, id)
@@ -117,4 +115,10 @@ func (this *InventoryService) Take(ctx context.Context, id string, qty int64) (i
 	}
 
 	return nil, fmt.Errorf("剩余库存不足！剩余库存 %d ,需出库数量 %d", inventory.Qty, qty)
+}
+
+// 手动操作记录
+func (this *InventoryService) ManualActions(ctx context.Context, req *request.IndexRequest) <-chan repository.QueryPaginationResult {
+
+	return this.actionRep.Pagination(ctx, req)
 }

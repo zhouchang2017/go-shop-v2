@@ -39,7 +39,7 @@ func (this *ResourceWarp) resourceDetailHandle(router gin.IRouter) {
 			resource:= this.resource.Make(model)
 			resource.SetRoot(this.root)
 
-			c.JSON(http.StatusOK, newResourceWarp(resource, this.root).serializeForDetail(c))
+			c.JSON(http.StatusOK, NewResourceWarp(resource, this.root).SerializeForDetail(c))
 		})
 	}
 

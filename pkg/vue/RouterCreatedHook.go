@@ -21,3 +21,8 @@ type ListenerUpdateRouteCreated interface {
 type ListenerCreateRouteCreated interface {
 	OnCreateRouteCreated(ctx *gin.Context, router *Router)
 }
+
+// Lens路由生成监听
+type ListenerLensRouteCreated interface {
+	OnLensRouteCreated(ctx *gin.Context, router *Router)
+}
