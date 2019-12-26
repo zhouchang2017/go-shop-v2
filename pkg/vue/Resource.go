@@ -65,7 +65,8 @@ func (this *ResourceWarp) routers(ctx *gin.Context) []*Router {
 		router := &Router{
 			Path:      uri,
 			Name:      this.IndexRouterName(),
-			Component: fmt.Sprintf(`%s/Index`, uri),
+			//Component: fmt.Sprintf(`%s/Index`, uri),
+			Component: "Index",
 			Hidden:    !this.resource.DisplayInNavigation(ctx),
 		}
 
@@ -178,6 +179,11 @@ func (this *ResourceWarp) SerializeForIndex(ctx *gin.Context) Metable {
 	for k, v := range maps {
 		warp.WithMeta(k, v)
 	}
+	// DetailRouterName
+	warp.WithMeta("DetailRouterName",this.DetailRouterName())
+	// EditRouterName
+	warp.WithMeta("EditRouterName",this.EditRouterName())
+
 	warp.Data = this.resource.Model()
 	return warp
 }
@@ -216,6 +222,7 @@ func (this *ResourceWarp) SerializeForDetail(ctx *gin.Context) Metable {
 	if (maps["AuthorizedToUpdate"]) {
 		warp.WithMeta("EditRouterName", this.EditRouterName())
 	}
+
 
 	warp.Data = this.resource.Model()
 	return warp

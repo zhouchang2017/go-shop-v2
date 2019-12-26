@@ -60,7 +60,7 @@ func (this *ManualInventoryAction) Types() []map[string]interface{} {
 		},
 		{
 			"name":   "出库",
-			"values": MANUAL_TYPE_TAKE,
+			"value": MANUAL_TYPE_TAKE,
 		},
 	}
 }

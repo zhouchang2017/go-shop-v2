@@ -23,6 +23,11 @@ type Admin struct {
 	service *services.AdminService
 }
 
+// 字段
+func (a *Admin) Fields(ctx *gin.Context,model interface{}) {
+	
+}
+
 func NewAdminResource(rep *repositories.AdminRep, service *services.AdminService) *Admin {
 	return &Admin{model: &models.Admin{}, rep: rep, service: service}
 }
@@ -43,6 +48,7 @@ type adminUpdateForm struct {
 	Type     string                   `json:"type" form:"type"`
 	Shops    []*models.AssociatedShop `json:"shops" form:"shops"`
 }
+
 
 func (a *Admin) UpdateFormParse(ctx *gin.Context, model interface{}) (entity interface{}, err error) {
 	form := &adminUpdateForm{}
