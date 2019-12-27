@@ -5,6 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go-shop-v2/pkg/auth"
 	ctx2 "go-shop-v2/pkg/ctx"
+	"go-shop-v2/pkg/db/model"
 	"go-shop-v2/pkg/repository"
 )
 
@@ -63,8 +64,8 @@ func (this *ResourceWarp) routers(ctx *gin.Context) []*Router {
 	// 列表页路由
 	if this.resource.HasIndexRoute(ctx) {
 		router := &Router{
-			Path:      uri,
-			Name:      this.IndexRouterName(),
+			Path: uri,
+			Name: this.IndexRouterName(),
 			//Component: fmt.Sprintf(`%s/Index`, uri),
 			Component: "Index",
 			Hidden:    !this.resource.DisplayInNavigation(ctx),
@@ -72,8 +73,7 @@ func (this *ResourceWarp) routers(ctx *gin.Context) []*Router {
 
 		router.WithMeta("AuthorizedToCreate", authorizedToCreate)
 		router.WithMeta("Title", this.resource.Title())
-		router.WithMeta("ResourceName", this.SingularLabel())
-		router.WithMeta("ResourceUriKey", this.UriKey())
+		router.WithMeta("ResourceName", this.UriKey())
 
 		router.WithMeta("CreateButtonText", this.CreateButtonName())
 		router.WithMeta("CreateRouterName", this.CreateRouterName())
@@ -83,6 +83,8 @@ func (this *ResourceWarp) routers(ctx *gin.Context) []*Router {
 		if iconable, ok := this.resource.(Iconable); ok {
 			router.WithMeta("icon", iconable.Icon())
 		}
+		// 追加列
+		router.WithMeta("Headings", this.resolveIndexFields(ctx))
 
 		if listener, ok := this.resource.(ListenerIndexRouteCreated); ok {
 			listener.OnIndexRouteCreated(ctx, router)
@@ -116,6 +118,7 @@ func (this *ResourceWarp) routers(ctx *gin.Context) []*Router {
 			Hidden:    true,
 		}
 		router.WithMeta("Title", this.resource.Title()+""+"详情")
+		router.WithMeta("ResourceName", this.UriKey())
 		router.WithMeta("IndexRouterName", this.IndexRouterName())
 		if listener, ok := this.resource.(ListenerDetailRouteCreated); ok {
 			listener.OnDetailRouteCreated(ctx, router)
@@ -180,17 +183,94 @@ func (this *ResourceWarp) SerializeForIndex(ctx *gin.Context) Metable {
 		warp.WithMeta(k, v)
 	}
 	// DetailRouterName
-	warp.WithMeta("DetailRouterName",this.DetailRouterName())
+	warp.WithMeta("DetailRouterName", this.DetailRouterName())
 	// EditRouterName
-	warp.WithMeta("EditRouterName",this.EditRouterName())
+	warp.WithMeta("EditRouterName", this.EditRouterName())
 
-	warp.Data = this.resource.Model()
+	isSoftDeleted := false
+	if softable, ok := this.resource.Model().(model.IModel); ok {
+		isSoftDeleted = softable.IsSoftDeleted()
+	}
+	warp.WithMeta("SoftDeleted", isSoftDeleted)
+
+	if _, ok := this.resource.(HasFields); ok {
+
+		var item []Field
+		for _, field := range this.resolveIndexFields(ctx) {
+			field.Resolve(ctx, this.resource.Model())
+			item = append(item, field)
+
+			if id, ok := field.(*ID); ok {
+				warp.Id = id
+			}
+		}
+
+		warp.Data = item
+
+	} else {
+		warp.Data = this.resource.Model()
+	}
+
 	return warp
+}
+
+func (this *ResourceWarp) resolveIndexFields(ctx *gin.Context) []Field {
+	var item []Field
+	if hasFields, ok := this.resource.(HasFields); ok {
+		fields := hasFields.Fields(ctx, this.resource.Model())
+		for _, field := range fields() {
+			if isField, ok := field.(Field); ok {
+				if isField.ShowOnIndex() && isField.AuthorizedTo(ctx, ctx2.GetUser(ctx).(auth.Authenticatable)) {
+					item = append(item, isField)
+					continue
+				}
+			}
+
+			if isPanel, ok := field.(*Panel); ok {
+				for _, panalField := range isPanel.Fields {
+					if panalField.ShowOnIndex() && panalField.AuthorizedTo(ctx, ctx2.GetUser(ctx).(auth.Authenticatable)) {
+						item = append(item, panalField)
+					}
+				}
+			}
+
+		}
+	}
+	return item
+}
+
+func (this *ResourceWarp) resolveDetailFields(ctx *gin.Context) ([]Field, []*Panel) {
+	var item []Field
+	var panel []*Panel
+	if hasFields, ok := this.resource.(HasFields); ok {
+		fields := hasFields.Fields(ctx, this.resource.Model())
+		for _, field := range fields() {
+
+			if isField, ok := field.(Field); ok {
+				if isField.ShowOnDetail() && isField.AuthorizedTo(ctx, ctx2.GetUser(ctx).(auth.Authenticatable)) {
+					item = append(item, isField)
+					continue
+				}
+			}
+
+			if isPanel, ok := field.(*Panel); ok {
+				for _, panalField := range isPanel.Fields {
+					if panalField.ShowOnDetail() && panalField.AuthorizedTo(ctx, ctx2.GetUser(ctx).(auth.Authenticatable)) {
+						item = append(item, panalField)
+					}
+				}
+				panel = append(panel, isPanel)
+			}
+
+		}
+	}
+	return item, panel
 }
 
 type responseWarp struct {
 	Meta MetaItems   `json:"meta"`
-	Data interface{} `json:"data"`
+	Id   *ID         `json:"id"`
+	Data interface{} `json:"fields"`
 }
 
 func (m *responseWarp) WithMeta(key string, value interface{}) {
@@ -198,16 +278,22 @@ func (m *responseWarp) WithMeta(key string, value interface{}) {
 }
 
 type detailResourceWarp struct {
-	AuthorizedToUpdate      bool
-	AuthorizedToDelete      bool
-	AuthorizedToRestore     bool
-	AuthorizedToForceDelete bool
-	Data                    interface{} `json:"data"`
+	Meta     MetaItems `json:"meta"`
+	Panels   []*Panel  `json:"panels"`
+	Resource struct {
+		Id     *ID     `json:"id"`
+		Fields []Field `json:"fields"`
+	} `json:"resource"`
+	Data interface{} `json:"data,omitempty"`
+}
+
+func (m *detailResourceWarp) WithMeta(key string, value interface{}) {
+	m.Meta = append(m.Meta, &metaItem{key, value})
 }
 
 // 详情页数据格式
 func (this *ResourceWarp) SerializeForDetail(ctx *gin.Context) Metable {
-	warp := &responseWarp{}
+	warp := &detailResourceWarp{}
 	var maps = map[string]bool{}
 	maps["AuthorizedToUpdate"], _ = this.AuthorizedToUpdate(ctx)
 	maps["AuthorizedToDelete"], _ = this.AuthorizedToDelete(ctx)
@@ -223,7 +309,37 @@ func (this *ResourceWarp) SerializeForDetail(ctx *gin.Context) Metable {
 		warp.WithMeta("EditRouterName", this.EditRouterName())
 	}
 
+	isSoftDeleted := false
+	if softable, ok := this.resource.Model().(model.IModel); ok {
+		isSoftDeleted = softable.IsSoftDeleted()
+	}
+	warp.WithMeta("SoftDeleted", isSoftDeleted)
 
-	warp.Data = this.resource.Model()
+	if _, ok := this.resource.(HasFields); ok {
+		var items []Field
+		var p []*Panel
+		defaulPanel := NewPanel(this.resource.Title() + "" + "详情")
+		fields, panels := this.resolveDetailFields(ctx)
+		for _, field := range fields {
+			if field.GetPanel() == "" {
+				defaulPanel.PrepareFields(field)
+			}
+			field.Resolve(ctx, this.resource.Model())
+			items = append(items, field)
+
+			if id, ok := field.(*ID); ok {
+				warp.Resource.Id = id
+			}
+		}
+
+		p = append(p, defaulPanel)
+		p = append(p, panels...)
+
+		warp.Resource.Fields = items
+		warp.Panels = p
+	} else {
+		warp.Data = this.resource.Model()
+	}
+
 	return warp
 }

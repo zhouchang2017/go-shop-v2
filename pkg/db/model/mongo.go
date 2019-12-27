@@ -36,3 +36,6 @@ func (this *MongoModel) SetUpdatedAt(t time.Time) {
 	this.UpdatedAt = t
 }
 
+func (this *MongoModel) IsSoftDeleted() bool {
+	return this.DeletedAt != nil
+}

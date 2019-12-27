@@ -31,3 +31,7 @@ func (this *GORMModel) SetCreatedAt(t time.Time) {
 func (this *GORMModel) SetUpdatedAt(t time.Time) {
 	this.UpdatedAt = t
 }
+
+func (this *GORMModel) IsSoftDeleted() bool {
+	return this.DeletedAt != nil
+}

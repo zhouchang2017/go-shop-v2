@@ -73,6 +73,20 @@ func (s *Shop) Updated(ctx *gin.Context, resource interface{}) {
 	event.Dispatch(events.ShopUpdated{Shop: resource.(*models.Shop)})
 }
 
+// 列表页&详情页展示字段设置
+func (s *Shop) Fields(ctx *gin.Context, model interface{}) func() []interface{} {
+	return func() []interface{} {
+		return []interface{}{
+			vue.NewIDField(),
+			vue.NewTextField("名称", "Name"),
+			vue.NewDateTime("创建时间", "CreatedAt"),
+			vue.NewDateTime("更新时间", "UpdatedAt"),
+
+			vue.NewPanel("地址", vue.NewTextField("省份", "Address.Province")),
+		}
+	}
+}
+
 // 列表页搜索处理
 func (s *Shop) IndexQuery(ctx *gin.Context, request *request.IndexRequest) error {
 	return nil

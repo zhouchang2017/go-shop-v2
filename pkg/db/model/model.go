@@ -8,4 +8,5 @@ type IModel interface {
 	GetUpdatedAt() time.Time
 	SetCreatedAt(t time.Time)
 	SetUpdatedAt(t time.Time)
+	IsSoftDeleted() bool
 }
