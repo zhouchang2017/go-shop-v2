@@ -4,7 +4,6 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	uuid "github.com/satori/go.uuid"
 	"go-shop-v2/app/models"
-	"reflect"
 	"testing"
 )
 
@@ -34,9 +33,5 @@ func TestNewTextField(t *testing.T) {
 			Areas:"深圳",
 		},
 	}
-	r := reflect.ValueOf(addr)
-	f := reflect.Indirect(r).FieldByName("Address.Addr")
-
-
-	spew.Dump(f)
+	spew.Dump(getValueByField(addr,"Address.Addr"))
 }

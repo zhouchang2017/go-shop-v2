@@ -162,26 +162,28 @@ func (this *BasicField) Resolve(ctx *gin.Context, model interface{}) {
 }
 
 func getValueByField(model interface{}, field string) interface{} {
-	if reflect.ValueOf(model).Kind() == reflect.Ptr {
-		elem := reflect.ValueOf(model).Elem()
 
-		attrs := strings.Split(field, ".")
-		if len(attrs) > 0 {
-			for _,attr:=range attrs {
-
-			}
-		}
-		f := elem.FieldByName(field)
-		if f.IsValid() {
-			return f.Interface()
+	var value reflect.Value
+	switch reflect.ValueOf(model).Kind() {
+	case reflect.Ptr:
+		value = reflect.ValueOf(model).Elem()
+	case reflect.Struct:
+		value = reflect.ValueOf(model)
+	}
+	attrs := strings.Split(field, ".")
+	if len(attrs) > 1 {
+		head := attrs[0]
+		others := strings.Join(attrs[1:], ".")
+		target := value.FieldByName(head)
+		if target.IsValid() {
+			return getValueByField(target.Interface(), others)
 		}
 	}
-	if reflect.ValueOf(model).Kind() == reflect.Struct {
-		elem := reflect.ValueOf(model)
-		f := elem.FieldByName(field)
-		if f.IsValid() {
-			return f.Interface()
-		}
+
+	f := value.FieldByName(field)
+	
+	if f.IsValid() {
+		return f.Interface()
 	}
 	return nil
 }
