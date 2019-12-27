@@ -23,6 +23,19 @@ func NewBrandResource(rep *repositories.BrandRep) *Brand {
 	return &Brand{model: &models.Brand{}, rep: rep}
 }
 
+// 列表页&详情页展示字段设置
+func (s *Brand) Fields(ctx *gin.Context, model interface{}) func() []interface{} {
+	return func() []interface{} {
+		return []interface{}{
+			vue.NewIDField(),
+			vue.NewTextField("名称", "Name"),
+			vue.NewDateTime("创建时间", "CreatedAt"),
+			vue.NewDateTime("更新时间", "UpdatedAt"),
+
+		}
+	}
+}
+
 type brandForm struct {
 	Name string `json:"name" form:"name" binding:"required"`
 }

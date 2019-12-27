@@ -82,7 +82,21 @@ func (s *Shop) Fields(ctx *gin.Context, model interface{}) func() []interface{} 
 			vue.NewDateTime("创建时间", "CreatedAt"),
 			vue.NewDateTime("更新时间", "UpdatedAt"),
 
-			vue.NewPanel("地址", vue.NewTextField("省份", "Address.Province")),
+			vue.NewPanel("地址",
+				vue.NewTextField("省份", "Address.Province", vue.OnlyOnDetail()),
+				vue.NewTextField("城市", "Address.City", vue.OnlyOnDetail()),
+				vue.NewTextField("区/县", "Address.Areas", vue.OnlyOnDetail()),
+				vue.NewTextField("详细地址", "Address.Addr", vue.OnlyOnDetail()),
+				vue.NewTextField("联系人", "Address.Name", vue.OnlyOnDetail()),
+				vue.NewTextField("电话", "Address.Phone", vue.OnlyOnDetail()),
+
+			),
+
+			vue.NewPanel("成员",
+				vue.NewTable("成员", "Members", map[string]string{
+					"ID": "id",
+					"昵称": "nickname",
+				})).SetWithoutPending(true),
 		}
 	}
 }

@@ -112,9 +112,10 @@ func (this *ResourceWarp) routers(ctx *gin.Context) []*Router {
 	// 详情页路由
 	if this.resource.HasDetailRoute(ctx) {
 		router := &Router{
-			Path:      fmt.Sprintf("%s/:id", uri),
-			Name:      this.DetailRouterName(),
-			Component: fmt.Sprintf(`%s/Detail`, uri),
+			Path: fmt.Sprintf("%s/:id", uri),
+			Name: this.DetailRouterName(),
+			//Component: fmt.Sprintf(`%s/Detail`, uri),
+			Component: "Detail",
 			Hidden:    true,
 		}
 		router.WithMeta("Title", this.resource.Title()+""+"详情")
@@ -227,9 +228,9 @@ func (this *ResourceWarp) resolveIndexFields(ctx *gin.Context) []Field {
 			}
 
 			if isPanel, ok := field.(*Panel); ok {
-				for _, panalField := range isPanel.Fields {
-					if panalField.ShowOnIndex() && panalField.AuthorizedTo(ctx, ctx2.GetUser(ctx).(auth.Authenticatable)) {
-						item = append(item, panalField)
+				for _, panelField := range isPanel.Fields {
+					if panelField.ShowOnIndex() && panelField.AuthorizedTo(ctx, ctx2.GetUser(ctx).(auth.Authenticatable)) {
+						item = append(item, panelField)
 					}
 				}
 			}
@@ -254,9 +255,9 @@ func (this *ResourceWarp) resolveDetailFields(ctx *gin.Context) ([]Field, []*Pan
 			}
 
 			if isPanel, ok := field.(*Panel); ok {
-				for _, panalField := range isPanel.Fields {
-					if panalField.ShowOnDetail() && panalField.AuthorizedTo(ctx, ctx2.GetUser(ctx).(auth.Authenticatable)) {
-						item = append(item, panalField)
+				for _, panelField := range isPanel.Fields {
+					if panelField.ShowOnDetail() && panelField.AuthorizedTo(ctx, ctx2.GetUser(ctx).(auth.Authenticatable)) {
+						item = append(item, panelField)
 					}
 				}
 				panel = append(panel, isPanel)
@@ -318,11 +319,12 @@ func (this *ResourceWarp) SerializeForDetail(ctx *gin.Context) Metable {
 	if _, ok := this.resource.(HasFields); ok {
 		var items []Field
 		var p []*Panel
-		defaulPanel := NewPanel(this.resource.Title() + "" + "详情")
+		defaultPanel := NewPanel(this.resource.Title() + "" + "详情")
+		defaultPanel.ShowToolbar = true
 		fields, panels := this.resolveDetailFields(ctx)
 		for _, field := range fields {
 			if field.GetPanel() == "" {
-				defaulPanel.PrepareFields(field)
+				defaultPanel.PrepareFields(field)
 			}
 			field.Resolve(ctx, this.resource.Model())
 			items = append(items, field)
@@ -332,7 +334,7 @@ func (this *ResourceWarp) SerializeForDetail(ctx *gin.Context) Metable {
 			}
 		}
 
-		p = append(p, defaulPanel)
+		p = append(p, defaultPanel)
 		p = append(p, panels...)
 
 		warp.Resource.Fields = items

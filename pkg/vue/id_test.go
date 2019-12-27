@@ -33,5 +33,5 @@ func TestNewTextField(t *testing.T) {
 			Areas:"深圳",
 		},
 	}
-	spew.Dump(getValueByField(addr,"Address.Addr"))
+	spew.Dump(getValueByField(addr,"Address.Areas"))
 }

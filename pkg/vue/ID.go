@@ -6,12 +6,14 @@ type ID struct {
 }
 
 func NewIDField(opts ...FieldOption) *ID {
-	opts = append(opts,
+	var options = []FieldOption{
 		SetPrefixComponent(true),
 		SetShowOnIndex(true),
 		SetShowOnDetail(true),
 		SetComponent("text-field"),
 		SetTextAlign("left"),
-	)
-	return &ID{BasicField: NewField("ID", "ID", opts...)}
+	}
+	options = append(options,opts...)
+
+	return &ID{BasicField: NewField("ID", "ID", options...)}
 }

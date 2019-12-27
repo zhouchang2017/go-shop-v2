@@ -2,14 +2,22 @@ package vue
 
 type Panel struct {
 	BasicElement
-	Name   string  `json:"name"`
-	Limit  *int64  `json:"limit"`
-	Fields []Field `json:"-"`
+	Name           string  `json:"name"`
+	Limit          *int64  `json:"limit"`
+	ShowToolbar    bool    `json:"show_toolbar"`
+	Fields         []Field `json:"-"`
+	WithoutPending bool    `json:"without_pending"`
 }
 
 func NewPanel(name string, fields ...Field) *Panel {
 	p := &Panel{Name: name}
+	p.SetComponent("panel")
 	p.PrepareFields(fields...)
+	return p
+}
+
+func (p *Panel) SetWithoutPending(flag bool) *Panel {
+	p.WithoutPending = flag
 	return p
 }
 

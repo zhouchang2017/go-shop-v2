@@ -181,7 +181,6 @@ func getValueByField(model interface{}, field string) interface{} {
 	}
 
 	f := value.FieldByName(field)
-	
 	if f.IsValid() {
 		return f.Interface()
 	}

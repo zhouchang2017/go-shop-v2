@@ -42,20 +42,20 @@ func (this *ResourceHelper) UriKey() string {
 
 // vue列表路由
 func (this *ResourceHelper) IndexRouterName() string {
-	return fmt.Sprintf("%s.index", this.SingularLabel())
+	return fmt.Sprintf("%s.index", this.UriKey())
 }
 
 // vue详情路由
 func (this *ResourceHelper) DetailRouterName() string {
-	return fmt.Sprintf("%s.detail", this.SingularLabel())
+	return fmt.Sprintf("%s.detail", this.UriKey())
 }
 
 // vue编辑路由
 func (this *ResourceHelper) EditRouterName() string {
-	return fmt.Sprintf("%s.edit", this.SingularLabel())
+	return fmt.Sprintf("%s.edit", this.UriKey())
 }
 
 // vue创建路由
 func (this *ResourceHelper) CreateRouterName() string {
-	return fmt.Sprintf("%s.create", this.SingularLabel())
+	return fmt.Sprintf("%s.create", this.UriKey())
 }

@@ -26,6 +26,26 @@ func NewCategoryResource(rep *repositories.CategoryRep) *Category {
 	return &Category{model: &models.Category{}, rep: rep}
 }
 
+// 列表页&详情页展示字段设置
+func (s *Category) Fields(ctx *gin.Context, model interface{}) func() []interface{} {
+	return func() []interface{} {
+		return []interface{}{
+			vue.NewIDField(),
+			vue.NewTextField("名称", "Name"),
+			vue.NewDateTime("创建时间", "CreatedAt"),
+			vue.NewDateTime("更新时间", "UpdatedAt"),
+
+			vue.NewPanel("销售属性",
+				vue.NewTable("销售属性", "Options", map[string]string{
+					"名称":  "name",
+					"权重":  "sort",
+					"属性值": "values",
+				}),
+			).SetWithoutPending(true),
+		}
+	}
+}
+
 type categoryForm struct {
 	Name string `json:"name" form:"name" binding:"required"`
 }

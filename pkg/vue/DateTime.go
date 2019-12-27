@@ -5,13 +5,14 @@ type DateTime struct {
 }
 
 func NewDateTime(name string, fieldName string,opts ...FieldOption) *DateTime {
-	opts = append(opts,
+	var options = []FieldOption{
 		SetPrefixComponent(true),
 		SetShowOnIndex(true),
 		SetShowOnDetail(true),
 		SetComponent("date-time-field"),
 		SetTextAlign("left"),
-	)
+	}
+	options = append(options,opts...)
 
-	return &DateTime{BasicField:NewField(name,fieldName,opts...)}
+	return &DateTime{BasicField:NewField(name,fieldName,options...)}
 }

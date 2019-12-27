@@ -5,13 +5,14 @@ type Text struct {
 }
 
 func NewTextField(name string, fieldName string, opts ...FieldOption) *Text {
-	opts = append(opts,
+	var options = []FieldOption{
 		SetPrefixComponent(true),
 		SetShowOnIndex(true),
 		SetShowOnDetail(true),
 		SetComponent("text-field"),
 		SetTextAlign("left"),
-	)
+	}
+	options = append(options,opts...)
 
-	return &Text{BasicField: NewField(name, fieldName, opts...)}
+	return &Text{BasicField: NewField(name, fieldName, options...)}
 }
