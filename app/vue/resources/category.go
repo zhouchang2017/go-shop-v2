@@ -35,11 +35,14 @@ func (s *Category) Fields(ctx *gin.Context, model interface{}) func() []interfac
 			vue.NewDateTime("创建时间", "CreatedAt"),
 			vue.NewDateTime("更新时间", "UpdatedAt"),
 
+
 			vue.NewPanel("销售属性",
-				vue.NewTable("销售属性", "Options", map[string]string{
-					"名称":  "name",
-					"权重":  "sort",
-					"属性值": "values",
+				vue.NewTable("销售属性", "Options", func() []vue.Field {
+					return []vue.Field{
+						vue.NewTextField("名称", "Name"),
+						vue.NewTextField("权重", "Sort"),
+						vue.NewTextField("属性值", "Values"),
+					}
 				}),
 			).SetWithoutPending(true),
 		}
@@ -181,5 +184,5 @@ func (Category) Group() string {
 }
 
 func (Category) Icon() string {
-	return "i-grid"
+	return "icons-grid"
 }

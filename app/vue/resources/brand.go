@@ -90,5 +90,5 @@ func (b Brand) Group() string {
 }
 
 func (b Brand) Icon() string {
-	return "i-inbox"
+	return "icons-inbox"
 }

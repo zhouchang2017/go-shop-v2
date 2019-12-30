@@ -54,6 +54,42 @@ func NewInventoryResource(rep *repositories.InventoryRep, service *services.Inve
 	return &Inventory{model: &models.Inventory{}, rep: rep, service: service, helper: vue.NewResourceHelper(&Inventory{})}
 }
 
+func (i *Inventory) Fields(ctx *gin.Context, model interface{}) func() []interface{} {
+	return func() []interface{} {
+		return []interface{}{
+			vue.NewIDField(),
+			vue.NewTextField("门店", "Shop.Name"),
+			vue.NewTextField("类目", "Item.Product.Category.Name"),
+			vue.NewTextField("品牌", "Item.Product.Brand.Name"),
+			vue.NewTextField("货号", "Item.Code"),
+			vue.NewTextField("状态", "Status"),
+			vue.NewTextField("库存", "Qty"),
+
+			vue.NewPanel("门店信息",
+				vue.NewTextField("门店ID","Shop.Id",vue.OnlyOnDetail()),
+				vue.NewTextField("门店","Shop.Name",vue.OnlyOnDetail()),
+				),
+
+			vue.NewPanel("产品信息",
+				vue.NewTextField("产品ID","Item.Product.Id",vue.OnlyOnDetail()),
+				vue.NewTextField("产品货号","Item.Product.Code",vue.OnlyOnDetail()),
+				vue.NewTextField("产品名称","Item.Product.Name",vue.OnlyOnDetail()),
+			),
+
+			vue.NewPanel("商品信息",
+				vue.NewTextField("商品ID","Item.Id",vue.OnlyOnDetail()),
+				vue.NewTextField("商品货号","Item.Code",vue.OnlyOnDetail()),
+				vue.NewTable("销售属性","Item.OptionValues", func() []vue.Field {
+					return []vue.Field{
+						vue.NewTextField("编码","Code"),
+						vue.NewTextField("值","Value"),
+					}
+				}),
+			),
+		}
+	}
+}
+
 func (i *Inventory) IndexQuery(ctx *gin.Context, request *request.IndexRequest) error {
 	request.SetSearchField("item.code")
 	filters := request.Filters.Unmarshal()
@@ -94,7 +130,7 @@ func (i Inventory) Title() string {
 
 // 左侧导航栏icon
 func (this Inventory) Icon() string {
-	return "i-box"
+	return "icons-box"
 }
 
 // 左侧导航栏分组

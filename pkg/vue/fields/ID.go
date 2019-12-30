@@ -1,10 +1,9 @@
-package vue
+package fields
 
 // id字段
 type ID struct {
-	*BasicField `inline`
+	*Field `inline`
 }
-
 
 func NewIDField(opts ...FieldOption) *ID {
 	var options = []FieldOption{
@@ -14,7 +13,7 @@ func NewIDField(opts ...FieldOption) *ID {
 		SetComponent("text-field"),
 		SetTextAlign("left"),
 	}
-	options = append(options,opts...)
+	options = append(options, opts...)
 
-	return &ID{BasicField: NewField("ID", "ID", options...)}
+	return &ID{Field: NewField("ID", "ID", options...)}
 }

@@ -2,6 +2,7 @@ package vue
 
 import (
 	"fmt"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/gin-gonic/gin"
 	"go-shop-v2/pkg/utils"
 	"reflect"
@@ -21,6 +22,9 @@ type Field interface {
 	Resolve(ctx *gin.Context, model interface{})
 	SetPanel(name string)
 	GetPanel() string
+	GetRules() []*FieldRule
+	GetAttribute() string
+	Fill(ctx *gin.Context, data map[string]interface{}, model interface{})
 }
 
 type FieldOption func(field interface{})
@@ -30,6 +34,15 @@ func SetSortable(sort bool) FieldOption {
 		basicField, err := resolveBasicField(field)
 		if err == nil {
 			basicField.SetSortable(sort)
+		}
+	}
+}
+
+func SetRules(rules []*FieldRule) FieldOption {
+	return func(field interface{}) {
+		basicField, err := resolveBasicField(field)
+		if err == nil {
+			basicField.Rules = rules
 		}
 	}
 }
@@ -70,6 +83,15 @@ func SetTextAlign(align string) FieldOption {
 	}
 }
 
+func SetAsHtml(flag bool) FieldOption {
+	return func(field interface{}) {
+		basicField, err := resolveBasicField(field)
+		if err == nil {
+			basicField.AsHtml = flag
+		}
+	}
+}
+
 func resolveBasicField(field interface{}) (*BasicField, error) {
 	if basicField, ok := field.(*BasicField); ok {
 		return basicField, nil
@@ -86,6 +108,11 @@ func resolveBasicField(field interface{}) (*BasicField, error) {
 	return nil, fmt.Errorf("basic field not found in %+v\n", field)
 }
 
+type FieldRule struct {
+	Rule    string
+	Message string
+}
+
 type BasicField struct {
 	FieldElement
 	fieldName         string      `json:"-"`
@@ -97,6 +124,8 @@ type BasicField struct {
 	NullValue         interface{} `json:"null_value"`
 	TextAlign         string      `json:"text_align"`
 	Stacked           bool        `json:"stacked"`
+	AsHtml            bool        `json:"as_html"`
+	Rules             []*FieldRule
 	resolveForDisplay func(ctx *gin.Context, model interface{}) interface{}
 }
 
@@ -120,6 +149,10 @@ func NewField(name string, fieldName string, opts ...FieldOption) *BasicField {
 		opt(field)
 	}
 	return field
+}
+
+func (this *BasicField) SetAsHtml(flag bool) {
+	this.AsHtml = flag
 }
 
 func (this *BasicField) SetSortable(sort bool) {
@@ -187,11 +220,23 @@ func getValueByField(model interface{}, field string) interface{} {
 	return nil
 }
 
+func (this *BasicField) GetAttribute() string {
+	return this.Attribute
+}
+
+func (this *BasicField) GetRules() []*FieldRule {
+	return this.Rules
+}
+
 // Resolve the given attribute from the given resource.
 func (this *BasicField) ResolveAttribute(ctx *gin.Context, model interface{}) interface{} {
 	return getValueByField(model, this.fieldName)
 }
 
-func (this *BasicField) Fill(ctx *gin.Context, model interface{}) {
+func (this *BasicField) Fill(ctx *gin.Context, data map[string]interface{}, model interface{}) {
+
+	if value, ok := data[this.Attribute]; ok {
+		spew.Dump(value)
+	}
 
 }

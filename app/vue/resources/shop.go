@@ -92,10 +92,13 @@ func (s *Shop) Fields(ctx *gin.Context, model interface{}) func() []interface{} 
 
 			),
 
+
 			vue.NewPanel("成员",
-				vue.NewTable("成员", "Members", map[string]string{
-					"ID": "id",
-					"昵称": "nickname",
+				vue.NewTable("成员", "Members", func() []vue.Field {
+					return []vue.Field{
+						vue.NewTextField("ID", "Id", vue.ExceptOnForms()),
+						vue.NewTextField("昵称", "Nickname", vue.ExceptOnForms()),
+					}
 				})).SetWithoutPending(true),
 		}
 	}
@@ -127,7 +130,7 @@ func (s Shop) Title() string {
 }
 
 func (Shop) Icon() string {
-	return "i-store"
+	return "icons-store"
 }
 
 func (Shop) Group() string {

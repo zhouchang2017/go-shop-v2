@@ -1,7 +1,7 @@
-package vue
+package fields
 
 type Text struct {
-	*BasicField
+	*Field
 }
 
 func NewTextField(name string, fieldName string, opts ...FieldOption) *Text {
@@ -15,5 +15,5 @@ func NewTextField(name string, fieldName string, opts ...FieldOption) *Text {
 	}
 	options = append(options,opts...)
 
-	return &Text{BasicField: NewField(name, fieldName, options...)}
+	return &Text{Field: NewField(name, fieldName, options...)}
 }

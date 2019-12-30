@@ -1,4 +1,4 @@
-package vue
+package fields
 
 import (
 	"github.com/gin-gonic/gin"
@@ -6,12 +6,10 @@ import (
 )
 
 type Table struct {
-	*BasicField   `inline`
+	*Field        `inline`
 	Fields        []Field `json:"headings"`
 	fieldsFactory func() []Field
 }
-
-
 
 func NewTable(name string, fieldName string, fields func() []Field, opts ...FieldOption) *Table {
 	var options = []FieldOption{
@@ -23,7 +21,7 @@ func NewTable(name string, fieldName string, fields func() []Field, opts ...Fiel
 	}
 	options = append(options, opts...)
 
-	table := &Table{BasicField: NewField(name, fieldName, options...), Fields: fields()}
+	table := &Table{Field: NewField(name, fieldName, options...), Fields: fields()}
 	table.fieldsFactory = fields
 	//table.WithMeta("headings", table.Headings)
 	return table
@@ -58,5 +56,5 @@ func (this *Table) Resolve(ctx *gin.Context, model interface{}) {
 		this.Value = this.makeFields(ctx, this.resolveForDisplay(ctx, model))
 		return
 	}
-	this.Value = this.makeFields(ctx, this.ResolveAttribute(ctx, model))
+	this.Value = this.makeFields(ctx, this.resolveAttribute(ctx, model))
 }

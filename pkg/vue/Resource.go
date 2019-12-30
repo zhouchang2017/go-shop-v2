@@ -95,14 +95,13 @@ func (this *ResourceWarp) routers(ctx *gin.Context) []*Router {
 	// 创建页面路由
 	if authorizedToCreate {
 		router := &Router{
-			Path:      fmt.Sprintf("%s/create", uri),
-			Name:      this.CreateRouterName(),
-			Component: fmt.Sprintf(`%s/Create`, uri),
+			Path: fmt.Sprintf("%s/create", uri),
+			Name: this.CreateRouterName(),
+			//Component: fmt.Sprintf(`%s/Create`, uri),
+			Component: "Create",
 			Hidden:    true,
 		}
-		router.WithMeta("Title", this.CreateButtonName())
-		router.WithMeta("DetailRouterName", this.DetailRouterName())
-		router.WithMeta("IndexRouterName", this.IndexRouterName())
+		router.WithMeta("ResourceName", this.UriKey())
 		if listener, ok := this.resource.(ListenerCreateRouteCreated); ok {
 			listener.OnCreateRouteCreated(ctx, router)
 		}
@@ -215,6 +214,7 @@ func (this *ResourceWarp) SerializeForIndex(ctx *gin.Context) Metable {
 	return warp
 }
 
+// 资源列表页字段
 func (this *ResourceWarp) resolveIndexFields(ctx *gin.Context) []Field {
 	var item []Field
 	if hasFields, ok := this.resource.(HasFields); ok {
@@ -222,6 +222,10 @@ func (this *ResourceWarp) resolveIndexFields(ctx *gin.Context) []Field {
 		for _, field := range fields() {
 			if isField, ok := field.(Field); ok {
 				if isField.ShowOnIndex() && isField.AuthorizedTo(ctx, ctx2.GetUser(ctx).(auth.Authenticatable)) {
+					// 自定义列表页组件
+					if hasIndexComponent, ok := isField.(interface{ IndexComponent() }); ok {
+						hasIndexComponent.IndexComponent()
+					}
 					item = append(item, isField)
 					continue
 				}
@@ -230,6 +234,11 @@ func (this *ResourceWarp) resolveIndexFields(ctx *gin.Context) []Field {
 			if isPanel, ok := field.(*Panel); ok {
 				for _, panelField := range isPanel.Fields {
 					if panelField.ShowOnIndex() && panelField.AuthorizedTo(ctx, ctx2.GetUser(ctx).(auth.Authenticatable)) {
+						// 自定义列表页组件
+						if hasIndexComponent, ok := panelField.(interface{ IndexComponent() }); ok {
+							hasIndexComponent.IndexComponent()
+						}
+
 						item = append(item, panelField)
 					}
 				}
@@ -240,6 +249,7 @@ func (this *ResourceWarp) resolveIndexFields(ctx *gin.Context) []Field {
 	return item
 }
 
+// 资源详情页字段
 func (this *ResourceWarp) resolveDetailFields(ctx *gin.Context) ([]Field, []*Panel) {
 	var item []Field
 	var panel []*Panel
@@ -249,18 +259,88 @@ func (this *ResourceWarp) resolveDetailFields(ctx *gin.Context) ([]Field, []*Pan
 
 			if isField, ok := field.(Field); ok {
 				if isField.ShowOnDetail() && isField.AuthorizedTo(ctx, ctx2.GetUser(ctx).(auth.Authenticatable)) {
+
+					// 自定义详情页组件
+					if hasDetailComponent, ok := isField.(interface{ DetailComponent() }); ok {
+						hasDetailComponent.DetailComponent()
+					}
+
 					item = append(item, isField)
 					continue
 				}
 			}
 
 			if isPanel, ok := field.(*Panel); ok {
+				availableFieldNum := 0
 				for _, panelField := range isPanel.Fields {
 					if panelField.ShowOnDetail() && panelField.AuthorizedTo(ctx, ctx2.GetUser(ctx).(auth.Authenticatable)) {
+						availableFieldNum++
+						// 自定义详情页组件
+						if hasDetailComponent, ok := panelField.(interface{ DetailComponent() }); ok {
+							hasDetailComponent.DetailComponent()
+						}
+
 						item = append(item, panelField)
 					}
 				}
-				panel = append(panel, isPanel)
+				if availableFieldNum > 0 {
+					panel = append(panel, isPanel)
+				}
+
+			}
+
+		}
+	}
+	return item, panel
+}
+
+// 资源创建页字段
+func (this *ResourceWarp) resolveCreationFields(ctx *gin.Context) ([]Field, []*Panel) {
+	var item []Field
+	var panel []*Panel
+	defaultPanel := NewPanel(fmt.Sprintf("创建%s", this.resource.Title()))
+	panel = append(panel, defaultPanel)
+	if hasFields, ok := this.resource.(HasFields); ok {
+		fields := hasFields.Fields(ctx, this.resource.Model())
+		for _, field := range fields() {
+
+			if isField, ok := field.(Field); ok {
+				if isField.ShowOnCreation() && isField.AuthorizedTo(ctx, ctx2.GetUser(ctx).(auth.Authenticatable)) {
+					if isField.GetPanel() == "" {
+						defaultPanel.PrepareFields(isField)
+					}
+
+					// 自定义创建组件
+					if hasDetailComponent, ok := isField.(interface{ CreationComponent() }); ok {
+						hasDetailComponent.CreationComponent()
+					}
+
+
+					item = append(item, isField)
+					continue
+				}
+			}
+
+			if isPanel, ok := field.(*Panel); ok {
+				availableFieldNum := 0
+				for _, panelField := range isPanel.Fields {
+					if panelField.ShowOnCreation() && panelField.AuthorizedTo(ctx, ctx2.GetUser(ctx).(auth.Authenticatable)) {
+						if panelField.GetPanel() == "" {
+							defaultPanel.PrepareFields(panelField)
+						}
+						// 自定义创建组件
+						if hasDetailComponent, ok := panelField.(interface{ CreationComponent() }); ok {
+							hasDetailComponent.CreationComponent()
+						}
+
+						availableFieldNum++
+						item = append(item, panelField)
+					}
+				}
+				if availableFieldNum > 0 {
+					panel = append(panel, isPanel)
+				}
+
 			}
 
 		}

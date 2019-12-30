@@ -24,8 +24,36 @@ type Admin struct {
 }
 
 // 字段
-func (a *Admin) Fields(ctx *gin.Context,model interface{}) {
-	
+func (a *Admin) Fields(ctx *gin.Context, model interface{}) func() []interface{} {
+	return func() []interface{} {
+		return []interface{}{
+			vue.NewIDField(),
+			vue.NewTextField("用户名", "Username", vue.SetRules([]*vue.FieldRule{
+				{"required", "缺少用户名"},
+			})),
+			vue.NewTextField("昵称", "Nickname",vue.SetRules([]*vue.FieldRule{
+				{"required", "缺少昵称"},
+			})),
+			vue.NewSelect("用户类型", "Type",vue.SetRules([]*vue.FieldRule{
+				{Rule:"required"},
+			})).SetOptions([]*vue.SelectOption{
+				{Label: "超级管理员", Value: "root"},
+				{Label: "管理员", Value: "admin"},
+				{Label: "店长", Value: "manager"},
+				{Label: "销售员", Value: "salesman"},
+			}),
+			vue.NewDateTime("创建时间", "CreatedAt"),
+			vue.NewDateTime("更新时间", "UpdatedAt"),
+			vue.NewPanel("所属门店",
+				vue.NewTable("所属门店", "Shops", func() []vue.Field {
+					return []vue.Field{
+						vue.NewTextField("ID", "Id"),
+						vue.NewTextField("门店", "Name"),
+					}
+				}),
+			).SetWithoutPending(true),
+		}
+	}
 }
 
 func NewAdminResource(rep *repositories.AdminRep, service *services.AdminService) *Admin {
@@ -48,7 +76,6 @@ type adminUpdateForm struct {
 	Type     string                   `json:"type" form:"type"`
 	Shops    []*models.AssociatedShop `json:"shops" form:"shops"`
 }
-
 
 func (a *Admin) UpdateFormParse(ctx *gin.Context, model interface{}) (entity interface{}, err error) {
 	form := &adminUpdateForm{}
@@ -139,5 +166,5 @@ func (a Admin) Title() string {
 }
 
 func (Admin) Icon() string {
-	return "i-user"
+	return "icons-user"
 }

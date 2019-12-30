@@ -121,5 +121,5 @@ func (this Product) Group() string {
 }
 
 func (this Product) Icon() string {
-	return "i-box"
+	return "icons-box"
 }

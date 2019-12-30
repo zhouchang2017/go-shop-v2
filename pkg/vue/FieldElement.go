@@ -27,7 +27,7 @@ func (f FieldElement) ShowOnDetail() bool {
 }
 
 func (f FieldElement) ShowOnCreation() bool {
-	return f.showOnDetail
+	return f.showOnCreation
 }
 
 func (f FieldElement) ShowOnUpdate() bool {

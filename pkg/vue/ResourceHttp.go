@@ -56,7 +56,7 @@ func (this *ResourceWarp) httpHandler(router gin.IRouter) {
 	this.resourceDeleteHandle(router)
 	this.resourceForceDeleteHandle(router)
 	this.resourceRestoreHandle(router)
-
+	this.resourceCreationFieldHandle(router)
 	if custom, ok := this.resource.(CustomHttpRouter); ok {
 		custom.CustomHttpRouters(router, this.UriKey(), this.SingularLabel())
 	}
