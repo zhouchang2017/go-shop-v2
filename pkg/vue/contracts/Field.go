@@ -14,6 +14,7 @@ type Field interface {
 	GetPanel() string
 	GetRules() []FieldRule
 	GetAttribute() string
+	Call()
 	// Fill(ctx *gin.Context, data map[string]interface{}, model interface{})
 }
 

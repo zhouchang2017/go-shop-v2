@@ -1,20 +1,19 @@
 package fields
 
-type Text struct {
+type Checkbox struct {
 	*Field
 }
 
-func NewTextField(name string, fieldName string, opts ...FieldOption) *Text {
+func NewCheckbox(name string, fieldName string, opts ...FieldOption) *Checkbox {
 	var options = []FieldOption{
 		SetPrefixComponent(true),
 		SetShowOnIndex(true),
 		SetShowOnDetail(true),
 		SetShowOnCreation(true),
-		SetShowOnUpdate(true),
-		SetComponent("text-field"),
+		SetComponent("checkbox-field"),
 		SetTextAlign("left"),
 	}
 	options = append(options,opts...)
 
-	return &Text{Field: NewField(name, fieldName, options...)}
-}
+	return &Checkbox{Field: NewField(name, fieldName, options...)}
+} 

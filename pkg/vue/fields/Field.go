@@ -10,39 +10,43 @@ import (
 )
 
 type FieldRule struct {
-	Rule    string
-	Message string
+	Rule    string `json:"rule"`
+	Message string `json:"message"`
 }
 
-func (f FieldRule) GetRule() string {
+func (f *FieldRule) GetRule() string {
 	return f.Rule
 }
 
-func (f FieldRule) GetMessage() string {
+func (f *FieldRule) GetMessage() string {
 	return f.Message
 }
 
 type Field struct {
 	*element.Element
-	Panel             string      `json:"panel"`
-	Readonly          bool        `json:"readonly"`
-	showOnIndex       bool        `json:"-"`
-	showOnDetail      bool        `json:"-"`
-	showOnCreation    bool        `json:"-"`
-	showOnUpdate      bool        `json:"-"`
-	fieldName         string      `json:"-"`
-	Name              string      `json:"name"`
-	Attribute         string      `json:"attribute"`
-	Value             interface{} `json:"value"`
-	Sortable          bool        `json:"sortable"`
-	Nullable          bool        `json:"nullable"`
-	NullValue         interface{} `json:"null_value"`
-	TextAlign         string      `json:"text_align"`
-	Stacked           bool        `json:"stacked"`
-	AsHtml            bool        `json:"as_html"`
-	Placeholder       string      `json:"placeholder"`
-	Rules             []contracts.FieldRule
+	Panel             string                `json:"panel"`
+	Readonly          bool                  `json:"readonly"`
+	showOnIndex       bool                  `json:"-"`
+	showOnDetail      bool                  `json:"-"`
+	showOnCreation    bool                  `json:"-"`
+	showOnUpdate      bool                  `json:"-"`
+	fieldName         string                `json:"-"`
+	Name              string                `json:"name"`
+	Attribute         string                `json:"attribute"`
+	Value             interface{}           `json:"value"`
+	Sortable          bool                  `json:"sortable"`
+	Nullable          bool                  `json:"nullable"`
+	NullValue         interface{}           `json:"null_value"`
+	TextAlign         string                `json:"text_align"`
+	Stacked           bool                  `json:"stacked"`
+	AsHtml            bool                  `json:"as_html"`
+	Placeholder       string                `json:"placeholder"`
+	Rules             []contracts.FieldRule `json:"rules"`
 	resolveForDisplay func(ctx *gin.Context, model interface{}) interface{}
+}
+
+func (this Field) Call() {
+
 }
 
 func (this Field) GetRules() []contracts.FieldRule {
@@ -157,7 +161,7 @@ func (this *Field) ResolveForDisplay(cb func(ctx *gin.Context, model interface{}
 }
 
 // 赋值
-func (this Field) Resolve(ctx *gin.Context, model interface{}) {
+func (this *Field) Resolve(ctx *gin.Context, model interface{}) {
 	if this.resolveForDisplay != nil {
 		this.Value = this.resolveForDisplay(ctx, model)
 		return

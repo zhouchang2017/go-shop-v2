@@ -8,7 +8,10 @@ import (
 	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/repository"
 	"go-shop-v2/pkg/request"
-	"go-shop-v2/pkg/vue"
+	"go-shop-v2/pkg/response"
+	"go-shop-v2/pkg/vue/contracts"
+	"go-shop-v2/pkg/vue/fields"
+	"go-shop-v2/pkg/vue/panels"
 	"net/http"
 )
 
@@ -17,36 +20,68 @@ func init() {
 }
 
 type Category struct {
-	vue.AbstractResource
-	model *models.Category
+	model interface{}
 	rep   *repositories.CategoryRep
 }
 
-func NewCategoryResource(rep *repositories.CategoryRep) *Category {
-	return &Category{model: &models.Category{}, rep: rep}
+func (c *Category) Store(ctx *gin.Context, data map[string]interface{}) (redirect string, err error) {
+	panic("implement me")
 }
 
-// 列表页&详情页展示字段设置
-func (s *Category) Fields(ctx *gin.Context, model interface{}) func() []interface{} {
+func (c *Category) Show(ctx *gin.Context, id string) (res interface{}, err error) {
+	result := <-c.rep.FindById(ctx, id)
+	return result.Result, result.Error
+}
+
+func (c *Category) Pagination(ctx *gin.Context, req *request.IndexRequest) (res interface{}, pagination response.Pagination, err error) {
+	results := <-c.rep.Pagination(ctx, req)
+	return results.Result, results.Pagination, results.Error
+}
+
+func (c *Category) DisplayInNavigation(ctx *gin.Context, user interface{}) bool {
+	return true
+}
+
+func (c *Category) HasIndexRoute(ctx *gin.Context, user interface{}) bool {
+	return true
+}
+
+func (c *Category) HasDetailRoute(ctx *gin.Context, user interface{}) bool {
+	return true
+}
+
+func (c *Category) HasEditRoute(ctx *gin.Context, user interface{}) bool {
+	return true
+}
+
+func (c *Category) Policy() interface{} {
+	return nil
+}
+
+func (c *Category) Fields(ctx *gin.Context, model interface{}) func() []interface{} {
 	return func() []interface{} {
 		return []interface{}{
-			vue.NewIDField(),
-			vue.NewTextField("名称", "Name"),
-			vue.NewDateTime("创建时间", "CreatedAt"),
-			vue.NewDateTime("更新时间", "UpdatedAt"),
+			fields.NewIDField(),
+			fields.NewTextField("名称", "Name"),
+			fields.NewDateTime("创建时间", "CreatedAt"),
+			fields.NewDateTime("更新时间", "UpdatedAt"),
 
 
-			vue.NewPanel("销售属性",
-				vue.NewTable("销售属性", "Options", func() []vue.Field {
-					return []vue.Field{
-						vue.NewTextField("名称", "Name"),
-						vue.NewTextField("权重", "Sort"),
-						vue.NewTextField("属性值", "Values"),
+			panels.NewPanel("销售属性",
+				fields.NewTable("销售属性", "Options", func() []contracts.Field {
+					return []contracts.Field{
+						fields.NewTextField("名称", "Name"),
+						fields.NewTextField("权重", "Sort"),
+						fields.NewTextField("属性值", "Values"),
 					}
 				}),
 			).SetWithoutPending(true),
 		}
 	}
+}
+
+func NewCategoryResource(rep *repositories.CategoryRep) *Category {
+	return &Category{model: &models.Category{}, rep: rep}
 }
 
 type categoryForm struct {
@@ -166,12 +201,15 @@ func (c *Category) Repository() repository.IRepository {
 	return c.rep
 }
 
-func (c Category) Make(model interface{}) vue.Resource {
-	return &Category{model: model.(*models.Category)}
+func (c Category) Make(model interface{}) contracts.Resource {
+	return &Category{
+		rep:   c.rep,
+		model: model,
+	}
 }
 
 func (c *Category) SetModel(model interface{}) {
-	c.model = model.(*models.Category)
+	c.model = model
 }
 
 func (c Category) Title() string {

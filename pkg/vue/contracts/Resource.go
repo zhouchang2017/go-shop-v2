@@ -67,7 +67,7 @@ type (
 	// 资源列表接口
 	ResourcePaginationable interface {
 		// 资源列表方法
-		Pagination(ctx *gin.Context, req *request.IndexRequest) (res interface{}, err error, pagination response.Pagination)
+		Pagination(ctx *gin.Context, req *request.IndexRequest) (res interface{}, pagination response.Pagination, err error)
 	}
 
 	// 资源详情接口
@@ -85,7 +85,7 @@ type (
 	// 资源更新接口
 	ResourceUpgradeable interface {
 		// 资源更新方法
-		Update(ctx *gin.Context, data map[string]interface{}) (redirect string, err error)
+		Update(ctx *gin.Context,model interface{}, data map[string]interface{}) (redirect string, err error)
 	}
 
 	// 资源恢复接口

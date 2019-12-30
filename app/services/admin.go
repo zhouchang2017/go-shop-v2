@@ -4,6 +4,7 @@ import (
 	"context"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
+	"go-shop-v2/pkg/request"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"log"
@@ -23,6 +24,34 @@ func NewAdminService(adminRep *repositories.AdminRep, shopRep *repositories.Shop
 		rep:     adminRep,
 		shopRep: shopRep,
 	}
+}
+
+// 创建用户
+func (a *AdminService) Create(ctx context.Context, model *models.Admin, ShopIds ...string) (admin *models.Admin, err error) {
+	shopsRes := <-a.shopRep.FindByIds(ctx, ShopIds...)
+	if shopsRes.Error != nil {
+		return model, shopsRes.Error
+	}
+	model.SetShops(shopsRes.Result.([]*models.Shop))
+	created := <-a.rep.Create(ctx, model)
+	if created.Error != nil {
+		return nil, created.Error
+	}
+	return created.Result.(*models.Admin), nil
+}
+
+// 更新用户
+func (a *AdminService) Update(ctx context.Context,model *models.Admin, ShopIds ...string) (admin *models.Admin, err error) {
+	shopsRes := <-a.shopRep.FindByIds(ctx, ShopIds...)
+	if shopsRes.Error != nil {
+		return model, shopsRes.Error
+	}
+	model.SetShops(shopsRes.Result.([]*models.Shop))
+	saved := <-a.rep.Save(ctx, model)
+	if saved.Error != nil {
+		return nil, saved.Error
+	}
+	return saved.Result.(*models.Admin), nil
 }
 
 // 同步成员关联门店
@@ -85,7 +114,6 @@ func (a *AdminService) SyncAssociatedShop(ctx context.Context, shop *models.Shop
 	return nil
 }
 
-
 func (a *AdminService) GetShops(ctx context.Context, model interface{}) (admin *models.Admin, err error) {
 	if id, ok := model.(string); ok {
 		result := <-a.rep.FindById(ctx, id)
@@ -105,4 +133,20 @@ func (a *AdminService) GetShops(ctx context.Context, model interface{}) (admin *
 	//	admin.SetShops(shopsRes.Result.([]*models.Shop))
 	//}
 	return admin, nil
+}
+
+// 获取所有门店，关联格式输出
+func (a *AdminService) AllShops(ctx context.Context) ([]*models.AssociatedShop, error) {
+	indexRequest := &request.IndexRequest{}
+	indexRequest.Page = -1
+	allRes := <-a.shopRep.Pagination(ctx, indexRequest)
+
+	if allRes.Error != nil {
+		return nil, allRes.Error
+	}
+	var res []*models.AssociatedShop
+	for _, shop := range allRes.Result.([]*models.Shop) {
+		res = append(res, shop.ToAssociated())
+	}
+	return res, nil
 }

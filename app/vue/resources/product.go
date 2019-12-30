@@ -6,9 +6,8 @@ import (
 	"go-shop-v2/app/repositories"
 	"go-shop-v2/app/services"
 	"go-shop-v2/pkg/qiniu"
-	"go-shop-v2/pkg/repository"
 	"go-shop-v2/pkg/request"
-	"go-shop-v2/pkg/vue"
+	"go-shop-v2/pkg/vue/contracts"
 )
 
 func init() {
@@ -16,10 +15,35 @@ func init() {
 }
 
 type Product struct {
-	vue.AbstractResource
-	model   *models.Product
+	model   interface{}
 	rep     *repositories.ProductRep
 	service *services.ProductService
+}
+
+func (this *Product) DisplayInNavigation(ctx *gin.Context, user interface{}) bool {
+	return true
+}
+
+func (this *Product) HasIndexRoute(ctx *gin.Context, user interface{}) bool {
+	return true
+}
+
+func (this *Product) HasDetailRoute(ctx *gin.Context, user interface{}) bool {
+	return true
+}
+
+func (this *Product) HasEditRoute(ctx *gin.Context, user interface{}) bool {
+	return true
+}
+
+func (this *Product) Policy() interface{} {
+	return nil
+}
+
+func (this *Product) Fields(ctx *gin.Context, model interface{}) func() []interface{} {
+	return func() []interface{} {
+		return []interface{}{}
+	}
 }
 
 func NewProductResource(rep *repositories.ProductRep, service *services.ProductService) *Product {
@@ -100,12 +124,13 @@ func (this *Product) Model() interface{} {
 	return this.model
 }
 
-func (this Product) Repository() repository.IRepository {
-	return this.rep
-}
 
-func (this Product) Make(model interface{}) vue.Resource {
-	return &Product{model: model.(*models.Product)}
+func (this Product) Make(model interface{}) contracts.Resource {
+	return &Product{
+		rep:     this.rep,
+		service: this.service,
+		model:   model,
+	}
 }
 
 func (this *Product) SetModel(model interface{}) {

@@ -26,11 +26,17 @@ type AssociatedShop struct {
 }
 
 func (s Shop) ToAssociated() *AssociatedShop {
-	return &AssociatedShop{
-		Id:       s.GetID(),
-		Name:     s.Name,
-		Location: s.Location.GeoJSON(),
+
+	res := &AssociatedShop{
+		Id:   s.GetID(),
+		Name: s.Name,
 	}
+
+	if s.Location != nil {
+		res.Location = s.Location.GeoJSON()
+	}
+
+	return res
 }
 
 func NewShop() *Shop {

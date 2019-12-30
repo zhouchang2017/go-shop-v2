@@ -2,12 +2,12 @@ package fields
 
 import (
 	"fmt"
+	"github.com/gin-gonic/gin"
 	"go-shop-v2/pkg/vue/contracts"
 	"reflect"
 )
 
 type FieldOption func(field interface{})
-
 
 func resolveBasicField(field interface{}) (*Field, error) {
 	if basicField, ok := field.(*Field); ok {
@@ -61,11 +61,24 @@ func SetSortable(sort bool) FieldOption {
 	}
 }
 
-func SetRules(rules []contracts.FieldRule) FieldOption {
+func SetResolveForDisplay(cb func(ctx *gin.Context, model interface{}) interface{}) FieldOption {
 	return func(field interface{}) {
 		basicField, err := resolveBasicField(field)
 		if err == nil {
-			basicField.Rules = rules
+			basicField.resolveForDisplay = cb
+		}
+	}
+}
+
+func SetRules(rules []*FieldRule) FieldOption {
+	return func(field interface{}) {
+		basicField, err := resolveBasicField(field)
+		if err == nil {
+			var r []contracts.FieldRule
+			for _, rule := range rules {
+				r = append(r, rule)
+			}
+			basicField.Rules = r
 		}
 	}
 }
@@ -84,6 +97,15 @@ func SetNullable(nullable bool) FieldOption {
 		basicField, err := resolveBasicField(field)
 		if err == nil {
 			basicField.Nullable = nullable
+		}
+	}
+}
+
+func SetValue(value interface{}) FieldOption {
+	return func(field interface{}) {
+		basicField, err := resolveBasicField(field)
+		if err == nil {
+			basicField.Value = value
 		}
 	}
 }

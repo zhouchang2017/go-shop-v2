@@ -2,16 +2,17 @@ package fields
 
 import (
 	"github.com/gin-gonic/gin"
+	"go-shop-v2/pkg/vue/contracts"
 	"reflect"
 )
 
 type Table struct {
 	*Field        `inline`
-	Fields        []Field `json:"headings"`
-	fieldsFactory func() []Field
+	Headings      []contracts.Field `json:"headings"`
+	fieldsFactory func() []contracts.Field
 }
 
-func NewTable(name string, fieldName string, fields func() []Field, opts ...FieldOption) *Table {
+func NewTable(name string, fieldName string, fields func() []contracts.Field, opts ...FieldOption) *Table {
 	var options = []FieldOption{
 		SetPrefixComponent(true),
 		SetShowOnIndex(false),
@@ -21,13 +22,22 @@ func NewTable(name string, fieldName string, fields func() []Field, opts ...Fiel
 	}
 	options = append(options, opts...)
 
-	table := &Table{Field: NewField(name, fieldName, options...), Fields: fields()}
+	table := &Table{Field: NewField(name, fieldName, options...), Headings: fields()}
 	table.fieldsFactory = fields
 	//table.WithMeta("headings", table.Headings)
 	return table
 }
 
-func (this *Table) resolveField(ctx *gin.Context, value interface{}) []Field {
+//
+func (this *Table) Fields(fields []contracts.Field) *Table {
+	this.Headings = fields
+	this.fieldsFactory = func() []contracts.Field {
+		return fields
+	}
+	return this
+}
+
+func (this *Table) resolveField(ctx *gin.Context, value interface{}) []contracts.Field {
 	row := this.fieldsFactory()
 	for _, field := range row {
 		field.Resolve(ctx, value)
@@ -38,7 +48,7 @@ func (this *Table) resolveField(ctx *gin.Context, value interface{}) []Field {
 func (this *Table) makeFields(ctx *gin.Context, value interface{}) interface{} {
 	// 验证value是否是数组或者结构体
 	if reflect.TypeOf(value).Kind() == reflect.Slice {
-		values := [][]Field{}
+		values := [][]contracts.Field{}
 		valueOf := reflect.ValueOf(value)
 		len := valueOf.Len()
 		for i := 0; i < len; i++ {

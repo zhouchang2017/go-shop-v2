@@ -9,7 +9,9 @@ import (
 	"go-shop-v2/pkg/event"
 	"go-shop-v2/pkg/repository"
 	"go-shop-v2/pkg/request"
-	"go-shop-v2/pkg/vue"
+	"go-shop-v2/pkg/vue/contracts"
+	"go-shop-v2/pkg/vue/fields"
+	"go-shop-v2/pkg/vue/panels"
 )
 
 func init() {
@@ -17,10 +19,37 @@ func init() {
 }
 
 type Shop struct {
-	vue.AbstractResource
-	model   *models.Shop
+	model   interface{}
 	rep     *repositories.ShopRep
 	service *services.ShopService
+}
+
+func (s *Shop) DisplayInNavigation(ctx *gin.Context, user interface{}) bool {
+	return true
+}
+
+func (s *Shop) HasIndexRoute(ctx *gin.Context, user interface{}) bool {
+	return true
+}
+
+func (s *Shop) HasDetailRoute(ctx *gin.Context, user interface{}) bool {
+	return true
+}
+
+func (s *Shop) HasEditRoute(ctx *gin.Context, user interface{}) bool {
+	return true
+}
+
+func (s *Shop) Policy() interface{} {
+	return nil
+}
+
+func (s *Shop) Make(model interface{}) contracts.Resource {
+	return &Shop{
+		model:   model,
+		rep:     s.rep,
+		service: s.service,
+	}
 }
 
 func NewShopResource(rep *repositories.ShopRep, service *services.ShopService) *Shop {
@@ -77,27 +106,27 @@ func (s *Shop) Updated(ctx *gin.Context, resource interface{}) {
 func (s *Shop) Fields(ctx *gin.Context, model interface{}) func() []interface{} {
 	return func() []interface{} {
 		return []interface{}{
-			vue.NewIDField(),
-			vue.NewTextField("名称", "Name"),
-			vue.NewDateTime("创建时间", "CreatedAt"),
-			vue.NewDateTime("更新时间", "UpdatedAt"),
+			fields.NewIDField(),
+			fields.NewTextField("名称", "Name"),
+			fields.NewDateTime("创建时间", "CreatedAt"),
+			fields.NewDateTime("更新时间", "UpdatedAt"),
 
-			vue.NewPanel("地址",
-				vue.NewTextField("省份", "Address.Province", vue.OnlyOnDetail()),
-				vue.NewTextField("城市", "Address.City", vue.OnlyOnDetail()),
-				vue.NewTextField("区/县", "Address.Areas", vue.OnlyOnDetail()),
-				vue.NewTextField("详细地址", "Address.Addr", vue.OnlyOnDetail()),
-				vue.NewTextField("联系人", "Address.Name", vue.OnlyOnDetail()),
-				vue.NewTextField("电话", "Address.Phone", vue.OnlyOnDetail()),
+			panels.NewPanel("地址",
+				fields.NewTextField("省份", "Address.Province", fields.OnlyOnDetail()),
+				fields.NewTextField("城市", "Address.City", fields.OnlyOnDetail()),
+				fields.NewTextField("区/县", "Address.Areas", fields.OnlyOnDetail()),
+				fields.NewTextField("详细地址", "Address.Addr", fields.OnlyOnDetail()),
+				fields.NewTextField("联系人", "Address.Name", fields.OnlyOnDetail()),
+				fields.NewTextField("电话", "Address.Phone", fields.OnlyOnDetail()),
 
 			),
 
 
-			vue.NewPanel("成员",
-				vue.NewTable("成员", "Members", func() []vue.Field {
-					return []vue.Field{
-						vue.NewTextField("ID", "Id", vue.ExceptOnForms()),
-						vue.NewTextField("昵称", "Nickname", vue.ExceptOnForms()),
+			panels.NewPanel("成员",
+				fields.NewTable("成员", "Members", func() []contracts.Field {
+					return []contracts.Field{
+						fields.NewTextField("ID", "Id", fields.ExceptOnForms()),
+						fields.NewTextField("昵称", "Nickname", fields.ExceptOnForms()),
 					}
 				})).SetWithoutPending(true),
 		}
@@ -115,10 +144,6 @@ func (s *Shop) Model() interface{} {
 
 func (s *Shop) Repository() repository.IRepository {
 	return s.rep
-}
-
-func (s Shop) Make(model interface{}) vue.Resource {
-	return &Shop{model: model.(*models.Shop)}
 }
 
 func (s *Shop) SetModel(model interface{}) {

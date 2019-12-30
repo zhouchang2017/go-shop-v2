@@ -1,7 +1,6 @@
 package resources
 
 import (
-	"fmt"
 	"github.com/gin-gonic/gin"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
@@ -10,7 +9,7 @@ import (
 	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/repository"
 	"go-shop-v2/pkg/request"
-	"go-shop-v2/pkg/vue"
+	"go-shop-v2/pkg/vue/contracts"
 )
 
 func init() {
@@ -18,35 +17,52 @@ func init() {
 }
 
 type ManualInventoryAction struct {
-	vue.AbstractResource
-	model   *models.ManualInventoryAction
+	model   interface{}
 	rep     *repositories.ManualInventoryActionRep
 	service *services.ManualInventoryActionService
-	helper  *vue.ResourceHelper
 }
 
-func (m *ManualInventoryAction) OnUpdateRouteCreated(ctx *gin.Context, router *vue.Router) {
-	router.WithMeta("types", m.model.Types())
+func (m *ManualInventoryAction) DisplayInNavigation(ctx *gin.Context, user interface{}) bool {
+	return true
 }
 
-func (m *ManualInventoryAction) OnCreateRouteCreated(ctx *gin.Context, router *vue.Router) {
-	router.WithMeta("types", m.model.Types())
+func (m *ManualInventoryAction) HasIndexRoute(ctx *gin.Context, user interface{}) bool {
+	return true
 }
 
-// 自定义vue路由uri
-func (m *ManualInventoryAction) CustomVueUriKey() string {
-	if inventory, ok := m.Root.ResolveWarp(&Inventory{}); ok {
-		return fmt.Sprintf("%s/%s", inventory.VueUriKey(), m.helper.UriKey())
+func (m *ManualInventoryAction) HasDetailRoute(ctx *gin.Context, user interface{}) bool {
+	return true
+}
+
+func (m *ManualInventoryAction) HasEditRoute(ctx *gin.Context, user interface{}) bool {
+	return true
+}
+
+func (m *ManualInventoryAction) Policy() interface{} {
+	return nil
+}
+
+func (m *ManualInventoryAction) Fields(ctx *gin.Context, model interface{}) func() []interface{} {
+	return func() []interface{} {
+		return []interface{}{}
 	}
-	return m.helper.UriKey()
 }
+
+//
+//
+//// 自定义vue路由uri
+//func (m *ManualInventoryAction) CustomVueUriKey() string {
+//	if inventory, ok := m.Root.ResolveWarp(&Inventory{}); ok {
+//		return fmt.Sprintf("%s/%s", inventory.VueUriKey(), m.helper.UriKey())
+//	}
+//	return m.helper.UriKey()
+//}
 
 func NewManualInventoryActionResource(rep *repositories.ManualInventoryActionRep, service *services.ManualInventoryActionService) *ManualInventoryAction {
 	return &ManualInventoryAction{
 		model:   &models.ManualInventoryAction{},
 		rep:     rep,
 		service: service,
-		helper:  vue.NewResourceHelper(&ManualInventoryAction{}),
 	}
 }
 
@@ -112,8 +128,12 @@ func (m *ManualInventoryAction) Repository() repository.IRepository {
 	return m.rep
 }
 
-func (m ManualInventoryAction) Make(model interface{}) vue.Resource {
-	return &ManualInventoryAction{model: model.(*models.ManualInventoryAction)}
+func (m ManualInventoryAction) Make(model interface{}) contracts.Resource {
+	return &ManualInventoryAction{
+		model:   model,
+		rep:     m.rep,
+		service: m.service,
+	}
 }
 
 func (m *ManualInventoryAction) SetModel(model interface{}) {
@@ -126,8 +146,4 @@ func (m ManualInventoryAction) Title() string {
 
 func (ManualInventoryAction) Group() string {
 	return "Shop"
-}
-
-func (ManualInventoryAction) DisplayInNavigation(ctx *gin.Context) bool {
-	return false
 }

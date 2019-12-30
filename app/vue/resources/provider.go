@@ -2,7 +2,7 @@ package resources
 
 import (
 	"go-shop-v2/pkg/support"
-	"go-shop-v2/pkg/vue"
+	"go-shop-v2/pkg/vue/core"
 	"go.uber.org/fx"
 )
 
@@ -36,35 +36,35 @@ func (v *vueResourceServiceProvider) Boot() fx.Option {
 
 	return fx.Options(
 
-		fx.Invoke(func(vue *vue.Vue, resource *Admin) {
+		fx.Invoke(func(vue *core.Vue, resource *Admin) {
 			vue.RegisterResource(resource)
 		}),
 
-		fx.Invoke(func(vue *vue.Vue, resource *Brand) {
+		fx.Invoke(func(vue *core.Vue, resource *Brand) {
 			vue.RegisterResource(resource)
 		}),
 
-		fx.Invoke(func(vue *vue.Vue, resource *Category) {
+		fx.Invoke(func(vue *core.Vue, resource *Category) {
 			vue.RegisterResource(resource)
 		}),
 
-		fx.Invoke(func(vue *vue.Vue, resource *Product) {
+		fx.Invoke(func(vue *core.Vue, resource *Product) {
 			vue.RegisterResource(resource)
 		}),
 
-		fx.Invoke(func(vue *vue.Vue, resource *Item) {
+		fx.Invoke(func(vue *core.Vue, resource *Item) {
 			vue.RegisterResource(resource)
 		}),
 
-		fx.Invoke(func(vue *vue.Vue, resource *Shop) {
+		fx.Invoke(func(vue *core.Vue, resource *Shop) {
 			vue.RegisterResource(resource)
 		}),
 
-		fx.Invoke(func(vue *vue.Vue, resource *Inventory) {
+		fx.Invoke(func(vue *core.Vue, resource *Inventory) {
 			vue.RegisterResource(resource)
 		}),
 
-		fx.Invoke(func(vue *vue.Vue, resource *ManualInventoryAction) {
+		fx.Invoke(func(vue *core.Vue, resource *ManualInventoryAction) {
 			vue.RegisterResource(resource)
 		}),
 

@@ -1,10 +1,10 @@
-package vue
+package fields
 
-type Text struct {
-	*BasicField
+type Status struct {
+	*Field
 }
 
-func NewTextField(name string, fieldName string, opts ...FieldOption) *Text {
+func NewStatusField(name string, fieldName string, opts ...FieldOption) *Status {
 	var options = []FieldOption{
 		SetPrefixComponent(true),
 		SetShowOnIndex(true),
@@ -15,5 +15,5 @@ func NewTextField(name string, fieldName string, opts ...FieldOption) *Text {
 	}
 	options = append(options,opts...)
 
-	return &Text{BasicField: NewField(name, fieldName, options...)}
+	return &Status{Field: NewField(name, fieldName, options...)}
 }

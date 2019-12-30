@@ -10,20 +10,30 @@ import (
 	"go-shop-v2/pkg/vue/contracts"
 	"go-shop-v2/pkg/vue/fields"
 	"go-shop-v2/pkg/vue/panels"
+	"reflect"
+	"time"
 )
 
 type warp struct {
-	resource contracts.Resource
-	httpHandler *resourceHttpHandle
+	resource         contracts.Resource
+	httpHandler      *resourceHttpHandle
 	vueRouterFactory *vueRouterFactory
+}
+
+func newWarp(resource contracts.Resource) *warp {
+	return &warp{
+		resource:         resource,
+		httpHandler:      newResourceHttpHandle(resource),
+		vueRouterFactory: newVueRouterFactory(resource),
+	}
 }
 
 // 列表页字段
 func resolveIndexFields(ctx *gin.Context, resource contracts.Resource) []contracts.Field {
 	var fields []contracts.Field
-
 	for _, field := range resource.Fields(ctx, nil)() {
 		if isField, ok := field.(contracts.Field); ok {
+
 			if isField.ShowOnIndex() && isField.AuthorizedTo(ctx, ctx2.GetUser(ctx).(auth.Authenticatable)) {
 				// 自定义列表页组件
 				if hasIndexComponent, ok := isField.(contracts.CustomIndexFieldComponent); ok {
@@ -108,6 +118,10 @@ func resolveCreationFields(ctx *gin.Context, resource contracts.Resource) ([]con
 					hasDetailComponent.CreationComponent()
 				}
 
+				if isField.GetPanel() == "" {
+					defaultPanel.PrepareFields(isField)
+				}
+
 				fields = append(fields, isField)
 				continue
 			}
@@ -121,6 +135,10 @@ func resolveCreationFields(ctx *gin.Context, resource contracts.Resource) ([]con
 					// 自定义创建页组件
 					if hasDetailComponent, ok := panelField.(contracts.CustomCreationFieldComponent); ok {
 						hasDetailComponent.CreationComponent()
+					}
+
+					if panelField.GetPanel() == "" {
+						defaultPanel.PrepareFields(panelField)
 					}
 
 					fields = append(fields, panelField)
@@ -153,6 +171,9 @@ func resolveUpdateFields(ctx *gin.Context, resource contracts.Resource) ([]contr
 				if hasDetailComponent, ok := isField.(contracts.CustomUpdateFieldComponent); ok {
 					hasDetailComponent.UpdateComponent()
 				}
+				if isField.GetPanel() == "" {
+					defaultPanel.PrepareFields(isField)
+				}
 				fields = append(fields, isField)
 				continue
 			}
@@ -166,6 +187,9 @@ func resolveUpdateFields(ctx *gin.Context, resource contracts.Resource) ([]contr
 					// 自定义更新页组件
 					if hasDetailComponent, ok := panelField.(contracts.CustomUpdateFieldComponent); ok {
 						hasDetailComponent.UpdateComponent()
+					}
+					if panelField.GetPanel() == "" {
+						defaultPanel.PrepareFields(panelField)
 					}
 					fields = append(fields, panelField)
 				}
@@ -189,10 +213,10 @@ func SerializeForIndex(ctx *gin.Context, resource contracts.Resource) map[string
 	maps["AuthorizedToRestore"] = AuthorizedToRestore(ctx, resource)
 	maps["AuthorizedToForceDelete"] = AuthorizedToForceDelete(ctx, resource)
 
-	//// DetailRouterName
-	//warp.WithMeta("DetailRouterName", this.DetailRouterName())
-	//// EditRouterName
-	//warp.WithMeta("EditRouterName", this.EditRouterName())
+	// DetailRouterName
+	maps["DetailRouterName"] = DetailRouteName(resource)
+	// EditRouterName
+	maps["EditRouterName"] = UpdateRouteName(resource)
 
 	isSoftDeleted := false
 	if softable, ok := resource.Model().(model.IModel); ok {
@@ -206,6 +230,8 @@ func SerializeForIndex(ctx *gin.Context, resource contracts.Resource) map[string
 		field.Resolve(ctx, resource.Model())
 		item = append(item, field)
 
+		field.Call()
+
 		if id, ok := field.(*fields.ID); ok {
 			maps["id"] = id
 		}
@@ -218,28 +244,32 @@ func SerializeForIndex(ctx *gin.Context, resource contracts.Resource) map[string
 // 详情页数据格式
 func SerializeForDetail(ctx *gin.Context, resource contracts.Resource) map[string]interface{} {
 	var maps = map[string]interface{}{}
-	maps["AuthorizedToUpdate"] = AuthorizedToUpdate(ctx, resource)
-	maps["AuthorizedToDelete"] = AuthorizedToDelete(ctx, resource)
-	maps["AuthorizedToRestore"] = AuthorizedToRestore(ctx, resource)
-	maps["AuthorizedToForceDelete"] = AuthorizedToForceDelete(ctx, resource)
-
-	var isSoftDeleted bool
-	if softable, ok := resource.Model().(model.IModel); ok {
-		isSoftDeleted = softable.IsSoftDeleted()
-	}
-	maps["SoftDeleted"] = isSoftDeleted
-
 	var items []contracts.Field
 	var p []*panels.Panel
 	defaultPanel := panels.NewPanel(resource.Title() + "" + "详情")
 	defaultPanel.ShowToolbar = true
 	detailFields, panels := resolveDetailFields(ctx, resource)
 	data := map[string]interface{}{}
+
+	data["AuthorizedToUpdate"] = AuthorizedToUpdate(ctx, resource)
+	data["AuthorizedToDelete"] = AuthorizedToDelete(ctx, resource)
+	data["AuthorizedToRestore"] = AuthorizedToRestore(ctx, resource)
+	data["AuthorizedToForceDelete"] = AuthorizedToForceDelete(ctx, resource)
+
+	var isSoftDeleted bool
+	if softable, ok := resource.Model().(model.IModel); ok {
+		isSoftDeleted = softable.IsSoftDeleted()
+	}
+	data["SoftDeleted"] = isSoftDeleted
+
 	for _, field := range detailFields {
 		if field.GetPanel() == "" {
 			defaultPanel.PrepareFields(field)
 		}
 		field.Resolve(ctx, resource.Model())
+
+		field.Call()
+
 		items = append(items, field)
 
 		if id, ok := field.(*fields.ID); ok {
@@ -269,4 +299,29 @@ func ResourceUriKey(resource contracts.Resource) string {
 // 资源URI PARAM
 func ResourceIdParam(resource contracts.Resource) string {
 	return utils.StrToSingular(utils.StructToName(resource))
+}
+
+// 创建成功重定向
+func CreatedRedirect(resource contracts.Resource, id string) string {
+	return fmt.Sprintf("/%s/%s", ResourceUriKey(resource), id)
+}
+
+// 更新成功重定向
+func UpdatedRedirect(resource contracts.Resource, id string) string  {
+	return fmt.Sprintf("/%s/%s", ResourceUriKey(resource), id)
+}
+
+// 资源是否支持软删除
+func ResourceIsSoftDeleted(resource contracts.Resource) bool {
+	entity := resource.Model()
+	if reflect.ValueOf(entity).Kind() == reflect.Ptr {
+		elem := reflect.ValueOf(entity).Elem()
+		f := elem.FieldByName("DeletedAt")
+		if f.IsValid() {
+			if f.Type() == reflect.ValueOf(&time.Time{}).Type() {
+				return true
+			}
+		}
+	}
+	return false
 }

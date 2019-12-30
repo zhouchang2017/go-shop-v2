@@ -38,6 +38,7 @@ func DetailRouteName(resource contracts.Resource) string {
 	return fmt.Sprintf("%s.detail", ResourceUriKey(resource))
 }
 
+
 // 更新页路由名称
 func UpdateRouteName(resource contracts.Resource) string {
 	return fmt.Sprintf("%s.edit", ResourceUriKey(resource))
@@ -77,7 +78,7 @@ func UpdateRouteComponent(resource contracts.Resource) string {
 	if implement, ok := resource.(contracts.ResourceCustomUpdateComponent); ok {
 		return implement.UpdateComponent()
 	}
-	return "Edit"
+	return "Update"
 }
 
 type vueRouterFactory struct {
@@ -97,10 +98,8 @@ type vueRouterFactory struct {
 	authorizedToCreate bool
 }
 
-func newVueRouterFactory(ctx *gin.Context, resource contracts.Resource) *vueRouterFactory {
+func newVueRouterFactory(resource contracts.Resource) *vueRouterFactory {
 	return &vueRouterFactory{
-		ctx:          ctx,
-		user:         ctx2.GetUser(ctx),
 		resource:     resource,
 		uriKey:       ResourceUriKey(resource),
 		resourceName: ResourceUriKey(resource),
@@ -110,29 +109,37 @@ func newVueRouterFactory(ctx *gin.Context, resource contracts.Resource) *vueRout
 		updateComponent: UpdateRouteComponent(resource),
 		createComponent: CreationRouteComponent(resource),
 		// 名称
-		indexRouteName:     IndexRouteName(resource),
-		detailRouteName:    DetailRouteName(resource),
-		createRouteName:    CreationRouteName(resource),
-		updateRouteName:    UpdateRouteName(resource),
-		authorizedToCreate: AuthorizedToCreate(ctx, resource),
+		indexRouteName:  IndexRouteName(resource),
+		detailRouteName: DetailRouteName(resource),
+		createRouteName: CreationRouteName(resource),
+		updateRouteName: UpdateRouteName(resource),
 	}
 }
 
-func (this *vueRouterFactory) makeRouters(ctx *gin.Context, resource contracts.Resource) []*Router {
+func (this *vueRouterFactory) make(ctx *gin.Context) []*Router {
+	this.ctx = ctx
+	this.user = ctx2.GetUser(ctx)
+	this.authorizedToCreate = AuthorizedToCreate(ctx, this.resource)
 	var routers []*Router
-	this.vueIndexRouter(routers)
-	this.vueDetailRouter(routers)
-	this.vueUpdateRouter(routers)
-	this.vueCreateRouter(routers)
+	if router := this.vueIndexRouter(); router != nil {
+		routers = append(routers, router)
+	}
+	if router := this.vueDetailRouter(); router != nil {
+		routers = append(routers, router)
+	}
+	if router := this.vueUpdateRouter(); router != nil {
+		routers = append(routers, router)
+	}
+	if router := this.vueCreateRouter(); router != nil {
+		routers = append(routers, router)
+	}
 	return routers
 }
 
 // vue 资源列表页路由
-func (this *vueRouterFactory) vueIndexRouter(routers []*Router) *Router {
-
+func (this *vueRouterFactory) vueIndexRouter() *Router {
 	if this.resource.HasIndexRoute(this.ctx, this.user) && AuthorizedToViewAny(this.ctx, this.resource) {
 		router := NewRouter()
-
 		router.Path = this.uriKey
 		router.Name = this.indexRouteName
 		router.Component = this.indexComponent
@@ -152,14 +159,13 @@ func (this *vueRouterFactory) vueIndexRouter(routers []*Router) *Router {
 		}
 		// 追加列
 		router.WithMeta("Headings", resolveIndexFields(this.ctx, this.resource))
-		routers = append(routers, router)
 		return router
 	}
 	return nil
 }
 
 // vue 资源详情页路由
-func (this *vueRouterFactory) vueDetailRouter(routers []*Router) *Router {
+func (this *vueRouterFactory) vueDetailRouter() *Router {
 	if this.resource.HasDetailRoute(this.ctx, this.user) {
 		router := NewRouter()
 		router.Path = fmt.Sprintf("%s/:id", this.uriKey)
@@ -167,14 +173,13 @@ func (this *vueRouterFactory) vueDetailRouter(routers []*Router) *Router {
 		router.Component = this.detailComponent
 		router.Hidden = true
 		router.WithMeta("ResourceName", this.resourceName)
-		routers = append(routers, router)
 		return router
 	}
 	return nil
 }
 
 // vue 资源更新页路由
-func (this *vueRouterFactory) vueUpdateRouter(routers []*Router) *Router {
+func (this *vueRouterFactory) vueUpdateRouter() *Router {
 	if this.resource.HasEditRoute(this.ctx, this.user) {
 		router := NewRouter()
 		router.Path = fmt.Sprintf("%s/:id/edit", this.uriKey)
@@ -182,22 +187,20 @@ func (this *vueRouterFactory) vueUpdateRouter(routers []*Router) *Router {
 		router.Component = this.updateComponent
 		router.Hidden = true
 		router.WithMeta("ResourceName", this.resourceName)
-		routers = append(routers, router)
 		return router
 	}
 	return nil
 }
 
 // vue 资源创建页路由
-func (this *vueRouterFactory) vueCreateRouter(routers []*Router) *Router {
+func (this *vueRouterFactory) vueCreateRouter() *Router {
 	if this.authorizedToCreate {
 		router := NewRouter()
-		router.Path = fmt.Sprintf("%s/:id/new", this.uriKey)
+		router.Path = fmt.Sprintf("%s/new", this.uriKey)
 		router.Name = this.createRouteName
 		router.Component = this.createComponent
 		router.Hidden = true
 		router.WithMeta("ResourceName", this.resourceName)
-		routers = append(routers, router)
 		return router
 	}
 	return nil
