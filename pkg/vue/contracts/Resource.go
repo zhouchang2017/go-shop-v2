@@ -46,22 +46,22 @@ type (
 
 	// 自定义列表页组件
 	ResourceCustomIndexComponent interface {
-		IndexComponent() string
+		IndexComponent() Page
 	}
 
 	// 自定义详情页组件
 	ResourceCustomDetailComponent interface {
-		DetailComponent() string
+		DetailComponent() Page
 	}
 
 	// 自定义创建页组件
 	ResourceCustomCreationComponent interface {
-		CreationComponent() string
+		CreationComponent() Page
 	}
 
 	// 自定义更新页组件
 	ResourceCustomUpdateComponent interface {
-		UpdateComponent() string
+		UpdateComponent() Page
 	}
 
 	// 资源列表接口

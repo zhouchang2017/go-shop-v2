@@ -9,7 +9,7 @@ func NewDateTime(name string, fieldName string, opts ...FieldOption) *DateTime {
 		SetPrefixComponent(true),
 		SetShowOnIndex(true),
 		SetShowOnDetail(true),
-		SetComponent("date-time-field"),
+		WithComponent("date-time-field"),
 		SetTextAlign("left"),
 	}
 	options = append(options, opts...)

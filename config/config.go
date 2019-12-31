@@ -6,7 +6,15 @@ import (
 	"go-shop-v2/pkg/db/mongodb"
 	"go-shop-v2/pkg/db/mysql"
 	"go-shop-v2/pkg/qiniu"
+	"go-shop-v2/pkg/vue/fields"
 )
+
+func init() {
+	fields.DefaultMapLocation = &fields.MapValue{
+		Lng: 112.969625,
+		Lat: 28.199554,
+	}
+}
 
 // mongodb config
 func (c *configServiceProvider) mongodbConfig() mongodb.Config {

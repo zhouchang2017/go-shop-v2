@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"go-shop-v2/app/vue/pages"
 	"go-shop-v2/pkg/support"
 	"go-shop-v2/pkg/vue/core"
 	"go.uber.org/fx"
@@ -50,6 +51,8 @@ func (v *vueResourceServiceProvider) Boot() fx.Option {
 
 		fx.Invoke(func(vue *core.Vue, resource *Product) {
 			vue.RegisterResource(resource)
+			vue.RegisterPage(pages.NewProductCreatePage())
+			vue.RegisterPage(pages.NewProductUpdatePage())
 		}),
 
 		fx.Invoke(func(vue *core.Vue, resource *Item) {

@@ -43,11 +43,11 @@ func WithMeta(key string, value interface{}) FieldOption {
 	}
 }
 
-func SetComponent(component string) FieldOption {
+func WithComponent(component string) FieldOption {
 	return func(field interface{}) {
 		basicField, err := resolveBasicField(field)
 		if err == nil {
-			basicField.SetComponent(component)
+			basicField.WithComponent(component)
 		}
 	}
 }

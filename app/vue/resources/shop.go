@@ -1,7 +1,10 @@
 package resources
 
 import (
+	"context"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/gin-gonic/gin"
+	"github.com/mitchellh/mapstructure"
 	"go-shop-v2/app/events"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
@@ -9,7 +12,9 @@ import (
 	"go-shop-v2/pkg/event"
 	"go-shop-v2/pkg/repository"
 	"go-shop-v2/pkg/request"
+	"go-shop-v2/pkg/response"
 	"go-shop-v2/pkg/vue/contracts"
+	"go-shop-v2/pkg/vue/core"
 	"go-shop-v2/pkg/vue/fields"
 	"go-shop-v2/pkg/vue/panels"
 )
@@ -19,9 +24,52 @@ func init() {
 }
 
 type Shop struct {
-	model   interface{}
-	rep     *repositories.ShopRep
-	service *services.ShopService
+	model        interface{}
+	rep          *repositories.ShopRep
+	service      *services.ShopService
+	adminService *services.AdminService
+}
+
+
+
+// 实现列表页api
+func (s *Shop) Pagination(ctx *gin.Context, req *request.IndexRequest) (res interface{}, pagination response.Pagination, err error) {
+	results := <-s.rep.Pagination(ctx, req)
+	return results.Result, results.Pagination, results.Error
+}
+
+// 实现列表页api
+func (s *Shop) Show(ctx *gin.Context, id string) (res interface{}, err error) {
+	result := <-s.rep.FindById(ctx, id)
+	return result.Result, result.Error
+}
+
+// 实现创建api
+func (s *Shop) Store(ctx *gin.Context, data map[string]interface{}) (redirect string, err error) {
+	form := &shopForm{}
+	if err := mapstructure.Decode(data, form); err != nil {
+		return "", err
+	}
+	shop := &models.Shop{
+		Name:     form.Name,
+		Address:  form.Address,
+		Location: form.Location,
+	}
+	entity, err := s.service.SetMembers(ctx, shop, form.Members...)
+	if err != nil {
+		return "", err
+	}
+	created := <-s.rep.Create(ctx, entity)
+	if created.Error != nil {
+		return "", created.Error
+	}
+	event.Dispatch(events.ShopCreated{Shop: created.Result.(*models.Shop)})
+	return core.CreatedRedirect(s, created.Id), nil
+}
+
+func (s *Shop) Update(ctx *gin.Context, model interface{}, data map[string]interface{}) (redirect string, err error) {
+	spew.Dump(data)
+	panic("implement me")
 }
 
 func (s *Shop) DisplayInNavigation(ctx *gin.Context, user interface{}) bool {
@@ -46,18 +94,19 @@ func (s *Shop) Policy() interface{} {
 
 func (s *Shop) Make(model interface{}) contracts.Resource {
 	return &Shop{
-		model:   model,
-		rep:     s.rep,
-		service: s.service,
+		model:        model,
+		rep:          s.rep,
+		service:      s.service,
+		adminService: s.adminService,
 	}
 }
 
-func NewShopResource(rep *repositories.ShopRep, service *services.ShopService) *Shop {
-	return &Shop{model: &models.Shop{}, rep: rep, service: service}
+func NewShopResource(rep *repositories.ShopRep, service *services.ShopService, adminService *services.AdminService) *Shop {
+	return &Shop{model: &models.Shop{}, rep: rep, service: service, adminService: adminService}
 }
 
 type shopForm struct {
-	Name     string              `json:"name" form:"name" binding:"required"`
+	Name     string              `json:"name"`
 	Address  *models.ShopAddress `json:"address"`           // 地址
 	Location *models.Location    `json:"location"`          // 坐标
 	Members  []string            `json:"members,omitempty"` // 成员
@@ -102,7 +151,7 @@ func (s *Shop) Updated(ctx *gin.Context, resource interface{}) {
 	event.Dispatch(events.ShopUpdated{Shop: resource.(*models.Shop)})
 }
 
-// 列表页&详情页展示字段设置
+// 字段设置
 func (s *Shop) Fields(ctx *gin.Context, model interface{}) func() []interface{} {
 	return func() []interface{} {
 		return []interface{}{
@@ -112,14 +161,24 @@ func (s *Shop) Fields(ctx *gin.Context, model interface{}) func() []interface{} 
 			fields.NewDateTime("更新时间", "UpdatedAt"),
 
 			panels.NewPanel("地址",
-				fields.NewTextField("省份", "Address.Province", fields.OnlyOnDetail()),
-				fields.NewTextField("城市", "Address.City", fields.OnlyOnDetail()),
-				fields.NewTextField("区/县", "Address.Areas", fields.OnlyOnDetail()),
-				fields.NewTextField("详细地址", "Address.Addr", fields.OnlyOnDetail()),
-				fields.NewTextField("联系人", "Address.Name", fields.OnlyOnDetail()),
-				fields.NewTextField("电话", "Address.Phone", fields.OnlyOnDetail()),
-
+				fields.NewAreaCascader("省/市/区", "Address"),
+				fields.NewTextField("详细地址", "Address.Addr",fields.SetShowOnIndex(false)),
+				fields.NewTextField("联系人", "Address.Name"),
+				fields.NewTextField("电话", "Address.Phone"),
+				fields.NewMapField("位置", "Location"),
 			),
+
+			fields.NewCheckboxGroup("成员", "Members", fields.OnlyOnForm()).Key("id").CallbackOptions(func() []*fields.CheckboxGroupOption {
+				associatedAdmins, _ := s.adminService.AllAdmins(context.Background())
+				var adminOptions []*fields.CheckboxGroupOption
+				for _, admin := range associatedAdmins {
+					adminOptions = append(adminOptions, &fields.CheckboxGroupOption{
+						Label: admin.Nickname,
+						Value: admin.Id,
+					})
+				}
+				return adminOptions
+			}),
 
 
 			panels.NewPanel("成员",
@@ -131,11 +190,6 @@ func (s *Shop) Fields(ctx *gin.Context, model interface{}) func() []interface{} 
 				})).SetWithoutPending(true),
 		}
 	}
-}
-
-// 列表页搜索处理
-func (s *Shop) IndexQuery(ctx *gin.Context, request *request.IndexRequest) error {
-	return nil
 }
 
 func (s *Shop) Model() interface{} {

@@ -28,7 +28,7 @@ func (InventoryAggregateLens) Title() string {
 	return "多门店聚合"
 }
 
-//func (this *InventoryAggregateLens) Component() string {
+//func (this *InventoryAggregateLens) RouterComponent() string {
 //	return fmt.Sprintf(`%s/Aggregate`, this.helper.UriKey())
 //}
 

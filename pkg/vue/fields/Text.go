@@ -11,7 +11,7 @@ func NewTextField(name string, fieldName string, opts ...FieldOption) *Text {
 		SetShowOnDetail(true),
 		SetShowOnCreation(true),
 		SetShowOnUpdate(true),
-		SetComponent("text-field"),
+		WithComponent("text-field"),
 		SetTextAlign("left"),
 	}
 	options = append(options,opts...)

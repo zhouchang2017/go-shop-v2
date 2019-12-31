@@ -11,14 +11,15 @@ import (
 )
 
 type Vue struct {
-	app        *gin.Engine
-	server     *http.Server
-	port       int64
-	prefix     string
-	resources  []contracts.Resource
-	guard      string
-	httpHandle *httpHandle
-	warps      []*warp
+	app              *gin.Engine
+	server           *http.Server
+	port             int64
+	prefix           string
+	resources        []contracts.Resource
+	pages            []contracts.Page
+	guard            string
+	httpHandle       *httpHandle
+	warps            []*warp
 	customHttpHandle []func(router gin.IRouter)
 }
 
@@ -92,4 +93,9 @@ func (this *Vue) RegisterCustomHttpHandler(handler func(router gin.IRouter)) {
 // 注册资源
 func (this *Vue) RegisterResource(resource contracts.Resource) {
 	this.resources = append(this.resources, resource)
+}
+
+// 注册自定义页面
+func (this *Vue) RegisterPage(page contracts.Page) {
+	this.pages = append(this.pages, page)
 }

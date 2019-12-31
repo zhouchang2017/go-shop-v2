@@ -30,7 +30,7 @@ func newWarp(resource contracts.Resource) *warp {
 
 // 列表页字段
 func resolveIndexFields(ctx *gin.Context, resource contracts.Resource) []contracts.Field {
-	var fields []contracts.Field
+	fields := []contracts.Field{}
 	for _, field := range resource.Fields(ctx, nil)() {
 		if isField, ok := field.(contracts.Field); ok {
 
@@ -61,8 +61,8 @@ func resolveIndexFields(ctx *gin.Context, resource contracts.Resource) []contrac
 
 // 资源详情页字段
 func resolveDetailFields(ctx *gin.Context, resource contracts.Resource) ([]contracts.Field, []*panels.Panel) {
-	var fields []contracts.Field
-	var panel []*panels.Panel
+	fields := []contracts.Field{}
+	panel:= []*panels.Panel{}
 	for _, field := range resource.Fields(ctx, resource.Model())() {
 
 		if isField, ok := field.(contracts.Field); ok {
@@ -103,8 +103,8 @@ func resolveDetailFields(ctx *gin.Context, resource contracts.Resource) ([]contr
 
 // 资源创建页字段
 func resolveCreationFields(ctx *gin.Context, resource contracts.Resource) ([]contracts.Field, []*panels.Panel) {
-	var fields []contracts.Field
-	var panel []*panels.Panel
+	fields := []contracts.Field{}
+	panel := []*panels.Panel{}
 	defaultPanel := panels.NewPanel(fmt.Sprintf("创建%s", resource.Title()))
 	panel = append(panel, defaultPanel)
 
@@ -156,8 +156,8 @@ func resolveCreationFields(ctx *gin.Context, resource contracts.Resource) ([]con
 
 // 资源更新页字段
 func resolveUpdateFields(ctx *gin.Context, resource contracts.Resource) ([]contracts.Field, []*panels.Panel) {
-	var fields []contracts.Field
-	var panel []*panels.Panel
+	fields := []contracts.Field{}
+	panel := []*panels.Panel{}
 	// TODO 自定义panel title
 	defaultPanel := panels.NewPanel(fmt.Sprintf("更新%s", resource.Title()))
 	panel = append(panel, defaultPanel)
@@ -225,7 +225,7 @@ func SerializeForIndex(ctx *gin.Context, resource contracts.Resource) map[string
 	maps["SoftDeleted"] = isSoftDeleted
 
 	// TODO 处理自定义页面返回值
-	var item []contracts.Field
+	item := []contracts.Field{}
 	for _, field := range resolveIndexFields(ctx, resource) {
 		field.Resolve(ctx, resource.Model())
 		item = append(item, field)
@@ -244,8 +244,8 @@ func SerializeForIndex(ctx *gin.Context, resource contracts.Resource) map[string
 // 详情页数据格式
 func SerializeForDetail(ctx *gin.Context, resource contracts.Resource) map[string]interface{} {
 	var maps = map[string]interface{}{}
-	var items []contracts.Field
-	var p []*panels.Panel
+	items := []contracts.Field{}
+	p := []*panels.Panel{}
 	defaultPanel := panels.NewPanel(resource.Title() + "" + "详情")
 	defaultPanel.ShowToolbar = true
 	detailFields, panels := resolveDetailFields(ctx, resource)
@@ -307,7 +307,7 @@ func CreatedRedirect(resource contracts.Resource, id string) string {
 }
 
 // 更新成功重定向
-func UpdatedRedirect(resource contracts.Resource, id string) string  {
+func UpdatedRedirect(resource contracts.Resource, id string) string {
 	return fmt.Sprintf("/%s/%s", ResourceUriKey(resource), id)
 }
 

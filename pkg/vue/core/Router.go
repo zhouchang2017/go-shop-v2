@@ -8,23 +8,35 @@ import (
 )
 
 type Router struct {
-	Path      string                 `json:"path"`
-	Component string                 `json:"component"`
-	Name      string                 `json:"name,omitempty"` // 命名路由
-	Children  []*Router              `json:"children,omitempty"`
-	Meta      map[string]interface{} `json:"meta,omitempty"`
-	Hidden    bool                   `json:"hidden"`
+	RouterPath      string                 `json:"path"`
+	RouterComponent string                 `json:"component"`
+	Name            string                 `json:"name,omitempty"` // 命名路由
+	Children        []contracts.Router     `json:"children,omitempty"`
+	Meta            map[string]interface{} `json:"meta,omitempty"`
+	Hidden          bool                   `json:"hidden"`
 }
 
 func NewRouter() *Router {
 	return &Router{Meta: map[string]interface{}{}}
 }
 
+func (m Router) Path() string {
+	return m.RouterPath
+}
+
+func (m Router) Component() string {
+	return m.RouterComponent
+}
+
+func (m Router) RouterName() string {
+	return m.Name
+}
+
 func (m *Router) WithMeta(key string, value interface{}) {
 	m.Meta[key] = value
 }
 
-func (m *Router) AddChild(r *Router) {
+func (m *Router) AddChild(r contracts.Router) {
 	m.Children = append(m.Children, r)
 }
 
@@ -37,7 +49,6 @@ func IndexRouteName(resource contracts.Resource) string {
 func DetailRouteName(resource contracts.Resource) string {
 	return fmt.Sprintf("%s.detail", ResourceUriKey(resource))
 }
-
 
 // 更新页路由名称
 func UpdateRouteName(resource contracts.Resource) string {
@@ -52,7 +63,7 @@ func CreationRouteName(resource contracts.Resource) string {
 // 列表页组件
 func IndexRouteComponent(resource contracts.Resource) string {
 	if implement, ok := resource.(contracts.ResourceCustomIndexComponent); ok {
-		return implement.IndexComponent()
+		return implement.IndexComponent().VueRouter().Component()
 	}
 	return "Index"
 }
@@ -60,7 +71,7 @@ func IndexRouteComponent(resource contracts.Resource) string {
 // 创建页组件
 func CreationRouteComponent(resource contracts.Resource) string {
 	if implement, ok := resource.(contracts.ResourceCustomCreationComponent); ok {
-		return implement.CreationComponent()
+		return implement.CreationComponent().VueRouter().Component()
 	}
 	return "Create"
 }
@@ -68,7 +79,7 @@ func CreationRouteComponent(resource contracts.Resource) string {
 // 详情页组件
 func DetailRouteComponent(resource contracts.Resource) string {
 	if implement, ok := resource.(contracts.ResourceCustomDetailComponent); ok {
-		return implement.DetailComponent()
+		return implement.DetailComponent().VueRouter().Component()
 	}
 	return "Detail"
 }
@@ -76,7 +87,7 @@ func DetailRouteComponent(resource contracts.Resource) string {
 // 更新页组件
 func UpdateRouteComponent(resource contracts.Resource) string {
 	if implement, ok := resource.(contracts.ResourceCustomUpdateComponent); ok {
-		return implement.UpdateComponent()
+		return implement.UpdateComponent().VueRouter().Component()
 	}
 	return "Update"
 }
@@ -116,11 +127,11 @@ func newVueRouterFactory(resource contracts.Resource) *vueRouterFactory {
 	}
 }
 
-func (this *vueRouterFactory) make(ctx *gin.Context) []*Router {
+func (this *vueRouterFactory) make(ctx *gin.Context) []contracts.Router {
 	this.ctx = ctx
 	this.user = ctx2.GetUser(ctx)
 	this.authorizedToCreate = AuthorizedToCreate(ctx, this.resource)
-	var routers []*Router
+	var routers []contracts.Router
 	if router := this.vueIndexRouter(); router != nil {
 		routers = append(routers, router)
 	}
@@ -137,12 +148,12 @@ func (this *vueRouterFactory) make(ctx *gin.Context) []*Router {
 }
 
 // vue 资源列表页路由
-func (this *vueRouterFactory) vueIndexRouter() *Router {
+func (this *vueRouterFactory) vueIndexRouter() contracts.Router {
 	if this.resource.HasIndexRoute(this.ctx, this.user) && AuthorizedToViewAny(this.ctx, this.resource) {
 		router := NewRouter()
-		router.Path = this.uriKey
+		router.RouterPath = this.uriKey
 		router.Name = this.indexRouteName
-		router.Component = this.indexComponent
+		router.RouterComponent = this.indexComponent
 		router.Hidden = !this.resource.DisplayInNavigation(this.ctx, this.user)
 
 		router.WithMeta("AuthorizedToCreate", this.authorizedToCreate)
@@ -165,12 +176,12 @@ func (this *vueRouterFactory) vueIndexRouter() *Router {
 }
 
 // vue 资源详情页路由
-func (this *vueRouterFactory) vueDetailRouter() *Router {
+func (this *vueRouterFactory) vueDetailRouter() contracts.Router {
 	if this.resource.HasDetailRoute(this.ctx, this.user) {
 		router := NewRouter()
-		router.Path = fmt.Sprintf("%s/:id", this.uriKey)
+		router.RouterPath = fmt.Sprintf("%s/:id", this.uriKey)
 		router.Name = this.detailRouteName
-		router.Component = this.detailComponent
+		router.RouterComponent = this.detailComponent
 		router.Hidden = true
 		router.WithMeta("ResourceName", this.resourceName)
 		return router
@@ -179,12 +190,17 @@ func (this *vueRouterFactory) vueDetailRouter() *Router {
 }
 
 // vue 资源更新页路由
-func (this *vueRouterFactory) vueUpdateRouter() *Router {
+func (this *vueRouterFactory) vueUpdateRouter() contracts.Router {
+
+	if _, ok := this.resource.(contracts.ResourceCustomUpdateComponent); ok {
+		return nil
+	}
+
 	if this.resource.HasEditRoute(this.ctx, this.user) {
 		router := NewRouter()
-		router.Path = fmt.Sprintf("%s/:id/edit", this.uriKey)
+		router.RouterPath = fmt.Sprintf("%s/:id/edit", this.uriKey)
 		router.Name = this.updateRouteName
-		router.Component = this.updateComponent
+		router.RouterComponent = this.updateComponent
 		router.Hidden = true
 		router.WithMeta("ResourceName", this.resourceName)
 		return router
@@ -193,12 +209,17 @@ func (this *vueRouterFactory) vueUpdateRouter() *Router {
 }
 
 // vue 资源创建页路由
-func (this *vueRouterFactory) vueCreateRouter() *Router {
+func (this *vueRouterFactory) vueCreateRouter() contracts.Router {
 	if this.authorizedToCreate {
+
+		if _, ok := this.resource.(contracts.ResourceCustomCreationComponent); ok {
+			return nil
+		}
+
 		router := NewRouter()
-		router.Path = fmt.Sprintf("%s/new", this.uriKey)
+		router.RouterPath = fmt.Sprintf("%s/new", this.uriKey)
 		router.Name = this.createRouteName
-		router.Component = this.createComponent
+		router.RouterComponent = this.createComponent
 		router.Hidden = true
 		router.WithMeta("ResourceName", this.resourceName)
 		return router

@@ -12,7 +12,7 @@ func NewPasswordField(name string, fieldName string, opts ...FieldOption) *Passw
 		SetShowOnIndex(true),
 		SetShowOnDetail(true),
 		SetShowOnCreation(true),
-		SetComponent("password-field"),
+		WithComponent("password-field"),
 		SetTextAlign("left"),
 	}
 	options = append(options, opts...)

@@ -17,7 +17,7 @@ func NewTable(name string, fieldName string, fields func() []contracts.Field, op
 		SetPrefixComponent(true),
 		SetShowOnIndex(false),
 		SetShowOnDetail(true),
-		SetComponent("table-field"),
+		WithComponent("table-field"),
 		SetTextAlign("left"),
 	}
 	options = append(options, opts...)

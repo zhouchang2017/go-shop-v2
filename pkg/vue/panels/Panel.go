@@ -16,7 +16,7 @@ type Panel struct {
 
 func NewPanel(name string, fields ...contracts.Field) *Panel {
 	p := &Panel{Element:element.NewElement(),Name: name}
-	p.SetComponent("panel")
+	p.WithComponent("panel")
 	p.PrepareFields(fields...)
 	return p
 }

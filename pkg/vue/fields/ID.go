@@ -10,7 +10,7 @@ func NewIDField(opts ...FieldOption) *ID {
 		SetPrefixComponent(true),
 		SetShowOnIndex(true),
 		SetShowOnDetail(true),
-		SetComponent("text-field"),
+		WithComponent("text-field"),
 		SetTextAlign("left"),
 	}
 	options = append(options, opts...)

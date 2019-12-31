@@ -41,7 +41,7 @@ func (a *AdminService) Create(ctx context.Context, model *models.Admin, ShopIds 
 }
 
 // 更新用户
-func (a *AdminService) Update(ctx context.Context,model *models.Admin, ShopIds ...string) (admin *models.Admin, err error) {
+func (a *AdminService) Update(ctx context.Context, model *models.Admin, ShopIds ...string) (admin *models.Admin, err error) {
 	shopsRes := <-a.shopRep.FindByIds(ctx, ShopIds...)
 	if shopsRes.Error != nil {
 		return model, shopsRes.Error
@@ -144,9 +144,22 @@ func (a *AdminService) AllShops(ctx context.Context) ([]*models.AssociatedShop, 
 	if allRes.Error != nil {
 		return nil, allRes.Error
 	}
-	var res []*models.AssociatedShop
+	res := []*models.AssociatedShop{}
 	for _, shop := range allRes.Result.([]*models.Shop) {
 		res = append(res, shop.ToAssociated())
+	}
+	return res, nil
+}
+
+// 获取所有管理员，关联格式输出
+func (a *AdminService) AllAdmins(ctx context.Context) ([]*models.AssociatedAdmin, error) {
+	all := <-a.rep.FindAll(ctx)
+	if all.Error != nil {
+		return nil, all.Error
+	}
+	res := []*models.AssociatedAdmin{}
+	for _, admin := range all.Result.([]*models.Admin) {
+		res = append(res, admin.ToAssociated())
 	}
 	return res, nil
 }

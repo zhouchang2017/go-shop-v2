@@ -38,18 +38,29 @@ func (this *httpHandle) exec() {
 	// 资源api
 	this.resourcesHttpHandle()
 
+	// 自定义页面路由
+	this.customPagesHttpHandle()
+
 	// 自定义路由
 	this.customHttpHandle()
 }
 
 // vue 路由
 func (this *httpHandle) vueRoutersHttpHandle() {
-	this.router.GET("/routers", func(ctx *gin.Context) {
-		routers := []*Router{}
+	this.router.GET("/routers", func(c *gin.Context) {
+		routers := []contracts.Router{}
 		for _, warp := range this.vue.warps {
-			routers = append(routers, warp.vueRouterFactory.make(ctx)...)
+			routers = append(routers, warp.vueRouterFactory.make(c)...)
 		}
-		ctx.JSON(http.StatusOK, routers)
+
+		// 自定义pages路由
+		for _, page := range this.vue.pages {
+			if page.AuthorizedTo(c, ctx.GetUser(c).(auth.Authenticatable)) {
+				routers = append(routers, page.VueRouter())
+			}
+		}
+
+		c.JSON(http.StatusOK, routers)
 	})
 }
 
@@ -98,6 +109,13 @@ func (this *httpHandle) userInfoHttpHandle() {
 	this.router.GET("/auth/me", func(c *gin.Context) {
 		c.JSON(http.StatusOK, ctx.GetUser(c))
 	})
+}
+
+// 自定义页面路由
+func (this *httpHandle) customPagesHttpHandle() {
+	for _, page := range this.vue.pages {
+		page.HttpHandles(this.router)
+	}
 }
 
 // 自定义路由
@@ -288,6 +306,10 @@ func (this *resourceHttpHandle) resourceUpdateFieldHandle() {
 
 // 资源创建api
 func (this *resourceHttpHandle) resourceCreateHandle() {
+	// 如果实现自定义创建页
+	if _, ok := this.resource.(contracts.ResourceCustomCreationComponent); ok {
+		return
+	}
 	if storeable, ok := this.resource.(contracts.ResourceStorable); ok {
 		this.router.POST(fmt.Sprintf("%s", this.uriKey), func(c *gin.Context) {
 			resource := this.resource.Make(nil)
@@ -319,6 +341,11 @@ func (this *resourceHttpHandle) resourceCreateHandle() {
 
 // 创建资源字段
 func (this *resourceHttpHandle) resourceCreationFieldHandle() {
+	// 如果实现自定义创建页
+	if _, ok := this.resource.(contracts.ResourceCustomCreationComponent); ok {
+		return
+	}
+
 	if _, ok := this.resource.(contracts.ResourceStorable); ok {
 		this.router.GET(fmt.Sprintf("creation-fields/%s", this.uriKey), func(c *gin.Context) {
 			resource := this.resource.Make(nil)

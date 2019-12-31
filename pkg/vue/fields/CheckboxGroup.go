@@ -18,7 +18,7 @@ func NewCheckboxGroup(name string, fieldName string, opts ...FieldOption) *Check
 		SetShowOnIndex(true),
 		SetShowOnDetail(true),
 		SetShowOnCreation(true),
-		SetComponent("checkbox-group-field"),
+		WithComponent("checkbox-group-field"),
 		SetTextAlign("left"),
 	}
 	options = append(options, opts...)

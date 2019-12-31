@@ -5,12 +5,11 @@ import (
 	"go-shop-v2/pkg/auth"
 )
 
-
 type Element struct {
-	PrefixComponent bool   `json:"prefix_component"`
-	Component       string `json:"component"`
-	Meta map[string]interface{} `json:"meta"`
-	authorizedTo func(ctx *gin.Context, user auth.Authenticatable) bool
+	PrefixComponent  bool                   `json:"prefix_component"`
+	ElementComponent string                 `json:"component"`
+	Meta             map[string]interface{} `json:"meta"`
+	authorizedTo     func(ctx *gin.Context, user auth.Authenticatable) bool
 }
 
 func NewElement() *Element {
@@ -36,6 +35,10 @@ func (m *Element) WithMeta(key string, value interface{}) {
 	m.Meta[key] = value
 }
 
-func (m *Element) SetComponent(component string) {
-	m.Component = component
+func (m Element) Component() string {
+	return m.ElementComponent
+}
+
+func (m *Element) WithComponent(component string) {
+	m.ElementComponent = component
 }

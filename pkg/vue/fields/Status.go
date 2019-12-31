@@ -10,7 +10,7 @@ func NewStatusField(name string, fieldName string, opts ...FieldOption) *Status 
 		SetShowOnIndex(true),
 		SetShowOnDetail(true),
 		SetShowOnCreation(true),
-		SetComponent("text-field"),
+		WithComponent("text-field"),
 		SetTextAlign("left"),
 	}
 	options = append(options,opts...)

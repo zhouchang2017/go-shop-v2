@@ -15,7 +15,7 @@ func NewSelect(name string, fieldName string, opts ...FieldOption) *Select {
 		SetShowOnDetail(true),
 		SetShowOnCreation(true),
 		SetShowOnUpdate(true),
-		SetComponent("select-field"),
+		WithComponent("select-field"),
 		SetTextAlign("left"),
 	}
 	fieldOptions = append(fieldOptions, opts...)
@@ -32,12 +32,12 @@ func (this *Select) SetOptions(opts []contracts.Field) *Select {
 
 // 列表页调用vue组件名称
 func (this *Select) IndexComponent() {
-	this.Component = "text-field"
+	this.ElementComponent = "text-field"
 }
 
 // 详情页调用vue组件名称
 func (this *Select) DetailComponent() {
-	this.Component = "text-field"
+	this.ElementComponent = "text-field"
 }
 
 type SelectOption struct {

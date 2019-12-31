@@ -13,6 +13,19 @@ var AuthorizedBefore func(ctx *gin.Context, user auth.Authenticatable) bool
 // 是否有创建权限
 func AuthorizedToCreate(ctx *gin.Context, resource contracts.Resource) bool {
 
+	// 是否实现自定义创建页
+	if customCreation, ok := resource.(contracts.ResourceCustomCreationComponent); ok {
+
+		if AuthorizedBefore != nil {
+			if AuthorizedBefore(ctx, ctx2.GetUser(ctx).(auth.Authenticatable)) {
+				return true
+			}
+		}
+
+		if customCreation.CreationComponent().AuthorizedTo(ctx, ctx2.GetUser(ctx).(auth.Authenticatable)) {
+			return true
+		}
+	}
 	// 是否实现创建方法
 	if _, ok := resource.(contracts.ResourceStorable); ok {
 		if AuthorizedBefore != nil {
@@ -132,6 +145,21 @@ func AuthorizedToRestore(ctx *gin.Context, resource contracts.Resource) (ok bool
 
 // 是否有更新权限
 func AuthorizedToUpdate(ctx *gin.Context, resource contracts.Resource) (ok bool) {
+
+	// 是否实现自定义更新页
+	if customUpdate, ok := resource.(contracts.ResourceCustomUpdateComponent); ok {
+
+		if AuthorizedBefore != nil {
+			if AuthorizedBefore(ctx, ctx2.GetUser(ctx).(auth.Authenticatable)) {
+				return true
+			}
+		}
+
+		if customUpdate.UpdateComponent().AuthorizedTo(ctx, ctx2.GetUser(ctx).(auth.Authenticatable)) {
+			return true
+		}
+	}
+
 	// 是否实现更新方法
 	if _, ok := resource.(contracts.ResourceUpgradeable); ok {
 		if AuthorizedBefore != nil {
@@ -164,6 +192,21 @@ func AuthorizedToUpdate(ctx *gin.Context, resource contracts.Resource) (ok bool)
 
 // 是否有详情权限
 func AuthorizedToView(ctx *gin.Context, resource contracts.Resource) (ok bool) {
+
+	// 是否实现自定义详情页
+	if customDetail, ok := resource.(contracts.ResourceCustomDetailComponent); ok {
+
+		if AuthorizedBefore != nil {
+			if AuthorizedBefore(ctx, ctx2.GetUser(ctx).(auth.Authenticatable)) {
+				return true
+			}
+		}
+
+		if customDetail.DetailComponent().AuthorizedTo(ctx, ctx2.GetUser(ctx).(auth.Authenticatable)) {
+			return true
+		}
+	}
+
 	// 是否实现详情方法
 	if showable, implement := resource.(contracts.ResourceShowable); implement {
 		if AuthorizedBefore != nil {
@@ -193,6 +236,21 @@ func AuthorizedToView(ctx *gin.Context, resource contracts.Resource) (ok bool) {
 
 // 是否有列表页权限
 func AuthorizedToViewAny(ctx *gin.Context, resource contracts.Resource) bool {
+
+	// 是否实现自定义列表页
+	if customIndex, ok := resource.(contracts.ResourceCustomIndexComponent); ok {
+
+		if AuthorizedBefore != nil {
+			if AuthorizedBefore(ctx, ctx2.GetUser(ctx).(auth.Authenticatable)) {
+				return true
+			}
+		}
+
+		if customIndex.IndexComponent().AuthorizedTo(ctx, ctx2.GetUser(ctx).(auth.Authenticatable)) {
+			return true
+		}
+	}
+
 	// 是否实现详情方法
 	if _, implement := resource.(contracts.ResourcePaginationable); implement {
 		if AuthorizedBefore != nil {

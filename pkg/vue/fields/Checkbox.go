@@ -10,7 +10,7 @@ func NewCheckbox(name string, fieldName string, opts ...FieldOption) *Checkbox {
 		SetShowOnIndex(true),
 		SetShowOnDetail(true),
 		SetShowOnCreation(true),
-		SetComponent("checkbox-field"),
+		WithComponent("checkbox-field"),
 		SetTextAlign("left"),
 	}
 	options = append(options,opts...)
