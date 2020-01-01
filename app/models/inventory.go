@@ -46,7 +46,7 @@ type Inventory struct {
 // 聚合结构体
 type AggregateInventory struct {
 	*AssociatedItem `inline`
-	Qty             int64                     `json:"qty"` // 总数
+	Total             int64                     `json:"total"` // 总数
 	Inventories     []*AggregateInventoryUnit `json:"inventories"`
 }
 

@@ -10,6 +10,7 @@ import (
 	"go-shop-v2/pkg/repository"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/vue/contracts"
+	"go-shop-v2/pkg/vue/core"
 )
 
 func init() {
@@ -17,6 +18,7 @@ func init() {
 }
 
 type ManualInventoryAction struct {
+	core.AbstractResource
 	model   interface{}
 	rep     *repositories.ManualInventoryActionRep
 	service *services.ManualInventoryActionService

@@ -67,7 +67,7 @@ func (this *IndexRequest) Sort() (bson.M, bool) {
 		}
 		return bson.M{this.OrderBy: negative}, true
 	}
-	return bson.M{"_id":-1}, true
+	return bson.M{"_id": -1}, true
 }
 
 func (this *IndexRequest) Projection() (bson.M, bool) {
@@ -131,6 +131,31 @@ func (f Filters) Unmarshal() (filters map[string]interface{}) {
 	filters = map[string]interface{}{}
 	if f == "" {
 		return
+	}
+
+	// decodeBase64
+	n, err := base64.StdEncoding.DecodeString(string(f))
+	if err != nil {
+		return
+	}
+
+	st, err := url.PathUnescape(string(n))
+	if err != nil {
+		return
+	}
+
+	err = json.Unmarshal([]byte(st), &filters)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func (f Filters) Decode() (filters interface{}) {
+
+	if f == "" {
+		return nil
 	}
 
 	// decodeBase64

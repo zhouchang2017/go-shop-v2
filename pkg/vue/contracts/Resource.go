@@ -32,6 +32,12 @@ type (
 		Make(mode interface{}) Resource
 		// 设置model
 		SetModel(model interface{})
+		// 聚合
+		Lenses() []Lens
+		// 自定义页面
+		Pages() []Page
+		// 过滤
+		Filters(ctx *gin.Context) []Filter
 	}
 
 	// 可展示icon图标
@@ -40,7 +46,7 @@ type (
 	}
 
 	// 自定义uri
-	ResourceCustomUri interface {
+	CustomUri interface {
 		UriKey() string
 	}
 
@@ -85,7 +91,7 @@ type (
 	// 资源更新接口
 	ResourceUpgradeable interface {
 		// 资源更新方法
-		Update(ctx *gin.Context,model interface{}, data map[string]interface{}) (redirect string, err error)
+		Update(ctx *gin.Context, model interface{}, data map[string]interface{}) (redirect string, err error)
 	}
 
 	// 资源恢复接口

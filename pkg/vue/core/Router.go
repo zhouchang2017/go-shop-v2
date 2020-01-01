@@ -3,6 +3,7 @@ package core
 import (
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"go-shop-v2/pkg/auth"
 	ctx2 "go-shop-v2/pkg/ctx"
 	"go-shop-v2/pkg/vue/contracts"
 )
@@ -11,6 +12,7 @@ type Router struct {
 	RouterPath      string                 `json:"path"`
 	RouterComponent string                 `json:"component"`
 	Name            string                 `json:"name,omitempty"` // 命名路由
+	Props           interface{}            `json:"props"`
 	Children        []contracts.Router     `json:"children,omitempty"`
 	Meta            map[string]interface{} `json:"meta,omitempty"`
 	Hidden          bool                   `json:"hidden"`
@@ -58,6 +60,16 @@ func UpdateRouteName(resource contracts.Resource) string {
 // 创建页路由名称
 func CreationRouteName(resource contracts.Resource) string {
 	return fmt.Sprintf("%s.create", ResourceUriKey(resource))
+}
+
+// 聚合页路由名称Lens
+func LensRouteName(resource contracts.Resource, lens contracts.Lens) string {
+	return fmt.Sprintf("%s.lenses.%s", ResourceUriKey(resource), LensUriKey(lens))
+}
+
+// 聚合页组件
+func LensRouteComponent(lens contracts.Lens) string {
+	return "Lens"
 }
 
 // 列表页组件
@@ -144,6 +156,7 @@ func (this *vueRouterFactory) make(ctx *gin.Context) []contracts.Router {
 	if router := this.vueCreateRouter(); router != nil {
 		routers = append(routers, router)
 	}
+	routers = append(routers, this.vueLensesRouters()...)
 	return routers
 }
 
@@ -225,4 +238,24 @@ func (this *vueRouterFactory) vueCreateRouter() contracts.Router {
 		return router
 	}
 	return nil
+}
+
+// vue 资源聚合页路由集
+func (this *vueRouterFactory) vueLensesRouters() []contracts.Router {
+	var routers []contracts.Router
+	for _, lens := range this.resource.Lenses() {
+		if lens.AuthorizedTo(this.ctx, ctx2.GetUser(this.ctx).(auth.Authenticatable)) {
+			router := NewRouter()
+			router.RouterPath = fmt.Sprintf("%s/lenes/%s", this.uriKey, LensUriKey(lens))
+			router.Name = LensRouteName(this.resource, lens)
+			router.RouterComponent = LensRouteComponent(lens)
+			router.Hidden = true
+			router.WithMeta("ResourceName", this.resourceName)
+			router.WithMeta("EndPoints", LensEndPoints(this.resource, lens))
+			router.WithMeta("Title", lens.Title())
+			router.WithMeta("Headings", resolveLensIndexFields(this.ctx, lens))
+			routers = append(routers, router)
+		}
+	}
+	return routers
 }

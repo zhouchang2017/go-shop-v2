@@ -1,11 +1,8 @@
 package fields
 
-import "go-shop-v2/pkg/vue/contracts"
-
 type Select struct {
 	*Field      `inline`
-	optionField contracts.Field
-	Options     []contracts.Field `json:"options"`
+	Options     []*SelectOption `json:"options"`
 }
 
 func NewSelect(name string, fieldName string, opts ...FieldOption) *Select {
@@ -20,12 +17,11 @@ func NewSelect(name string, fieldName string, opts ...FieldOption) *Select {
 	}
 	fieldOptions = append(fieldOptions, opts...)
 	return &Select{
-		Field:       NewField(name, fieldName, fieldOptions...),
+		Field: NewField(name, fieldName, fieldOptions...),
 	}
 }
 
-func (this *Select) SetOptions(opts []contracts.Field) *Select {
-	//this.optionField
+func (this *Select) WithOptions(opts []*SelectOption) *Select {
 	this.Options = opts
 	return this
 }
@@ -44,5 +40,4 @@ type SelectOption struct {
 	Label string      `json:"label"`
 	Value interface{} `json:"value"`
 	Group string      `json:"group"`
-	Field contracts.Field
 }

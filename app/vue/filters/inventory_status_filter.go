@@ -1,0 +1,37 @@
+package filters
+
+import (
+	"github.com/gin-gonic/gin"
+	"go-shop-v2/app/models"
+	"go-shop-v2/pkg/vue/contracts"
+	"go-shop-v2/pkg/vue/filters"
+)
+
+type InventoryStatusFilter struct {
+	*filters.BooleanFilter
+}
+
+func NewInventoryStatusFilter() *InventoryStatusFilter {
+	return &InventoryStatusFilter{BooleanFilter: filters.NewBooleanFilter()}
+}
+
+func (this InventoryStatusFilter) Key() string {
+	return "status"
+}
+
+func (this InventoryStatusFilter) Name() string {
+	return "状态"
+}
+
+func (this InventoryStatusFilter) DefaultValue(ctx *gin.Context) interface{} {
+	return []interface{}{}
+}
+
+func (this InventoryStatusFilter) Options(ctx *gin.Context) []contracts.FilterOption {
+	return []contracts.FilterOption{
+		filters.NewSelectOption("等待处理", models.ITEM_PENDING),
+		filters.NewSelectOption("锁定", models.ITEM_LOCKED),
+		filters.NewSelectOption("良品", models.ITEM_OK),
+		filters.NewSelectOption("不良品", models.ITEM_BAD),
+	}
+}

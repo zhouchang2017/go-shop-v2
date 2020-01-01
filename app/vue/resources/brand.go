@@ -17,6 +17,7 @@ func init() {
 }
 
 type Brand struct {
+	core.AbstractResource
 	model interface{}
 	rep   *repositories.BrandRep
 }

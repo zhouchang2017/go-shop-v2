@@ -8,6 +8,7 @@ import (
 	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/vue/contracts"
+	"go-shop-v2/pkg/vue/filters"
 	"net/http"
 	"reflect"
 )
@@ -31,6 +32,9 @@ func (this *httpHandle) exec() {
 
 	// 用户信息路由
 	this.userInfoHttpHandle()
+
+	// 系统配置信息
+	this.resourcesConfigHttpHandle()
 
 	// vue路由表
 	this.vueRoutersHttpHandle()
@@ -104,6 +108,20 @@ func (this *httpHandle) loginHttpHandle() {
 	})
 }
 
+// 资源配置信息
+func (this *httpHandle) resourcesConfigHttpHandle() {
+	this.router.GET("/config", func(c *gin.Context) {
+		res := []interface{}{}
+		for _, warp := range this.vue.warps {
+			info := map[string]interface{}{}
+			info["resourceName"] = ResourceUriKey(warp.resource)
+			info["title"] = warp.resource.Title()
+			res = append(res, info)
+		}
+		c.JSON(http.StatusOK, res)
+	})
+}
+
 // 用户信息路由
 func (this *httpHandle) userInfoHttpHandle() {
 	this.router.GET("/auth/me", func(c *gin.Context) {
@@ -153,6 +171,11 @@ func (this *resourceHttpHandle) exec(router gin.IRouter) {
 	this.resourceForceDestroyHandle()  // 销毁
 	this.resourceRestoreHandle()       // 还原
 
+	this.resourceLensesHandle() // 聚合
+
+	this.resourcePagesHandle() // 自定义页面
+
+	this.resourceFiltersHandle() // 过滤
 }
 
 // 资源列表页api
@@ -173,7 +196,6 @@ func (this *resourceHttpHandle) resourceIndexHandle() {
 				err2.ErrorEncoder(nil, err, c.Writer)
 				return
 			}
-
 			res, pagination, err := paginationable.Pagination(c, filter)
 
 			if err != nil {
@@ -436,4 +458,113 @@ func (this *resourceHttpHandle) resourceRestoreHandle() {
 			c.JSON(http.StatusOK, nil)
 		})
 	}
+}
+
+// lens聚合api
+func (this *resourceHttpHandle) resourceLensesHandle() {
+
+	// 获取所有聚合
+	this.router.GET(fmt.Sprintf("/lenses/%s", this.uriKey), func(c *gin.Context) {
+		data := []interface{}{}
+		for _, lens := range this.resource.Lenses() {
+			// 验证权限
+			item := map[string]interface{}{}
+			if lens.AuthorizedTo(c, ctx.GetUser(c).(auth.Authenticatable)) {
+				item["router_name"] = LensRouteName(this.resource, lens)
+				item["title"] = lens.Title()
+			}
+			data = append(data, item)
+		}
+		c.JSON(http.StatusOK, data)
+	})
+
+	for _, lens := range this.resource.Lenses() {
+		this.router.GET(LensEndPoints(this.resource, lens), func(c *gin.Context) {
+			// 验证权限
+			if !lens.AuthorizedTo(c, ctx.GetUser(c).(auth.Authenticatable)) {
+				c.AbortWithStatus(403)
+				return
+			}
+
+			// 处理函数
+			filter := &request.IndexRequest{}
+			if err := c.ShouldBind(filter); err != nil {
+				err2.ErrorEncoder(nil, err, c.Writer)
+				return
+			}
+
+			res, pagination, err := lens.HttpHandle(c, filter)
+
+			if err != nil {
+				err2.ErrorEncoder(nil, err, c.Writer)
+				return
+			}
+
+			data := []interface{}{}
+			if reflect.TypeOf(res).Kind() == reflect.Slice {
+				valueOf := reflect.ValueOf(res)
+				len := valueOf.Len()
+				for i := 0; i < len; i++ {
+					model := valueOf.Index(i).Interface()
+					data = append(data, SerializeForLensIndex(c, lens, model))
+				}
+			}
+
+			c.JSON(http.StatusOK, gin.H{
+				"pagination": pagination,
+				"data":       data,
+			})
+
+		})
+
+		// 获取聚合过滤
+		this.router.GET(LensFiltersEndPoints(this.resource, lens), func(c *gin.Context) {
+			c.JSON(http.StatusOK, serializeFiltersForMaps(c, resolverFilters(lens, c)...))
+		})
+	}
+}
+
+// 自定义页面
+func (this *resourceHttpHandle) resourcePagesHandle() {
+	// 获取所有自定义页面
+	this.router.GET(fmt.Sprintf("/pages/%s", this.uriKey), func(c *gin.Context) {
+		data := []interface{}{}
+		for _, page := range this.resource.Pages() {
+			// 验证权限
+			item := map[string]interface{}{}
+			if page.AuthorizedTo(c, ctx.GetUser(c).(auth.Authenticatable)) {
+				item["router_name"] = page.VueRouter().RouterName()
+				item["title"] = page.Title()
+			}
+			data = append(data, item)
+		}
+		c.JSON(http.StatusOK, data)
+	})
+
+}
+
+// 过滤选项
+func (this *resourceHttpHandle) resourceFiltersHandle() {
+	this.router.GET(fmt.Sprintf("/filters/%s", this.uriKey), func(c *gin.Context) {
+		c.JSON(http.StatusOK, serializeFiltersForMaps(c, resolverFilters(this.resource, c)...))
+	})
+}
+
+func serializeFiltersForMaps(ctx *gin.Context, f ...contracts.Filter) []map[string]interface{} {
+	data := []map[string]interface{}{}
+	for _, filter := range f {
+		data = append(data, filters.SerializeMap(ctx, filter))
+	}
+	return data
+}
+
+func resolverFilters(target interface{ Filters(ctx *gin.Context) []contracts.Filter }, c *gin.Context) []contracts.Filter {
+	filters := []contracts.Filter{}
+	for _, filter := range target.Filters(c) {
+		// 验证权限
+		if filter.AuthorizedTo(c, ctx.GetUser(c).(auth.Authenticatable)) {
+			filters = append(filters, filter)
+		}
+	}
+	return filters
 }

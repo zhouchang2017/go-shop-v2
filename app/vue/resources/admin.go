@@ -22,12 +22,11 @@ func init() {
 }
 
 type Admin struct {
+	core.AbstractResource
 	model   interface{}
 	rep     *repositories.AdminRep
 	service *services.AdminService
 }
-
-
 
 // 实现列表页
 func (a *Admin) Pagination(ctx *gin.Context, req *request.IndexRequest) (res interface{}, pagination response.Pagination, err error) {
@@ -106,7 +105,7 @@ func (a *Admin) Update(ctx *gin.Context, model interface{}, data map[string]inte
 
 // 实现删除
 func (a *Admin) Destroy(ctx *gin.Context, id string) (err error) {
-	return <- a.rep.Delete(ctx, id)
+	return <-a.rep.Delete(ctx, id)
 }
 
 func (a Admin) Group() string {
@@ -148,11 +147,11 @@ func (a *Admin) Fields(ctx *gin.Context, model interface{}) func() []interface{}
 
 			fields.NewSelect("用户类型", "Type", fields.SetRules([]*fields.FieldRule{
 				{Rule: "required"},
-			})).SetOptions([]contracts.Field{
-				fields.NewTextField("超级管理员", "root", fields.SetValue("root")),
-				fields.NewTextField("管理员", "admin", fields.SetValue("admin")),
-				fields.NewTextField("店长", "manager", fields.SetValue("manager")),
-				fields.NewTextField("销售员", "salesman", fields.SetValue("salesman")),
+			})).WithOptions([]*fields.SelectOption{
+				{Label: "超级管理员", Value: "root"},
+				{Label: "管理员", Value: "admin"},
+				{Label: "店长", Value: "manager"},
+				{Label: "销售员", Value: "salesman"},
 			}),
 
 			fields.NewPasswordField("密码", "Password", fields.SetRules([]*fields.FieldRule{
@@ -190,11 +189,9 @@ func NewAdminResource(rep *repositories.AdminRep, service *services.AdminService
 	return &Admin{model: &models.Admin{}, rep: rep, service: service}
 }
 
-
 func (a *Admin) Model() interface{} {
 	return a.model
 }
-
 
 func (a Admin) Make(model interface{}) contracts.Resource {
 	return &Admin{

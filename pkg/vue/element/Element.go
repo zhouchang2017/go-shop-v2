@@ -6,14 +6,14 @@ import (
 )
 
 type Element struct {
-	PrefixComponent  bool                   `json:"prefix_component"`
-	ElementComponent string                 `json:"component"`
-	Meta             map[string]interface{} `json:"meta"`
-	authorizedTo     func(ctx *gin.Context, user auth.Authenticatable) bool
+	ElementPrefixComponent bool                   `json:"prefix_component"`
+	ElementComponent       string                 `json:"component"`
+	ElementMeta            map[string]interface{} `json:"meta"`
+	authorizedTo           func(ctx *gin.Context, user auth.Authenticatable) bool
 }
 
 func NewElement() *Element {
-	return &Element{Meta: map[string]interface{}{}}
+	return &Element{ElementMeta: map[string]interface{}{}}
 }
 
 func (m *Element) AuthorizedCallback(cb func(ctx *gin.Context, user auth.Authenticatable) bool) {
@@ -28,15 +28,23 @@ func (m *Element) AuthorizedTo(ctx *gin.Context, user auth.Authenticatable) bool
 }
 
 func (m *Element) SetPrefixComponent(ok bool) {
-	m.PrefixComponent = ok
+	m.ElementPrefixComponent = ok
 }
 
 func (m *Element) WithMeta(key string, value interface{}) {
-	m.Meta[key] = value
+	m.ElementMeta[key] = value
 }
 
 func (m Element) Component() string {
 	return m.ElementComponent
+}
+
+func (m Element) PrefixComponent() bool {
+	return m.ElementPrefixComponent
+}
+
+func (m Element) Meta() map[string]interface{} {
+	return m.ElementMeta
 }
 
 func (m *Element) WithComponent(component string) {

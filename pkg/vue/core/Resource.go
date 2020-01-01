@@ -62,7 +62,7 @@ func resolveIndexFields(ctx *gin.Context, resource contracts.Resource) []contrac
 // 资源详情页字段
 func resolveDetailFields(ctx *gin.Context, resource contracts.Resource) ([]contracts.Field, []*panels.Panel) {
 	fields := []contracts.Field{}
-	panel:= []*panels.Panel{}
+	panel := []*panels.Panel{}
 	for _, field := range resource.Fields(ctx, resource.Model())() {
 
 		if isField, ok := field.(contracts.Field); ok {
@@ -289,11 +289,30 @@ func SerializeForDetail(ctx *gin.Context, resource contracts.Resource) map[strin
 
 // 资源URI KEY
 func ResourceUriKey(resource contracts.Resource) string {
-	if customUri, ok := resource.(contracts.ResourceCustomUri); ok {
+	if customUri, ok := resource.(contracts.CustomUri); ok {
 		return customUri.UriKey()
 	} else {
 		return utils.StructNameToSnakeAndPlural(resource)
 	}
+}
+
+// 聚合URI KEY
+func LensUriKey(lens contracts.Lens) string {
+	if customUri, ok := lens.(contracts.CustomUri); ok {
+		return customUri.UriKey()
+	} else {
+		return utils.StructNameToSnakeAndPlural(lens)
+	}
+}
+
+// 聚合api
+func LensEndPoints(resource contracts.Resource, lens contracts.Lens) string {
+	return fmt.Sprintf("/lenses/%s/%s", ResourceUriKey(resource), LensUriKey(lens))
+}
+
+// 聚合过滤api
+func LensFiltersEndPoints(resource contracts.Resource, lens contracts.Lens) string {
+	return fmt.Sprintf("/filters/%s/lens/%s", ResourceUriKey(resource), LensUriKey(lens))
 }
 
 // 资源URI PARAM

@@ -10,6 +10,7 @@ import (
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"go-shop-v2/pkg/vue/contracts"
+	"go-shop-v2/pkg/vue/core"
 	"go-shop-v2/pkg/vue/fields"
 	"go-shop-v2/pkg/vue/panels"
 	"net/http"
@@ -20,6 +21,7 @@ func init() {
 }
 
 type Category struct {
+	core.AbstractResource
 	model interface{}
 	rep   *repositories.CategoryRep
 }

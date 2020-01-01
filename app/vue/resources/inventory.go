@@ -6,9 +6,13 @@ import (
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
 	"go-shop-v2/app/services"
+	"go-shop-v2/app/vue/filters"
+	"go-shop-v2/app/vue/pages"
 	"go-shop-v2/pkg/repository"
 	"go-shop-v2/pkg/request"
+	"go-shop-v2/pkg/response"
 	"go-shop-v2/pkg/vue/contracts"
+	"go-shop-v2/pkg/vue/core"
 	"go-shop-v2/pkg/vue/fields"
 	"go-shop-v2/pkg/vue/panels"
 	"go.mongodb.org/mongo-driver/bson"
@@ -20,9 +24,20 @@ func init() {
 
 // 库存管理
 type Inventory struct {
+	core.AbstractResource
 	model   interface{}
 	rep     *repositories.InventoryRep
 	service *services.InventoryService
+}
+
+func (this *Inventory) Pagination(ctx *gin.Context, req *request.IndexRequest) (res interface{}, pagination response.Pagination, err error) {
+	results := <-this.rep.Pagination(ctx, req)
+	return results.Result, results.Pagination, results.Error
+}
+
+func (this *Inventory) Show(ctx *gin.Context, id string) (res interface{}, err error) {
+	result := <-this.rep.FindById(ctx, id)
+	return result.Result, result.Error
 }
 
 func (this *Inventory) DisplayInNavigation(ctx *gin.Context, user interface{}) bool {
@@ -154,32 +169,25 @@ func (Inventory) CreateButtonName() string {
 	return "产品入库"
 }
 
-//// 自定义聚合
-//func (i Inventory) Lenses() []vue.Lens {
-//	return []vue.Lens{
-//		lenses.NewInventoryAggregateLens(&Inventory{}, i.service),
-//	}
-//}
+// 自定义聚合
+func (i Inventory) Lenses() []contracts.Lens {
+	return []contracts.Lens{
+		//lenses.NewInventoryAggregate(),
+	}
+}
 
-//type manualActionsLink struct {
-//}
-//
-//func (manualActionsLink) AuthorizedTo(ctx *gin.Context, user auth.Authenticatable) bool {
-//	admin := user.(*models.Admin)
-//	return len(admin.Shops) > 0
-//}
-//
-//func (manualActionsLink) Title() string {
-//	return "库存操作"
-//}
-//
-//func (manualActionsLink) RouterName() string {
-//	return vue.NewResourceHelper(&ManualInventoryAction{}).IndexRouterName()
-//}
-//
-//// 自定义link
-//func (i Inventory) Links() []vue.Link {
-//	return []vue.Link{
-//		manualActionsLink{},
-//	}
-//}
+// 自定义页面
+func (i Inventory) Pages() []contracts.Page {
+	return []contracts.Page{
+		pages.NewInventoryAggregate(),
+	}
+}
+
+// 过滤器定义
+func (i *Inventory) Filters(ctx *gin.Context) []contracts.Filter {
+	return []contracts.Filter{
+		filters.NewShopFilter(),
+		filters.NewInventoryStatusFilter(),
+		filters.NewUpdatedAtFilter(),
+	}
+}

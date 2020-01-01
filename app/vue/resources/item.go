@@ -6,6 +6,7 @@ import (
 	"go-shop-v2/app/repositories"
 	"go-shop-v2/pkg/repository"
 	"go-shop-v2/pkg/vue/contracts"
+	"go-shop-v2/pkg/vue/core"
 )
 
 func init() {
@@ -13,6 +14,7 @@ func init() {
 }
 
 type Item struct {
+	core.AbstractResource
 	model interface{}
 	rep   *repositories.ItemRep
 }

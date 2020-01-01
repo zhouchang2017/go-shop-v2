@@ -24,6 +24,7 @@ func init() {
 }
 
 type Shop struct {
+	core.AbstractResource
 	model        interface{}
 	rep          *repositories.ShopRep
 	service      *services.ShopService
@@ -72,25 +73,7 @@ func (s *Shop) Update(ctx *gin.Context, model interface{}, data map[string]inter
 	panic("implement me")
 }
 
-func (s *Shop) DisplayInNavigation(ctx *gin.Context, user interface{}) bool {
-	return true
-}
 
-func (s *Shop) HasIndexRoute(ctx *gin.Context, user interface{}) bool {
-	return true
-}
-
-func (s *Shop) HasDetailRoute(ctx *gin.Context, user interface{}) bool {
-	return true
-}
-
-func (s *Shop) HasEditRoute(ctx *gin.Context, user interface{}) bool {
-	return true
-}
-
-func (s *Shop) Policy() interface{} {
-	return nil
-}
 
 func (s *Shop) Make(model interface{}) contracts.Resource {
 	return &Shop{
@@ -141,16 +124,6 @@ func (s *Shop) CreateFormParse(ctx *gin.Context) (entity interface{}, err error)
 	return s.service.SetMembers(ctx, shop, form.Members...)
 }
 
-// 创建成功钩子
-func (s *Shop) Created(ctx *gin.Context, resource interface{}) {
-	event.Dispatch(events.ShopCreated{Shop: resource.(*models.Shop)})
-}
-
-// 更新成功钩子
-func (s *Shop) Updated(ctx *gin.Context, resource interface{}) {
-	event.Dispatch(events.ShopUpdated{Shop: resource.(*models.Shop)})
-}
-
 // 字段设置
 func (s *Shop) Fields(ctx *gin.Context, model interface{}) func() []interface{} {
 	return func() []interface{} {
@@ -168,6 +141,7 @@ func (s *Shop) Fields(ctx *gin.Context, model interface{}) func() []interface{} 
 				fields.NewMapField("位置", "Location"),
 			),
 
+			// 更新&创建页面
 			fields.NewCheckboxGroup("成员", "Members", fields.OnlyOnForm()).Key("id").CallbackOptions(func() []*fields.CheckboxGroupOption {
 				associatedAdmins, _ := s.adminService.AllAdmins(context.Background())
 				var adminOptions []*fields.CheckboxGroupOption

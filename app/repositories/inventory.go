@@ -67,7 +67,7 @@ func (this *InventoryRep) AggregatePagination(ctx context.Context, req *request.
 					"item_id": "$_id.item_id",
 				},
 				"item": bson.D{{"$mergeObjects", "$item"}},
-				"qty":  bson.D{{"$sum", "$qty"}},
+				"total":  bson.D{{"$sum", "$qty"}},
 				"inventories": bson.D{{"$push", bson.M{
 					"status": "$_id.status",
 					"qty":    "$qty",
@@ -79,7 +79,7 @@ func (this *InventoryRep) AggregatePagination(ctx context.Context, req *request.
 				bson.D{{"newRoot",
 					bson.D{{"$mergeObjects",
 						bson.A{"$item", bson.M{
-							"qty":         "$qty",
+							"total":         "$total",
 							"inventories": "$inventories",
 						}}}}}}}},
 		}
