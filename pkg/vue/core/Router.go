@@ -59,6 +59,9 @@ func UpdateRouteName(resource contracts.Resource) string {
 
 // 创建页路由名称
 func CreationRouteName(resource contracts.Resource) string {
+	if implement, ok := resource.(contracts.ResourceCustomCreationComponent); ok {
+		return implement.CreationComponent().VueRouter().RouterName()
+	}
 	return fmt.Sprintf("%s.create", ResourceUriKey(resource))
 }
 

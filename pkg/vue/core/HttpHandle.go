@@ -162,7 +162,9 @@ type resourceHttpHandle struct {
 func (this *resourceHttpHandle) exec(router gin.IRouter) {
 	this.router = router
 	this.resourceIndexHandle()         // 列表
+	this.resourceIndexApiHandle()      // 列表api
 	this.resourceDetailHandle()        // 详情
+	this.resourceDetailApiHandle()     // 详情api
 	this.resourceUpdateHandle()        // 更新
 	this.resourceCreateHandle()        // 创建
 	this.resourceCreationFieldHandle() // 创建字段
@@ -191,12 +193,23 @@ func (this *resourceHttpHandle) resourceIndexHandle() {
 			}
 
 			// 处理函数
-			filter := &request.IndexRequest{}
-			if err := c.ShouldBind(filter); err != nil {
+			form := &request.IndexRequest{}
+			if err := c.ShouldBind(form); err != nil {
 				err2.ErrorEncoder(nil, err, c.Writer)
 				return
 			}
-			res, pagination, err := paginationable.Pagination(c, filter)
+
+			filters2 := form.Filters.Unmarshal()
+
+			// filters处理
+			for _, filter := range this.resource.Filters(c) {
+				if err := filter.Apply(c, filters2[filter.Key()], form); err != nil {
+					err2.ErrorEncoder(nil, err, c.Writer)
+					return
+				}
+			}
+
+			res, pagination, err := paginationable.Pagination(c, form)
 
 			if err != nil {
 				err2.ErrorEncoder(nil, err, c.Writer)
@@ -222,7 +235,50 @@ func (this *resourceHttpHandle) resourceIndexHandle() {
 	}
 }
 
-// 资源详情api
+func (this *resourceHttpHandle) resourceIndexApiHandle() {
+	if paginationable, ok := this.resource.(contracts.ResourcePaginationable); ok {
+
+		this.router.GET(fmt.Sprintf("api/%s", this.uriKey), func(c *gin.Context) {
+
+			// 验证权限
+			if !AuthorizedToViewAny(c, this.resource.Make(nil)) {
+				c.AbortWithStatus(403)
+				return
+			}
+
+			// 处理函数
+			form := &request.IndexRequest{}
+			if err := c.ShouldBind(form); err != nil {
+				err2.ErrorEncoder(nil, err, c.Writer)
+				return
+			}
+
+			filters2 := form.Filters.Unmarshal()
+
+			// filters处理
+			for _, filter := range this.resource.Filters(c) {
+				if err := filter.Apply(c, filters2[filter.Key()], form); err != nil {
+					err2.ErrorEncoder(nil, err, c.Writer)
+					return
+				}
+			}
+
+			res, pagination, err := paginationable.Pagination(c, form)
+
+			if err != nil {
+				err2.ErrorEncoder(nil, err, c.Writer)
+				return
+			}
+
+			c.JSON(http.StatusOK, gin.H{
+				"pagination": pagination,
+				"data":       res,
+			})
+		})
+	}
+}
+
+// 资源详情后台接口
 func (this *resourceHttpHandle) resourceDetailHandle() {
 	if showable, ok := this.resource.(contracts.ResourceShowable); ok {
 		this.router.GET(fmt.Sprintf("%s/:%s", this.uriKey, this.idParam), func(c *gin.Context) {
@@ -247,7 +303,30 @@ func (this *resourceHttpHandle) resourceDetailHandle() {
 	}
 }
 
-// 资源更新api
+// 资源详情api
+func (this *resourceHttpHandle) resourceDetailApiHandle() {
+	if showable, ok := this.resource.(contracts.ResourceShowable); ok {
+		this.router.GET(fmt.Sprintf("api/%s/:%s", this.uriKey, this.idParam), func(c *gin.Context) {
+
+			// 验证权限
+			if !AuthorizedToView(c, this.resource.Make(nil)) {
+				c.AbortWithStatus(403)
+				return
+			}
+
+			res, err := showable.Show(c, c.Param(this.idParam))
+
+			if err != nil {
+				err2.ErrorEncoder(nil, err, c.Writer)
+				return
+			}
+
+			c.JSON(http.StatusOK, res)
+		})
+	}
+}
+
+// 资源更新后台接口
 func (this *resourceHttpHandle) resourceUpdateHandle() {
 	if showable, ok := this.resource.(contracts.ResourceShowable); ok {
 		if upgradeable, ok := this.resource.(contracts.ResourceUpgradeable); ok {
@@ -487,13 +566,21 @@ func (this *resourceHttpHandle) resourceLensesHandle() {
 			}
 
 			// 处理函数
-			filter := &request.IndexRequest{}
-			if err := c.ShouldBind(filter); err != nil {
+			form := &request.IndexRequest{}
+			if err := c.ShouldBind(form); err != nil {
 				err2.ErrorEncoder(nil, err, c.Writer)
 				return
 			}
+			filters2 := form.Filters.Unmarshal()
+			// filters处理
+			for _, filter := range lens.Filters(c) {
+				if err := filter.Apply(c, filters2[filter.Key()], form); err != nil {
+					err2.ErrorEncoder(nil, err, c.Writer)
+					return
+				}
+			}
 
-			res, pagination, err := lens.HttpHandle(c, filter)
+			res, pagination, err := lens.HttpHandle(c, form)
 
 			if err != nil {
 				err2.ErrorEncoder(nil, err, c.Writer)

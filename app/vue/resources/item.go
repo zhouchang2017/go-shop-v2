@@ -5,6 +5,8 @@ import (
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
 	"go-shop-v2/pkg/repository"
+	"go-shop-v2/pkg/request"
+	"go-shop-v2/pkg/response"
 	"go-shop-v2/pkg/vue/contracts"
 	"go-shop-v2/pkg/vue/core"
 )
@@ -17,6 +19,11 @@ type Item struct {
 	core.AbstractResource
 	model interface{}
 	rep   *repositories.ItemRep
+}
+
+func (i *Item) Pagination(ctx *gin.Context, req *request.IndexRequest) (res interface{}, pagination response.Pagination, err error) {
+	results := <-i.rep.Pagination(ctx, req)
+	return results.Result, results.Pagination, results.Error
 }
 
 func (i *Item) DisplayInNavigation(ctx *gin.Context, user interface{}) bool {

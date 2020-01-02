@@ -43,10 +43,44 @@ type Inventory struct {
 	Status           InventoryStatus `json:"status"`           // 状态
 }
 
+func (I Inventory) StatusOkMap() []map[string]interface{}  {
+	return []map[string]interface{}{
+		{
+			"name":  "良品",
+			"value": ITEM_OK,
+		},
+		{
+			"name":  "不良品",
+			"value": ITEM_BAD,
+		},
+	}
+}
+
+func (I Inventory) StatusMap() []map[string]interface{} {
+	return []map[string]interface{}{
+		{
+			"name":  "等待确认",
+			"value": ITEM_PENDING,
+		},
+		{
+			"name":  "锁定",
+			"value": ITEM_LOCKED,
+		},
+		{
+			"name":  "良品",
+			"value": ITEM_OK,
+		},
+		{
+			"name":  "不良品",
+			"value": ITEM_BAD,
+		},
+	}
+}
+
 // 聚合结构体
 type AggregateInventory struct {
 	*AssociatedItem `inline`
-	Total             int64                     `json:"total"` // 总数
+	Total           int64                     `json:"total"` // 总数
 	Inventories     []*AggregateInventoryUnit `json:"inventories"`
 }
 

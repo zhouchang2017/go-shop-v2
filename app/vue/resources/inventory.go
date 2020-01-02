@@ -180,6 +180,7 @@ func (i Inventory) Lenses() []contracts.Lens {
 func (i Inventory) Pages() []contracts.Page {
 	return []contracts.Page{
 		pages.NewInventoryAggregate(),
+		pages.NewManualInventoryPut(),
 	}
 }
 

@@ -1,8 +1,10 @@
 package filters
 
 import (
+	"github.com/davecgh/go-spew/spew"
 	"github.com/gin-gonic/gin"
 	"go-shop-v2/app/models"
+	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/vue/contracts"
 	"go-shop-v2/pkg/vue/filters"
 )
@@ -11,8 +13,15 @@ type InventoryStatusFilter struct {
 	*filters.BooleanFilter
 }
 
+
+
 func NewInventoryStatusFilter() *InventoryStatusFilter {
 	return &InventoryStatusFilter{BooleanFilter: filters.NewBooleanFilter()}
+}
+
+func (this InventoryStatusFilter) Apply(ctx *gin.Context, value interface{}, request *request.IndexRequest) error {
+	spew.Dump(value)
+	return nil
 }
 
 func (this InventoryStatusFilter) Key() string {

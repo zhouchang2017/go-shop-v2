@@ -59,7 +59,7 @@ func (this *ManualInventoryAction) Types() []map[string]interface{} {
 			"value": MANUAL_TYPE_PUT,
 		},
 		{
-			"name":   "出库",
+			"name":  "出库",
 			"value": MANUAL_TYPE_TAKE,
 		},
 	}
@@ -74,6 +74,16 @@ func (this *ManualInventoryAction) SetType(t int8) (error) {
 	return nil
 }
 
+func (this *ManualInventoryAction) SetTypeToPut() *ManualInventoryAction {
+	this.Type = MANUAL_TYPE_PUT
+	return this
+}
+
+func (this *ManualInventoryAction) SetTypeToTake() *ManualInventoryAction {
+	this.Type = MANUAL_TYPE_TAKE
+	return this
+}
+
 func (this *ManualInventoryAction) SetStatus(status int8) *ManualInventoryAction {
 	this.Status = this.Status.Make(status)
 	return this
@@ -85,11 +95,31 @@ func (this *ManualInventoryAction) SetStatusToSaved() {
 
 // 标准库存操作子项
 type ManualInventoryActionItem struct {
-	AssociatedItem `inline`
-	Qty            int64           `json:"qty"`
-	Status         InventoryStatus `json:"status"`
+	*AssociatedItem `inline`
+	Qty             int64           `json:"qty"`
+	Status          InventoryStatus `json:"status"`
 }
 
 func (this *ManualInventoryActionItem) SetStatus(status int8) {
 	this.Status = this.Status.Make(status)
+}
+
+func (this *ManualInventoryActionItem) SetStatusToPending() *ManualInventoryActionItem {
+	this.Status = ITEM_PENDING
+	return this
+}
+
+func (this *ManualInventoryActionItem) SetStatusToLocked() *ManualInventoryActionItem {
+	this.Status = ITEM_LOCKED
+	return this
+}
+
+func (this *ManualInventoryActionItem) SetStatusToOk() *ManualInventoryActionItem {
+	this.Status = ITEM_OK
+	return this
+}
+
+func (this *ManualInventoryActionItem) SetStatusToBad() *ManualInventoryActionItem {
+	this.Status = ITEM_BAD
+	return this
 }

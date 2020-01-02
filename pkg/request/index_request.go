@@ -135,6 +135,7 @@ func (f Filters) Unmarshal() (filters map[string]interface{}) {
 
 	// decodeBase64
 	n, err := base64.StdEncoding.DecodeString(string(f))
+
 	if err != nil {
 		return
 	}
