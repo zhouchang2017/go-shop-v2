@@ -8,7 +8,6 @@ import (
 	"go-shop-v2/app/services"
 	"go-shop-v2/app/vue/filters"
 	"go-shop-v2/app/vue/pages"
-	"go-shop-v2/pkg/repository"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"go-shop-v2/pkg/vue/contracts"
@@ -26,18 +25,15 @@ func init() {
 type Inventory struct {
 	core.AbstractResource
 	model   interface{}
-	rep     *repositories.InventoryRep
 	service *services.InventoryService
 }
 
 func (this *Inventory) Pagination(ctx *gin.Context, req *request.IndexRequest) (res interface{}, pagination response.Pagination, err error) {
-	results := <-this.rep.Pagination(ctx, req)
-	return results.Result, results.Pagination, results.Error
+	return this.service.Pagination(ctx,req)
 }
 
 func (this *Inventory) Show(ctx *gin.Context, id string) (res interface{}, err error) {
-	result := <-this.rep.FindById(ctx, id)
-	return result.Result, result.Error
+	return this.service.FindById(ctx,id)
 }
 
 func (this *Inventory) DisplayInNavigation(ctx *gin.Context, user interface{}) bool {
@@ -108,8 +104,8 @@ func (this *Inventory) ResourceHttpRestore() bool {
 	return false
 }
 
-func NewInventoryResource(rep *repositories.InventoryRep, service *services.InventoryService) *Inventory {
-	return &Inventory{model: &models.Inventory{}, rep: rep, service: service}
+func NewInventoryResource() *Inventory {
+	return &Inventory{model: &models.Inventory{}, service: services.MakeInventoryService()}
 }
 
 func (i *Inventory) IndexQuery(ctx *gin.Context, request *request.IndexRequest) error {
@@ -133,13 +129,8 @@ func (i *Inventory) Model() interface{} {
 	return i.model
 }
 
-func (i *Inventory) Repository() repository.IRepository {
-	return i.rep
-}
-
 func (i Inventory) Make(model interface{}) contracts.Resource {
 	return &Inventory{
-		rep:     i.rep,
 		service: i.service,
 		model:   model,
 	}
@@ -180,7 +171,7 @@ func (i Inventory) Lenses() []contracts.Lens {
 func (i Inventory) Pages() []contracts.Page {
 	return []contracts.Page{
 		pages.NewInventoryAggregate(),
-		pages.NewManualInventoryPut(),
+		pages.NewManualInventoryCreatePage(),
 	}
 }
 

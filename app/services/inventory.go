@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
-	"go-shop-v2/pkg/repository"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"go.mongodb.org/mongo-driver/bson"
@@ -18,29 +17,37 @@ func init() {
 }
 
 type InventoryService struct {
-	rep       *repositories.InventoryRep
-	shopRep   *repositories.ShopRep
-	itemRep   *repositories.ItemRep
-	actionRep *repositories.ManualInventoryActionRep
+	rep            *repositories.InventoryRep
+	shopService    *ShopService
+	productService *ProductService
 }
 
 func (this *InventoryService) GetRepository() *repositories.InventoryRep {
 	return this.rep
 }
 
-func NewInventoryService(rep *repositories.InventoryRep, shopRep *repositories.ShopRep, itemRep *repositories.ItemRep, actionRep *repositories.ManualInventoryActionRep) *InventoryService {
-	return &InventoryService{rep: rep, shopRep: shopRep, itemRep: itemRep, actionRep: actionRep}
+func NewInventoryService(rep *repositories.InventoryRep, shopService *ShopService, productService *ProductService) *InventoryService {
+	return &InventoryService{rep: rep, shopService: shopService, productService: productService}
+}
+
+func (this *InventoryService) FindByIds(ctx context.Context, ids ...string) (inventories []*models.Inventory, err error) {
+	byIds := <-this.rep.FindByIds(ctx, ids...)
+	if byIds.Error != nil {
+		err = byIds.Error
+		return
+	}
+
+	return byIds.Result.([]*models.Inventory), nil
 }
 
 func (this *InventoryService) Aggregate(ctx context.Context, req *request.IndexRequest) (data []*models.AggregateInventory, pagination response.Pagination, err error) {
 	// 获取所有门店
 	var shops []*models.InventoryUnitShop
-	shopsRes := <-this.shopRep.FindAll(ctx)
-	if shopsRes.Error != nil {
-		return nil, pagination, shopsRes.Error
+	shops2, err := this.shopService.All(ctx)
+	if err != nil {
+		return nil, pagination, err
 	}
-	s := shopsRes.Result.([]*models.Shop)
-	for _, shop := range s {
+	for _, shop := range shops2 {
 		shops = append(shops, &models.InventoryUnitShop{
 			Id:   shop.GetID(),
 			Name: shop.Name,
@@ -71,16 +78,16 @@ func (this *InventoryService) Put(ctx context.Context, shopId string, itemId str
 		return incQtyRes.Result.(*models.Inventory), nil
 	}
 	// 新增记录
-	shopRes := <-this.shopRep.FindById(ctx, shopId)
-	if shopRes.Error != nil {
-		return nil, shopRes.Error
+	shop2, err := this.shopService.FindById(ctx, shopId)
+	if err != nil {
+		return nil, err
 	}
-	itemRes := <-this.itemRep.FindById(ctx, itemId)
-	if itemRes.Error != nil {
-		return nil, itemRes.Error
+	item2, err := this.productService.FindItemById(ctx, itemId)
+	if err != nil {
+		return nil, err
 	}
-	shop := shopRes.Result.(*models.Shop).ToAssociated()
-	item := itemRes.Result.(*models.Item).ToAssociated()
+	shop := shop2.ToAssociated()
+	item := item2.ToAssociated()
 	inventory = &models.Inventory{
 		Shop: shop,
 		Item: item,
@@ -117,8 +124,22 @@ func (this *InventoryService) Take(ctx context.Context, id string, qty int64) (i
 	return nil, fmt.Errorf("剩余库存不足！剩余库存 %d ,需出库数量 %d", inventory.Qty, qty)
 }
 
-// 手动操作记录
-func (this *InventoryService) ManualActions(ctx context.Context, req *request.IndexRequest) <-chan repository.QueryPaginationResult {
+// 列表
+func (this *InventoryService) Pagination(ctx context.Context, req *request.IndexRequest) (inventories []*models.Inventory, pagination response.Pagination, err error) {
+	results := <-this.rep.Pagination(ctx, req)
+	if results.Error != nil {
+		err = results.Error
+		return
+	}
+	return results.Result.([]*models.Inventory), results.Pagination, nil
+}
 
-	return this.actionRep.Pagination(ctx, req)
+// 详情
+func (this *InventoryService) FindById(ctx context.Context, id string) (category *models.Category, err error) {
+	byId := <-this.rep.FindById(ctx, id)
+	if byId.Error != nil {
+		err = byId.Error
+		return
+	}
+	return byId.Result.(*models.Category), nil
 }

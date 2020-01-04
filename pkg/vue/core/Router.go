@@ -44,16 +44,25 @@ func (m *Router) AddChild(r contracts.Router) {
 
 // 列表页路由名称
 func IndexRouteName(resource contracts.Resource) string {
+	if implement, ok := resource.(contracts.ResourceCustomIndexComponent); ok {
+		return implement.IndexComponent().VueRouter().RouterName()
+	}
 	return fmt.Sprintf("%s.index", ResourceUriKey(resource))
 }
 
 // 详情页路由名称
 func DetailRouteName(resource contracts.Resource) string {
+	if implement, ok := resource.(contracts.ResourceCustomDetailComponent); ok {
+		return implement.DetailComponent().VueRouter().RouterName()
+	}
 	return fmt.Sprintf("%s.detail", ResourceUriKey(resource))
 }
 
 // 更新页路由名称
 func UpdateRouteName(resource contracts.Resource) string {
+	if implement, ok := resource.(contracts.ResourceCustomUpdateComponent); ok {
+		return implement.UpdateComponent().VueRouter().RouterName()
+	}
 	return fmt.Sprintf("%s.edit", ResourceUriKey(resource))
 }
 

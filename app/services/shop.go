@@ -4,6 +4,8 @@ import (
 	"context"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
+	"go-shop-v2/pkg/request"
+	"go-shop-v2/pkg/response"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"log"
@@ -16,6 +18,51 @@ func init() {
 type ShopService struct {
 	rep      *repositories.ShopRep
 	adminRep *repositories.AdminRep
+}
+
+func (this *ShopService) Pagination(ctx context.Context, req *request.IndexRequest) (shops []*models.Shop, pagination response.Pagination, err error) {
+	results := <-this.rep.Pagination(ctx, req)
+	if results.Error != nil {
+		return shops, pagination, results.Error
+	}
+	return results.Result.([]*models.Shop), results.Pagination, nil
+}
+
+func (this *ShopService) FindById(ctx context.Context, id string) (shop *models.Shop, err error) {
+	byId := <-this.rep.FindById(ctx, id)
+	if byId.Error != nil {
+		err = byId.Error
+		return
+	}
+	return byId.Result.(*models.Shop), nil
+}
+
+func (this *ShopService) FindByIds(ctx context.Context, ids ...string) (shops []*models.Shop, err error) {
+	byIds := <-this.rep.FindByIds(ctx, ids...)
+	if byIds.Error != nil {
+		return nil, byIds.Error
+	}
+	return byIds.Result.([]*models.Shop), nil
+}
+
+func (this *ShopService) All(ctx context.Context) (shops []*models.Shop, err error) {
+	all := <-this.rep.FindAll(ctx)
+	if all.Error != nil {
+		return nil, all.Error
+	}
+	return all.Result.([]*models.Shop), nil
+}
+
+func (this *ShopService) AllAssociatedShops(ctx context.Context) (shops []*models.AssociatedShop, err error) {
+	shops2, err := this.All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	shops = []*models.AssociatedShop{}
+	for _, shop := range shops2 {
+		shops = append(shops, shop.ToAssociated())
+	}
+	return shops, nil
 }
 
 type shopForm struct {
@@ -86,5 +133,5 @@ func (this *ShopService) SyncAssociatedMembers(ctx context.Context, admin *model
 }
 
 func NewShopService(rep *repositories.ShopRep, adminRep *repositories.AdminRep) *ShopService {
-	return &ShopService{rep: rep, adminRep: adminRep}
+	return &ShopService{rep: rep, adminRep:adminRep}
 }

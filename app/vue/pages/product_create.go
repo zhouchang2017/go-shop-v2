@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
+	"go-shop-v2/app/services"
 	"go-shop-v2/pkg/auth"
 	"go-shop-v2/pkg/ctx"
 	"go-shop-v2/pkg/db/mongodb"
@@ -21,17 +22,16 @@ var ProductCreatePage *productCreatePage
 type productCreatePage struct {
 	brandRep    *repositories.BrandRep
 	categoryRep *repositories.CategoryRep
-	productRep  *repositories.ProductRep
+	productService  *services.ProductService
 }
 
 func NewProductCreatePage() *productCreatePage {
 	if ProductCreatePage == nil {
 		con := mongodb.GetConFn()
-		itemRep := repositories.NewItemRep(con)
 		ProductCreatePage = &productCreatePage{
 			brandRep:    repositories.NewBrandRep(con),
 			categoryRep: repositories.NewCategoryRep(con),
-			productRep:  repositories.NewProductRep(con, itemRep),
+			productService:  services.MakeProductService(),
 		}
 	}
 	return ProductCreatePage
@@ -98,35 +98,20 @@ func (this *productCreatePage) HttpHandles(router gin.IRouter) {
 			return
 		}
 
-		form := &ProductForm{}
-		err := c.ShouldBind(form)
+		option := services.ProductCreateOption{}
+		err := c.ShouldBind(&option)
 		if err != nil {
 			err2.ErrorEncoder(nil, err, c.Writer)
 			return
 		}
 
-		product := &models.Product{
-			Name:         form.Name,
-			Code:         form.Code,
-			Brand:        form.Brand,
-			Category:     form.Category,
-			Options:      form.Options,
-			Attributes:   form.Attributes,
-			Description:  form.Description,
-			Price:        form.Price,
-			FakeSalesQty: form.FakeSalesQty,
-			Images:       form.Images,
-			OnSale:       form.OnSale,
-			Items:        form.Items,
-		}
-
-		created := <-this.productRep.Create(c, product)
-		if created.Error != nil {
-			err2.ErrorEncoder(nil, created.Error, c.Writer)
+		product, err := this.productService.Create(c, option)
+		if err != nil {
+			err2.ErrorEncoder(nil, err, c.Writer)
 			return
 		}
 
-		c.JSON(http.StatusCreated, gin.H{"redirect": fmt.Sprintf("/products/%s", created.Id)})
+		c.JSON(http.StatusCreated, gin.H{"redirect": fmt.Sprintf("/products/%s", product.GetID())})
 	})
 }
 

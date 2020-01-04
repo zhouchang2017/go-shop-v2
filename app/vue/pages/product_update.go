@@ -3,12 +3,9 @@ package pages
 import (
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"go-shop-v2/app/models"
-	"go-shop-v2/app/repositories"
 	"go-shop-v2/app/services"
 	"go-shop-v2/pkg/auth"
 	"go-shop-v2/pkg/ctx"
-	"go-shop-v2/pkg/db/mongodb"
 	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/vue/contracts"
 	"go-shop-v2/pkg/vue/core"
@@ -19,7 +16,6 @@ var ProductUpdatePage *productUpdatePage
 
 type productUpdatePage struct {
 	productService *services.ProductService
-	productRep  *repositories.ProductRep
 }
 
 func (this *productUpdatePage) AuthorizedTo(ctx *gin.Context, user auth.Authenticatable) bool {
@@ -45,7 +41,7 @@ func (this *productUpdatePage) HttpHandles(router gin.IRouter) {
 			return
 		}
 		product, err := this.productService.FindByIdWithItems(c, c.Param("Product"))
-		if err!=nil {
+		if err != nil {
 			err2.ErrorEncoder(nil, err, c.Writer)
 			return
 		}
@@ -58,39 +54,26 @@ func (this *productUpdatePage) HttpHandles(router gin.IRouter) {
 			return
 		}
 
-		form := &ProductForm{}
-		err := c.ShouldBind(form)
+		product, err := this.productService.FindById(c, c.Param("Product"))
 		if err != nil {
 			err2.ErrorEncoder(nil, err, c.Writer)
 			return
 		}
 
-		result := <-this.productRep.FindById(c, c.Param("Product"))
-		if result.Error != nil {
-			err2.ErrorEncoder(nil, result.Error, c.Writer)
+		form := services.ProductCreateOption{}
+
+		if err := c.ShouldBind(&form); err != nil {
+			err2.ErrorEncoder(nil, err, c.Writer)
 			return
 		}
 
-		product := result.Result.(*models.Product)
-
-		product.Name = form.Name
-		product.Brand = form.Brand
-		product.Items = form.Items
-		product.Options = form.Options
-		product.Attributes = form.Attributes
-		product.Description = form.Description
-		product.Price = form.Price
-		product.FakeSalesQty = form.FakeSalesQty
-		product.Images = form.Images
-		product.OnSale = form.OnSale
-
-		updated := <-this.productRep.Save(c, product)
-		if updated.Error != nil {
-			err2.ErrorEncoder(nil, updated.Error, c.Writer)
+		updatedProduct, err := this.productService.Update(c, product, form)
+		if err != nil {
+			err2.ErrorEncoder(nil, err, c.Writer)
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"redirect": fmt.Sprintf("/products/%s", product.GetID())})
+		c.JSON(http.StatusOK, gin.H{"redirect": fmt.Sprintf("/products/%s", updatedProduct.GetID())})
 	})
 }
 
@@ -104,13 +87,8 @@ func (this *productUpdatePage) DisplayInNavigation(ctx *gin.Context, user interf
 
 func NewProductUpdatePage() *productUpdatePage {
 	if ProductUpdatePage == nil {
-		con := mongodb.GetConFn()
-		itemRep := repositories.NewItemRep(con)
-		productRep:=  repositories.NewProductRep(con, itemRep)
-
 		ProductUpdatePage = &productUpdatePage{
-			productService:services.NewProductService(productRep),
-			productRep:  productRep,
+			productService: services.MakeProductService(),
 		}
 	}
 	return ProductUpdatePage

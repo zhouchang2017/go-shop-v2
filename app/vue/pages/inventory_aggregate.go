@@ -22,7 +22,7 @@ var InventoryAggratePage *inventoryAggregate
 type inventoryAggregate struct {
 	service *services.InventoryService
 	shopRep *repositories.ShopRep
-	router contracts.Router
+	router  contracts.Router
 }
 
 func NewInventoryAggregate() *inventoryAggregate {
@@ -56,6 +56,18 @@ func (this *inventoryAggregate) VueRouter() contracts.Router {
 		this.router = router
 	}
 	return this.router
+}
+
+func (this *inventoryAggregate) UriKey() string {
+	return "inventories/aggregate"
+}
+
+func (this *inventoryAggregate) RouterName() string {
+	return "inventories.aggregate"
+}
+
+func (this *inventoryAggregate) Component() string {
+	return "inventories/Aggregate"
 }
 
 func (this *inventoryAggregate) HttpHandles(router gin.IRouter) {

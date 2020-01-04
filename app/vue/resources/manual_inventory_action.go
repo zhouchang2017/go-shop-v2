@@ -8,7 +8,6 @@ import (
 	"go-shop-v2/app/vue/pages"
 	ctx2 "go-shop-v2/pkg/ctx"
 	err2 "go-shop-v2/pkg/err"
-	"go-shop-v2/pkg/repository"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"go-shop-v2/pkg/vue/contracts"
@@ -24,25 +23,28 @@ func init() {
 type InventoryAction struct {
 	core.AbstractResource
 	model   interface{}
-	rep     *repositories.ManualInventoryActionRep
 	service *services.ManualInventoryActionService
 }
 
 
 func (m *InventoryAction) Pagination(ctx *gin.Context, req *request.IndexRequest) (res interface{}, pagination response.Pagination, err error) {
-	results := <-m.rep.Pagination(ctx, req)
-	return results.Result, results.Pagination, results.Error
+	return m.service.Pagination(ctx,req)
 }
 
 func (m *InventoryAction) Show(ctx *gin.Context, id string) (res interface{}, err error) {
-	result := <-m.rep.FindById(ctx, id)
-	return result.Result, result.Error
+	return m.service.FindById(ctx,id)
 }
 
 // 自定义创建页
 func (this *InventoryAction) CreationComponent() contracts.Page {
-	return pages.NewManualInventoryPut()
+	return pages.NewManualInventoryCreatePage()
 }
+
+// 自定义更新页
+func (this *InventoryAction) UpdateComponent() contracts.Page {
+	return pages.NewManualInventoryUpdatePage()
+}
+
 
 
 func (m *InventoryAction) DisplayInNavigation(ctx *gin.Context, user interface{}) bool {
@@ -93,7 +95,6 @@ func (m *InventoryAction) Fields(ctx *gin.Context, model interface{}) func() []i
 func NewInventoryActionResource(rep *repositories.ManualInventoryActionRep, service *services.ManualInventoryActionService) *InventoryAction {
 	return &InventoryAction{
 		model:   &models.ManualInventoryAction{},
-		rep:     rep,
 		service: service,
 	}
 }
@@ -156,14 +157,10 @@ func (m *InventoryAction) Model() interface{} {
 	return m.model
 }
 
-func (m *InventoryAction) Repository() repository.IRepository {
-	return m.rep
-}
 
 func (m InventoryAction) Make(model interface{}) contracts.Resource {
 	return &InventoryAction{
 		model:   model,
-		rep:     m.rep,
 		service: m.service,
 	}
 }
@@ -184,6 +181,6 @@ func (InventoryAction) Group() string {
 // 自定义页面
 func (i *InventoryAction) Pages() []contracts.Page {
 	return []contracts.Page{
-		pages.NewManualInventoryPut(),
+		pages.NewManualInventoryCreatePage(),
 	}
 }

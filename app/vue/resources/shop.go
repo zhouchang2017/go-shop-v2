@@ -143,7 +143,7 @@ func (s *Shop) Fields(ctx *gin.Context, model interface{}) func() []interface{} 
 
 			// 更新&创建页面
 			fields.NewCheckboxGroup("成员", "Members", fields.OnlyOnForm()).Key("id").CallbackOptions(func() []*fields.CheckboxGroupOption {
-				associatedAdmins, _ := s.adminService.AllAdmins(context.Background())
+				associatedAdmins, _ := s.adminService.AllAssociated(context.Background())
 				var adminOptions []*fields.CheckboxGroupOption
 				for _, admin := range associatedAdmins {
 					adminOptions = append(adminOptions, &fields.CheckboxGroupOption{

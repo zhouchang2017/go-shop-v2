@@ -18,15 +18,38 @@ type ProductRep struct {
 	itemRep *ItemRep
 }
 
-func NewProductRep(con *mongodb.Connection, itemRep *ItemRep) *ProductRep {
+func NewProductRep(con *mongodb.Connection) *ProductRep {
 	return &ProductRep{
 		mongoRep: NewBasicMongoRepositoryByDefault(&models.Product{}, con),
-		itemRep:  itemRep,
+		itemRep:  NewItemRep(con),
 	}
 }
 
 func (this *ProductRep) GetItemRep() *ItemRep {
 	return this.itemRep
+}
+
+func (this *ProductRep) FindItemById(ctx context.Context, id string) (item *models.Item, err error) {
+	byId := <-this.itemRep.FindById(ctx, id)
+	if byId.Error != nil {
+		err = byId.Error
+		return
+	}
+	return byId.Result.(*models.Item), nil
+}
+
+func (this *ProductRep) WithItems(ctx context.Context, id string) (product *models.Product, err error) {
+	res := <-this.itemRep.FindById(ctx, id)
+	if res.Error != nil {
+		return nil, res.Error
+	}
+	product = res.Result.(*models.Product)
+	itemRes := <-this.itemRep.FindByProductId(ctx, id)
+	if itemRes.Error != nil {
+		return nil, itemRes.Error
+	}
+	product.Items = itemRes.Result.([]*models.Item)
+	return product, nil
 }
 
 // 重写Create方法

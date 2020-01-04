@@ -70,7 +70,8 @@ func (v *vueResourceServiceProvider) Boot() fx.Option {
 
 		fx.Invoke(func(vue *core.Vue, resource *InventoryAction) {
 			vue.RegisterResource(resource)
-			vue.RegisterPage(pages.NewManualInventoryPut())
+			vue.RegisterPage(pages.NewManualInventoryCreatePage())
+			vue.RegisterPage(pages.NewManualInventoryUpdatePage())
 		}),
 
 	)

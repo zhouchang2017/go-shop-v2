@@ -4,11 +4,8 @@ import (
 	"context"
 	"github.com/gin-gonic/gin"
 	"github.com/mitchellh/mapstructure"
-	"go-shop-v2/app/events"
 	"go-shop-v2/app/models"
-	"go-shop-v2/app/repositories"
 	"go-shop-v2/app/services"
-	"go-shop-v2/pkg/event"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"go-shop-v2/pkg/vue/contracts"
@@ -23,89 +20,57 @@ func init() {
 
 type Admin struct {
 	core.AbstractResource
-	model   interface{}
-	rep     *repositories.AdminRep
-	service *services.AdminService
+	model       interface{}
+	service     *services.AdminService
+	shopService *services.ShopService
 }
 
 // 实现列表页
 func (a *Admin) Pagination(ctx *gin.Context, req *request.IndexRequest) (res interface{}, pagination response.Pagination, err error) {
-	results := <-a.rep.Pagination(ctx, req)
-	return results.Result, results.Pagination, results.Error
+	return a.service.Pagination(ctx, req)
 }
 
 // 实现详情页
 func (a *Admin) Show(ctx *gin.Context, id string) (res interface{}, err error) {
-	result := <-a.rep.FindById(ctx, id)
-	return result.Result, result.Error
-}
-
-type adminCreateForm struct {
-	Username string `json:"username" `
-	Password string `json:"password"`
-	//PasswordConfirmation string                   `json:"password_confirmation" form:"password_confirmation" binding:"required" binding:"eqfield=Password"`
-	Nickname string   `json:"nickname" `
-	Type     string   `json:"type" `
-	Shops    []string `json:"shops" `
+	return a.service.FindById(ctx, id)
 }
 
 // 实现创建
 func (a *Admin) Store(ctx *gin.Context, data map[string]interface{}) (redirect string, err error) {
-	form := &adminCreateForm{}
-	if err := mapstructure.Decode(data, form); err != nil {
+	option := services.AdminCreateOption{}
+	if err := mapstructure.Decode(data, &option); err != nil {
 		return "", err
 	}
-	model := &models.Admin{
-		Username: form.Username,
-		Nickname: form.Nickname,
-		Type:     form.Type,
-	}
 
-	model.SetPassword(form.Password)
-
-	admin, err := a.service.Create(ctx, model, form.Shops...)
+	admin, err := a.service.Create(ctx, option)
 
 	if err != nil {
 		return "", err
 	}
-
-	event.Dispatch(events.AdminCreated{Admin: admin})
 
 	return core.CreatedRedirect(a, admin.GetID()), nil
 }
 
 // 实现更新
 func (a *Admin) Update(ctx *gin.Context, model interface{}, data map[string]interface{}) (redirect string, err error) {
-	form := &adminCreateForm{}
-	if err := mapstructure.Decode(data, form); err != nil {
+	option := services.AdminCreateOption{}
+	if err := mapstructure.Decode(data, &option); err != nil {
 		return "", err
 	}
 
 	admin := model.(*models.Admin)
-	if form.Username != "" {
-		admin.Username = form.Username
-	}
-	if form.Nickname != "" {
-		admin.Nickname = form.Nickname
-	}
-	if form.Password != "" {
-		admin.SetPassword(form.Password)
-	}
-	admin.Type = form.Type
 
-	admin2, err := a.service.Update(ctx, admin, form.Shops...)
+	admin2, err := a.service.Update(ctx, admin, option)
 	if err != nil {
 		return "", err
 	}
-
-	event.Dispatch(events.AdminUpdated{Admin: admin2})
 
 	return core.UpdatedRedirect(a, admin2.GetID()), nil
 }
 
 // 实现删除
 func (a *Admin) Destroy(ctx *gin.Context, id string) (err error) {
-	return <-a.rep.Delete(ctx, id)
+	return a.service.Destroy(ctx, id)
 }
 
 func (a Admin) Group() string {
@@ -160,7 +125,7 @@ func (a *Admin) Fields(ctx *gin.Context, model interface{}) func() []interface{}
 			}), fields.SetShowOnIndex(false)),
 
 			fields.NewCheckboxGroup("所属门店", "Shops", fields.OnlyOnForm()).Key("id").CallbackOptions(func() []*fields.CheckboxGroupOption {
-				associatedShops, _ := a.service.AllShops(context.Background())
+				associatedShops, _ := a.shopService.AllAssociatedShops(context.Background())
 				var shopOptions []*fields.CheckboxGroupOption
 				for _, shop := range associatedShops {
 					shopOptions = append(shopOptions, &fields.CheckboxGroupOption{
@@ -185,8 +150,8 @@ func (a *Admin) Fields(ctx *gin.Context, model interface{}) func() []interface{}
 	}
 }
 
-func NewAdminResource(rep *repositories.AdminRep, service *services.AdminService) *Admin {
-	return &Admin{model: &models.Admin{}, rep: rep, service: service}
+func NewAdminResource() *Admin {
+	return &Admin{model: &models.Admin{}, service: services.MakeAdminService(), shopService: services.MakeShopService()}
 }
 
 func (a *Admin) Model() interface{} {
@@ -195,9 +160,9 @@ func (a *Admin) Model() interface{} {
 
 func (a Admin) Make(model interface{}) contracts.Resource {
 	return &Admin{
-		rep:     a.rep,
-		service: a.service,
-		model:   model,
+		service:     a.service,
+		shopService: a.shopService,
+		model:       model,
 	}
 }
 

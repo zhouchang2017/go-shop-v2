@@ -4,44 +4,37 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"go-shop-v2/app/models"
-	"go-shop-v2/app/repositories"
 	"go-shop-v2/app/services"
 	"go-shop-v2/pkg/auth"
 	"go-shop-v2/pkg/ctx"
-	"go-shop-v2/pkg/db/mongodb"
 	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/vue/contracts"
 	"go-shop-v2/pkg/vue/core"
 	"net/http"
 )
 
-var ManualInventoryPut *manualInventoryPut
+var ManualInventoryCreatePage *manualInventoryCreatePage
 
-// 自定义页面，库存操作入库
-type manualInventoryPut struct {
+// 自定义页面，创建库存操作
+type manualInventoryCreatePage struct {
 	router  contracts.Router
 	service *services.ManualInventoryActionService
 }
 
-func NewManualInventoryPut() *manualInventoryPut {
-	con := mongodb.GetConFn()
-	if ManualInventoryPut == nil {
-		ManualInventoryPut = &manualInventoryPut{
-			service: services.NewManualInventoryActionService(
-				repositories.NewManualInventoryActionRep(con),
-				repositories.NewShopRep(con),
-				repositories.NewItemRep(con),
-			),
+func NewManualInventoryCreatePage() *manualInventoryCreatePage {
+	if ManualInventoryCreatePage == nil {
+		ManualInventoryCreatePage = &manualInventoryCreatePage{
+			service: services.MakeManualInventoryActionService(),
 		}
 	}
-	return ManualInventoryPut
+	return ManualInventoryCreatePage
 }
 
-func (this manualInventoryPut) AuthorizedTo(ctx *gin.Context, user auth.Authenticatable) bool {
+func (this manualInventoryCreatePage) AuthorizedTo(ctx *gin.Context, user auth.Authenticatable) bool {
 	return true
 }
 
-func (this manualInventoryPut) VueRouter() contracts.Router {
+func (this manualInventoryCreatePage) VueRouter() contracts.Router {
 	if this.router == nil {
 		router := core.NewRouter()
 		router.RouterPath = "inventory_actions/new"
@@ -50,8 +43,6 @@ func (this manualInventoryPut) VueRouter() contracts.Router {
 		router.Hidden = true
 		router.WithMeta("ResourceName", "inventory_actions")
 		router.WithMeta("Title", this.Title())
-		router.WithMeta("PutEndpoint", this.putEndpoint())
-		router.WithMeta("TakeEndpoint", this.takeEndpoint())
 		inventory := models.Inventory{}
 		router.WithMeta("InventoryStatus", inventory.StatusOkMap())
 		this.router = router
@@ -59,7 +50,7 @@ func (this manualInventoryPut) VueRouter() contracts.Router {
 	return this.router
 }
 
-func (this manualInventoryPut) HttpHandles(router gin.IRouter) {
+func (this manualInventoryCreatePage) HttpHandles(router gin.IRouter) {
 	// 入库处理
 	router.POST(this.putEndpoint(), func(c *gin.Context) {
 		form := &services.InventoryActionPutOption{}
@@ -107,18 +98,18 @@ func (this manualInventoryPut) HttpHandles(router gin.IRouter) {
 	})
 }
 
-func (this manualInventoryPut) putEndpoint() string {
+func (this manualInventoryCreatePage) putEndpoint() string {
 	return "/inventory_actions/put"
 }
 
-func (this manualInventoryPut) takeEndpoint() string {
+func (this manualInventoryCreatePage) takeEndpoint() string {
 	return "/inventory_actions/take"
 }
 
-func (this manualInventoryPut) Title() string {
+func (this manualInventoryCreatePage) Title() string {
 	return "库存操作"
 }
 
-func (this manualInventoryPut) DisplayInNavigation(ctx *gin.Context, user interface{}) bool {
+func (this manualInventoryCreatePage) DisplayInNavigation(ctx *gin.Context, user interface{}) bool {
 	return true
 }
