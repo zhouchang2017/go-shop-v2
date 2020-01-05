@@ -43,3 +43,7 @@ func (AbstractResource) Lenses() []contracts.Lens {
 func (AbstractResource) Pages() []contracts.Page {
 	return []contracts.Page{}
 }
+
+func (AbstractResource) Actions(ctx *gin.Context) []contracts.Action {
+	return []contracts.Action{}
+}

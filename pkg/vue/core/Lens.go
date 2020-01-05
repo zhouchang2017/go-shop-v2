@@ -40,7 +40,7 @@ func resolveLensIndexFields(ctx *gin.Context, lens contracts.Lens) []contracts.F
 }
 
 // 聚合列表页字段格式化输出
-func SerializeForLensIndex(ctx *gin.Context, lens contracts.Lens, model interface{}) map[string]interface{} {
+func SerializeLens(ctx *gin.Context, lens contracts.Lens, model interface{}) map[string]interface{} {
 	var maps = map[string]interface{}{}
 	fields := []contracts.Field{}
 	for _, field := range resolveLensIndexFields(ctx, lens) {

@@ -38,6 +38,8 @@ type (
 		Pages() []Page
 		// 过滤
 		Filters(ctx *gin.Context) []Filter
+		// 动作
+		Actions(ctx *gin.Context) []Action
 	}
 
 	// 可展示icon图标

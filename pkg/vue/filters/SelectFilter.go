@@ -59,7 +59,7 @@ func (this *AbstractSelectFilter) Multiple() *AbstractSelectFilter {
 	return this
 }
 
-func SerializeMap(ctx *gin.Context, filter contracts.Filter) map[string]interface{} {
+func Serialize(ctx *gin.Context, filter contracts.Filter) map[string]interface{} {
 	res := make(map[string]interface{})
 	res["name"] = filter.Name()
 	res["key"] = filter.Key()

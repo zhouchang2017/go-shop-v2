@@ -2,13 +2,13 @@ package core
 
 import (
 	"fmt"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/gin-gonic/gin"
 	"go-shop-v2/pkg/auth"
 	"go-shop-v2/pkg/ctx"
 	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/vue/contracts"
-	"go-shop-v2/pkg/vue/filters"
 	"net/http"
 	"reflect"
 )
@@ -38,6 +38,8 @@ func (this *httpHandle) exec() {
 
 	// vue路由表
 	this.vueRoutersHttpHandle()
+
+	this.resourceActionHttpHandle()
 
 	// 资源api
 	this.resourcesHttpHandle()
@@ -73,6 +75,53 @@ func (this *httpHandle) resourcesHttpHandle() {
 	for _, warp := range this.vue.warps {
 		warp.httpHandler.exec(this.router)
 	}
+}
+
+// action处理函数
+func (this *httpHandle) resourceActionHttpHandle() {
+	this.router.POST("/actions/:resourceName/:action", func(c *gin.Context) {
+
+		if warp, ok := this.vue.warps[c.Param("resourceName")]; ok {
+			for _, action := range warp.resource.Actions(c) {
+				if c.Param("action") == ActionUriKey(action) {
+					// 权限验证
+					if !action.AuthorizedTo(c, ctx.GetUser(c).(auth.Authenticatable)) {
+						c.AbortWithStatus(403)
+						return
+					}
+
+					if hasFields, ok := action.(contracts.ActionFields); ok {
+
+						var fields []contracts.Field
+
+						for _, field := range hasFields.Fields(c) {
+							if field.ShowOnUpdate() || field.ShowOnCreation() {
+								if field.AuthorizedTo(c, ctx.GetUser(c).(auth.Authenticatable)) {
+									fields = append(fields, field)
+								}
+							}
+						}
+
+						data, err := Validator(c, fields)
+						if err != nil {
+							err2.ErrorEncoder(nil, err, c.Writer)
+							return
+						}
+
+						spew.Dump(data)
+
+						//action.HttpHandle()
+
+					}
+
+				}
+			}
+
+		}
+		err2.ErrorEncoder(nil, err2.Err404, c.Writer)
+		return
+	})
+
 }
 
 type adminCredentials struct {
@@ -593,7 +642,7 @@ func (this *resourceHttpHandle) resourceLensesHandle() {
 				len := valueOf.Len()
 				for i := 0; i < len; i++ {
 					model := valueOf.Index(i).Interface()
-					data = append(data, SerializeForLensIndex(c, lens, model))
+					data = append(data, SerializeLens(c, lens, model))
 				}
 			}
 
@@ -606,7 +655,7 @@ func (this *resourceHttpHandle) resourceLensesHandle() {
 
 		// 获取聚合过滤
 		this.router.GET(LensFiltersEndPoints(this.resource, lens), func(c *gin.Context) {
-			c.JSON(http.StatusOK, serializeFiltersForMaps(c, resolverFilters(lens, c)...))
+			c.JSON(http.StatusOK, serializeFilters(c, resolverFilters(lens, c)...))
 		})
 	}
 }
@@ -633,25 +682,18 @@ func (this *resourceHttpHandle) resourcePagesHandle() {
 // 过滤选项
 func (this *resourceHttpHandle) resourceFiltersHandle() {
 	this.router.GET(fmt.Sprintf("/filters/%s", this.uriKey), func(c *gin.Context) {
-		c.JSON(http.StatusOK, serializeFiltersForMaps(c, resolverFilters(this.resource, c)...))
+		c.JSON(http.StatusOK, serializeFilters(c, resolverFilters(this.resource, c)...))
 	})
 }
 
-func serializeFiltersForMaps(ctx *gin.Context, f ...contracts.Filter) []map[string]interface{} {
-	data := []map[string]interface{}{}
-	for _, filter := range f {
-		data = append(data, filters.SerializeMap(ctx, filter))
-	}
-	return data
-}
-
-func resolverFilters(target interface{ Filters(ctx *gin.Context) []contracts.Filter }, c *gin.Context) []contracts.Filter {
-	filters := []contracts.Filter{}
-	for _, filter := range target.Filters(c) {
-		// 验证权限
-		if filter.AuthorizedTo(c, ctx.GetUser(c).(auth.Authenticatable)) {
-			filters = append(filters, filter)
+// 资源列表动作
+func (this *resourceHttpHandle) resourceActionsHandle() {
+	this.router.GET(fmt.Sprintf("/actions/%s", this.uriKey), func(c *gin.Context) {
+		data := []interface{}{}
+		for _, action := range resolverIndexActions(c, this.resource) {
+			data = append(data, serializeAction(c, action))
 		}
-	}
-	return filters
+
+		c.JSON(http.StatusOK, data)
+	})
 }

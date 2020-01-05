@@ -284,6 +284,9 @@ func SerializeForDetail(ctx *gin.Context, resource contracts.Resource) map[strin
 	maps["panels"] = p
 	maps["resource"] = data
 
+	// actions
+	maps["actions"] = serializeDetailActions(ctx,resource)
+
 	return maps
 }
 

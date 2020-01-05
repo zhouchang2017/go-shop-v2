@@ -19,7 +19,7 @@ type Vue struct {
 	pages            []contracts.Page
 	guard            string
 	httpHandle       *httpHandle
-	warps            []*warp
+	warps            map[string]*warp
 	customHttpHandle []func(router gin.IRouter)
 }
 
@@ -29,6 +29,7 @@ func New(port int64) *Vue {
 		app:    engine,
 		port:   port,
 		prefix: "app",
+		warps:  map[string]*warp{},
 	}
 }
 
@@ -52,7 +53,6 @@ func Cors() gin.HandlerFunc {
 	}
 }
 
-
 func (this *Vue) init() {
 	this.app.Use(gin.Logger())
 	this.app.Use(gin.Recovery())
@@ -65,7 +65,7 @@ func (this *Vue) init() {
 
 func (this *Vue) setWarps() {
 	for _, resource := range this.resources {
-		this.warps = append(this.warps, newWarp(resource))
+		this.warps[ResourceUriKey(resource)] = newWarp(resource)
 	}
 }
 
