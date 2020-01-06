@@ -5,7 +5,6 @@ import (
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
 	"go-shop-v2/app/services"
-	"go-shop-v2/app/vue/policies"
 	"go-shop-v2/app/vue/resources"
 	"go-shop-v2/config"
 	"go-shop-v2/pkg/auth"
@@ -27,7 +26,6 @@ var Providers []func() support.ServiceProvider = []func() support.ServiceProvide
 	db.NewMysqlServiceProvider,
 	auth.NewAuthServiceProvider,
 	vue.NewVueServiceProvider,
-	policies.NewPolicyServiceProvider,
 	models.NewModelServiceProvider,
 	repositories.NewRepositoryServiceProvider,
 	services.NewServiceServiceProvider,

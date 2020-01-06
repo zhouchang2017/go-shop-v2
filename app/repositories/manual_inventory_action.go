@@ -6,14 +6,14 @@ import (
 )
 
 func init() {
-	register(NewManualInventoryAction)
+	register(NewManualInventoryActionRep)
 }
 
 type ManualInventoryActionRep struct {
 	*mongoRep
 }
 
-func NewManualInventoryAction(con *mongodb.Connection) *ManualInventoryActionRep {
+func NewManualInventoryActionRep(con *mongodb.Connection) *ManualInventoryActionRep {
 	return &ManualInventoryActionRep{
 		mongoRep: NewBasicMongoRepositoryByDefault(&models.ManualInventoryAction{}, con),
 	}

@@ -6,11 +6,14 @@ import (
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
 	"go-shop-v2/app/services"
-	"go-shop-v2/app/vue/lenses"
-	"go-shop-v2/pkg/auth"
-	"go-shop-v2/pkg/repository"
+	"go-shop-v2/app/vue/filters"
+	"go-shop-v2/app/vue/pages"
 	"go-shop-v2/pkg/request"
-	"go-shop-v2/pkg/vue"
+	"go-shop-v2/pkg/response"
+	"go-shop-v2/pkg/vue/contracts"
+	"go-shop-v2/pkg/vue/core"
+	"go-shop-v2/pkg/vue/fields"
+	"go-shop-v2/pkg/vue/panels"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -20,22 +23,73 @@ func init() {
 
 // 库存管理
 type Inventory struct {
-	vue.AbstractResource
-	model   *models.Inventory
-	rep     *repositories.InventoryRep
+	core.AbstractResource
+	model   interface{}
 	service *services.InventoryService
-	helper  *vue.ResourceHelper
 }
 
-func (this *Inventory) OnIndexRouteCreated(ctx *gin.Context, router *vue.Router) {
-	// 库存操作权限
-	authorizedToAction := false
-	if action, ok := this.Root.ResolveWarp(&ManualInventoryAction{}); ok {
-		authorizedToAction = action.AuthorizedToCreate(ctx)
-		router.WithMeta("ActionButtonText", "库存操作")
-		router.WithMeta("ActionRouterName", action.CreateRouterName())
+func (this *Inventory) Pagination(ctx *gin.Context, req *request.IndexRequest) (res interface{}, pagination response.Pagination, err error) {
+	return this.service.Pagination(ctx,req)
+}
+
+func (this *Inventory) Show(ctx *gin.Context, id string) (res interface{}, err error) {
+	return this.service.FindById(ctx,id)
+}
+
+func (this *Inventory) DisplayInNavigation(ctx *gin.Context, user interface{}) bool {
+	return true
+}
+
+func (this *Inventory) HasIndexRoute(ctx *gin.Context, user interface{}) bool {
+	return true
+}
+
+func (this *Inventory) HasDetailRoute(ctx *gin.Context, user interface{}) bool {
+	return true
+}
+
+func (this *Inventory) HasEditRoute(ctx *gin.Context, user interface{}) bool {
+	return true
+}
+
+func (this *Inventory) Policy() interface{} {
+	return nil
+}
+
+func (this *Inventory) Fields(ctx *gin.Context, model interface{}) func() []interface{} {
+	return func() []interface{} {
+		return []interface{}{
+			fields.NewIDField(),
+			fields.NewTextField("门店", "Shop.Name"),
+			fields.NewTextField("类目", "Item.Product.Category.Name"),
+			fields.NewTextField("品牌", "Item.Product.Brand.Name"),
+			fields.NewTextField("货号", "Item.Code"),
+			fields.NewTextField("状态", "Status"),
+			fields.NewTextField("库存", "Qty"),
+
+			panels.NewPanel("门店信息",
+				fields.NewTextField("门店ID", "Shop.Id", fields.OnlyOnDetail()),
+				fields.NewTextField("门店", "Shop.Name", fields.OnlyOnDetail()),
+			),
+
+			panels.NewPanel("产品信息",
+				fields.NewTextField("产品ID", "Item.Product.Id", fields.OnlyOnDetail()),
+				fields.NewTextField("产品货号", "Item.Product.Code", fields.OnlyOnDetail()),
+				fields.NewTextField("产品名称", "Item.Product.Name", fields.OnlyOnDetail()),
+			),
+
+			panels.NewPanel("商品信息",
+				fields.NewTextField("商品ID", "Item.Id", fields.OnlyOnDetail()),
+				fields.NewTextField("商品货号", "Item.Code", fields.OnlyOnDetail()),
+				fields.NewTable("销售属性", "Item.OptionValues", func() []contracts.Field {
+					return []contracts.Field{
+						fields.NewTextField("编码", "Code"),
+						fields.NewTextField("值", "Value"),
+					}
+				}),
+			),
+		}
 	}
-	router.WithMeta("AuthorizedToAction", authorizedToAction)
 }
 
 func (this *Inventory) ResourceHttpDelete() bool {
@@ -50,8 +104,8 @@ func (this *Inventory) ResourceHttpRestore() bool {
 	return false
 }
 
-func NewInventoryResource(rep *repositories.InventoryRep, service *services.InventoryService) *Inventory {
-	return &Inventory{model: &models.Inventory{}, rep: rep, service: service, helper: vue.NewResourceHelper(&Inventory{})}
+func NewInventoryResource() *Inventory {
+	return &Inventory{model: &models.Inventory{}, service: services.MakeInventoryService()}
 }
 
 func (i *Inventory) IndexQuery(ctx *gin.Context, request *request.IndexRequest) error {
@@ -75,12 +129,11 @@ func (i *Inventory) Model() interface{} {
 	return i.model
 }
 
-func (i *Inventory) Repository() repository.IRepository {
-	return i.rep
-}
-
-func (i Inventory) Make(model interface{}) vue.Resource {
-	return &Inventory{model: model.(*models.Inventory)}
+func (i Inventory) Make(model interface{}) contracts.Resource {
+	return &Inventory{
+		service: i.service,
+		model:   model,
+	}
 }
 
 func (i *Inventory) SetModel(model interface{}) {
@@ -94,7 +147,7 @@ func (i Inventory) Title() string {
 
 // 左侧导航栏icon
 func (this Inventory) Icon() string {
-	return "i-box"
+	return "icons-box"
 }
 
 // 左侧导航栏分组
@@ -108,31 +161,25 @@ func (Inventory) CreateButtonName() string {
 }
 
 // 自定义聚合
-func (i Inventory) Lenses() []vue.Lens {
-	return []vue.Lens{
-		lenses.NewInventoryAggregateLens(&Inventory{}, i.service),
+func (i Inventory) Lenses() []contracts.Lens {
+	return []contracts.Lens{
+		//lenses.NewInventoryAggregate(),
 	}
 }
 
-type manualActionsLink struct {
+// 自定义页面
+func (i Inventory) Pages() []contracts.Page {
+	return []contracts.Page{
+		pages.NewInventoryAggregate(),
+		pages.NewManualInventoryCreatePage(),
+	}
 }
 
-func (manualActionsLink) AuthorizedTo(ctx *gin.Context, user auth.Authenticatable) bool {
-	admin := user.(*models.Admin)
-	return len(admin.Shops) > 0
-}
-
-func (manualActionsLink) Title() string {
-	return "库存操作"
-}
-
-func (manualActionsLink) RouterName() string {
-	return vue.NewResourceHelper(&ManualInventoryAction{}).IndexRouterName()
-}
-
-// 自定义link
-func (i Inventory) Links() []vue.Link {
-	return []vue.Link{
-		manualActionsLink{},
+// 过滤器定义
+func (i *Inventory) Filters(ctx *gin.Context) []contracts.Filter {
+	return []contracts.Filter{
+		filters.NewShopFilter(),
+		filters.NewInventoryStatusFilter(),
+		filters.NewUpdatedAtFilter(),
 	}
 }

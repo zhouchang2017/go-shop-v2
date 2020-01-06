@@ -19,10 +19,11 @@ func TestInventoryService_Put(t *testing.T) {
 
 	shopRep := repositories.NewShopRep(con)
 	itemRep := repositories.NewItemRep(con)
+	rep := repositories.NewManualInventoryActionRep(con)
 	service := NewInventoryService(
 		repositories.NewInventoryRep(con),
 		shopRep,
-		itemRep)
+		itemRep, rep)
 
 	type TestData struct {
 		ShopId string
@@ -75,7 +76,7 @@ func TestInventoryService_Take(t *testing.T) {
 	service := NewInventoryService(
 		repositories.NewInventoryRep(con),
 		repositories.NewShopRep(con),
-		repositories.NewItemRep(con))
+		repositories.NewItemRep(con), repositories.NewManualInventoryActionRep(con))
 	inventory, err := service.Take(context.Background(), "5dfcd13c540b36a9ac259c65", 8)
 	if err != nil {
 		t.Fatal(err)
@@ -92,7 +93,7 @@ func TestInventoryService_GetRepository(t *testing.T) {
 	service := NewInventoryService(
 		repositories.NewInventoryRep(con),
 		repositories.NewShopRep(con),
-		repositories.NewItemRep(con))
+		repositories.NewItemRep(con),repositories.NewManualInventoryActionRep(con))
 
 	res := &request.IndexRequest{}
 	es, pagination, err := service.Aggregate(context.Background(), res)

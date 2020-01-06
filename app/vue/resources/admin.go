@@ -1,15 +1,17 @@
 package resources
 
 import (
+	"context"
 	"github.com/gin-gonic/gin"
-	"go-shop-v2/app/events"
+	"github.com/mitchellh/mapstructure"
 	"go-shop-v2/app/models"
-	"go-shop-v2/app/repositories"
 	"go-shop-v2/app/services"
-	"go-shop-v2/pkg/event"
-	"go-shop-v2/pkg/repository"
 	"go-shop-v2/pkg/request"
-	"go-shop-v2/pkg/vue"
+	"go-shop-v2/pkg/response"
+	"go-shop-v2/pkg/vue/contracts"
+	"go-shop-v2/pkg/vue/core"
+	"go-shop-v2/pkg/vue/fields"
+	"go-shop-v2/pkg/vue/panels"
 )
 
 func init() {
@@ -17,121 +19,155 @@ func init() {
 }
 
 type Admin struct {
-	vue.AbstractResource
-	model   *models.Admin
-	rep     *repositories.AdminRep
-	service *services.AdminService
+	core.AbstractResource
+	model       interface{}
+	service     *services.AdminService
+	shopService *services.ShopService
+}
+
+// 实现列表页
+func (a *Admin) Pagination(ctx *gin.Context, req *request.IndexRequest) (res interface{}, pagination response.Pagination, err error) {
+	return a.service.Pagination(ctx, req)
+}
+
+// 实现详情页
+func (a *Admin) Show(ctx *gin.Context, id string) (res interface{}, err error) {
+	return a.service.FindById(ctx, id)
+}
+
+// 实现创建
+func (a *Admin) Store(ctx *gin.Context, data map[string]interface{}) (redirect string, err error) {
+	option := services.AdminCreateOption{}
+	if err := mapstructure.Decode(data, &option); err != nil {
+		return "", err
+	}
+
+	admin, err := a.service.Create(ctx, option)
+
+	if err != nil {
+		return "", err
+	}
+
+	return core.CreatedRedirect(a, admin.GetID()), nil
+}
+
+// 实现更新
+func (a *Admin) Update(ctx *gin.Context, model interface{}, data map[string]interface{}) (redirect string, err error) {
+	option := services.AdminCreateOption{}
+	if err := mapstructure.Decode(data, &option); err != nil {
+		return "", err
+	}
+
+	admin := model.(*models.Admin)
+
+	admin2, err := a.service.Update(ctx, admin, option)
+	if err != nil {
+		return "", err
+	}
+
+	return core.UpdatedRedirect(a, admin2.GetID()), nil
+}
+
+// 实现删除
+func (a *Admin) Destroy(ctx *gin.Context, id string) (err error) {
+	return a.service.Destroy(ctx, id)
+}
+
+func (a Admin) Group() string {
+	return "App"
+}
+
+func (a *Admin) DisplayInNavigation(ctx *gin.Context, user interface{}) bool {
+	return true
+}
+
+func (a *Admin) HasIndexRoute(ctx *gin.Context, user interface{}) bool {
+	return true
+}
+
+func (a *Admin) HasDetailRoute(ctx *gin.Context, user interface{}) bool {
+	return true
+}
+
+func (a *Admin) HasEditRoute(ctx *gin.Context, user interface{}) bool {
+	return true
+}
+
+func (a *Admin) Policy() interface{} {
+	return nil
 }
 
 // 字段
-func (a *Admin) Fields(ctx *gin.Context,model interface{}) {
-	
-}
+func (a *Admin) Fields(ctx *gin.Context, model interface{}) func() []interface{} {
+	return func() []interface{} {
 
-func NewAdminResource(rep *repositories.AdminRep, service *services.AdminService) *Admin {
-	return &Admin{model: &models.Admin{}, rep: rep, service: service}
-}
+		return []interface{}{
+			fields.NewIDField(),
+			fields.NewTextField("用户名", "Username", fields.SetRules([]*fields.FieldRule{
+				{Rule: "required"},
+			})),
+			fields.NewTextField("昵称", "Nickname", fields.SetRules([]*fields.FieldRule{
+				{Rule: "required"},
+			})),
 
-type adminForm struct {
-	Username             string                   `json:"username" form:"username"  binding:"required"`
-	Password             string                   `json:"password" form:"password"  binding:"required"`
-	PasswordConfirmation string                   `json:"password_confirmation" form:"password_confirmation" binding:"required" binding:"eqfield=Password"`
-	Nickname             string                   `json:"nickname" form:"nickname"  binding:"required"`
-	Type                 string                   `json:"type" form:"type" binding:"required"`
-	Shops                []*models.AssociatedShop `json:"shops" form:"shops"`
-}
+			fields.NewSelect("用户类型", "Type", fields.SetRules([]*fields.FieldRule{
+				{Rule: "required"},
+			})).WithOptions([]*fields.SelectOption{
+				{Label: "超级管理员", Value: "root"},
+				{Label: "管理员", Value: "admin"},
+				{Label: "店长", Value: "manager"},
+				{Label: "销售员", Value: "salesman"},
+			}),
 
-type adminUpdateForm struct {
-	Username string                   `json:"username" form:"username"`
-	Password string                   `json:"password" form:"password"`
-	Nickname string                   `json:"nickname" form:"nickname"`
-	Type     string                   `json:"type" form:"type"`
-	Shops    []*models.AssociatedShop `json:"shops" form:"shops"`
-}
+			fields.NewPasswordField("密码", "Password", fields.SetRules([]*fields.FieldRule{
+				{Rule: "min:6"},
+				{Rule: "max:20"},
+			}), fields.SetShowOnIndex(false)),
 
+			fields.NewCheckboxGroup("所属门店", "Shops", fields.OnlyOnForm()).Key("id").CallbackOptions(func() []*fields.CheckboxGroupOption {
+				associatedShops, _ := a.shopService.AllAssociatedShops(context.Background())
+				var shopOptions []*fields.CheckboxGroupOption
+				for _, shop := range associatedShops {
+					shopOptions = append(shopOptions, &fields.CheckboxGroupOption{
+						Label: shop.Name,
+						Value: shop.Id,
+					})
+				}
+				return shopOptions
+			}),
 
-func (a *Admin) UpdateFormParse(ctx *gin.Context, model interface{}) (entity interface{}, err error) {
-	form := &adminUpdateForm{}
-	err = ctx.ShouldBind(form)
-	if err != nil {
-		return nil, err
-	}
-	admin := model.(*models.Admin)
-	if form.Username != "" {
-		admin.Username = form.Username
-	}
-	if form.Nickname != "" {
-		admin.Nickname = form.Nickname
-	}
-	if form.Password != "" {
-		admin.SetPassword(form.Password)
-	}
-	if form.Type != "" {
-		if _, err := admin.SetType(form.Type); err != nil {
-			return nil, err
+			fields.NewDateTime("创建时间", "CreatedAt"),
+			fields.NewDateTime("更新时间", "UpdatedAt"),
+			panels.NewPanel("所属门店",
+				fields.NewTable("所属门店", "Shops", func() []contracts.Field {
+					return []contracts.Field{
+						fields.NewTextField("ID", "Id"),
+						fields.NewTextField("门店", "Name"),
+					}
+				}),
+			).SetWithoutPending(true),
 		}
 	}
-	admin.Shops = []*models.AssociatedShop{} // 初始化空数组
-	if len(form.Shops) > 0 {
-		admin.Shops = form.Shops
-	}
-	return admin, nil
 }
 
-func (a *Admin) CreateFormParse(ctx *gin.Context) (entity interface{}, err error) {
-	form := &adminForm{}
-	err = ctx.ShouldBind(form)
-	if err != nil {
-		return nil, err
-	}
-	admin := &models.Admin{
-		Username: form.Username,
-		Nickname: form.Nickname,
-	}
-	if _, err := admin.SetType(form.Type); err != nil {
-		return nil, err
-	}
-
-	admin.SetPassword(form.Password)
-	admin.Shops = []*models.AssociatedShop{} // 初始化空数组
-	if len(form.Shops) > 0 {
-		admin.Shops = form.Shops
-	}
-	return admin, nil
-}
-
-// 创建成功钩子
-func (a *Admin) Created(ctx *gin.Context, resource interface{}) {
-	event.Dispatch(events.AdminCreated{Admin: resource.(*models.Admin)})
-}
-
-// 更新成功钩子
-func (a *Admin) Updated(ctx *gin.Context, resource interface{}) {
-	event.Dispatch(events.AdminUpdated{Admin: resource.(*models.Admin)})
-}
-
-func (a *Admin) IndexQuery(ctx *gin.Context, request *request.IndexRequest) error {
-	return nil
+func NewAdminResource() *Admin {
+	return &Admin{model: &models.Admin{}, service: services.MakeAdminService(), shopService: services.MakeShopService()}
 }
 
 func (a *Admin) Model() interface{} {
 	return a.model
 }
 
-func (a *Admin) Repository() repository.IRepository {
-	return a.rep
-}
-
-func (a *Admin) getService() *services.AdminService {
-	return a.service
-}
-
-func (a Admin) Make(model interface{}) vue.Resource {
-	return &Admin{model: model.(*models.Admin)}
+func (a Admin) Make(model interface{}) contracts.Resource {
+	return &Admin{
+		service:     a.service,
+		shopService: a.shopService,
+		model:       model,
+	}
 }
 
 func (a *Admin) SetModel(model interface{}) {
-	a.model = model.(*models.Admin)
+	a.model = model
 }
 
 func (a Admin) Title() string {
@@ -139,5 +175,5 @@ func (a Admin) Title() string {
 }
 
 func (Admin) Icon() string {
-	return "i-user"
+	return "icons-user"
 }

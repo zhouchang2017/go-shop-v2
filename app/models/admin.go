@@ -93,6 +93,7 @@ func (a *Admin) SetHashPassword(password string) {
 //}
 
 func (a *Admin) SetShops(shops []*Shop) *Admin {
+	a.Shops = []*AssociatedShop{}
 	for _, shop := range shops {
 		a.Shops = append(a.Shops, shop.ToAssociated())
 	}

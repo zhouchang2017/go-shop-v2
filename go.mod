@@ -11,6 +11,7 @@ require (
 	github.com/gin-gonic/gin v1.5.0
 	github.com/go-playground/universal-translator v0.17.0 // indirect
 	github.com/icrowley/fake v0.0.0-20180203215853-4178557ae428 // indirect
+	github.com/jinzhu/copier v0.0.0-20190924061706-b57f9002281a
 	github.com/jinzhu/gorm v1.9.11
 	github.com/jinzhu/inflection v1.0.0
 	github.com/json-iterator/go v1.1.8 // indirect
@@ -23,6 +24,7 @@ require (
 	github.com/qiniu/x v7.0.8+incompatible // indirect
 	github.com/satori/go.uuid v1.2.0
 	github.com/spf13/viper v1.6.1 // indirect
+	github.com/thedevsaddam/govalidator v1.9.9
 	github.com/tidwall/pretty v1.0.0 // indirect
 	github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c // indirect
 	github.com/xdg/stringprep v1.0.0 // indirect
@@ -31,7 +33,7 @@ require (
 	golang.org/x/crypto v0.0.0-20191206172530-e9b2fee46413
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e // indirect
 	golang.org/x/sys v0.0.0-20191210023423-ac6580df4449 // indirect
-	golang.org/x/tools v0.0.0-20191213221258-04c2e8eff935 // indirect
+	golang.org/x/tools v0.0.0-20191213221258-04c2e8eff935
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/go-playground/validator.v9 v9.30.2
 	gopkg.in/yaml.v2 v2.2.7 // indirect
