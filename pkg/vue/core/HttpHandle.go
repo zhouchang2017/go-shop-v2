@@ -1,8 +1,8 @@
 package core
 
 import (
+	"encoding/json"
 	"fmt"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/gin-gonic/gin"
 	"go-shop-v2/pkg/auth"
 	"go-shop-v2/pkg/ctx"
@@ -99,15 +99,30 @@ func (this *httpHandle) resourceActionHttpHandle() {
 							}
 						}
 					}
+					var data map[string]interface{}
+					var err error
+					if len(fields) > 0 {
+						data, err = Validator(c, fields)
+						if err != nil {
+							err2.ErrorEncoder(nil, err, c.Writer)
+							return
+						}
+					} else {
+						err := json.NewDecoder(c.Request.Body).Decode(&data)
+						if err != nil {
+							err2.ErrorEncoder(nil, err, c.Writer)
+							return
+						}
+					}
 
-					data, err := Validator(c, fields)
+					message, err := action.HttpHandle(c, data)
 					if err != nil {
 						err2.ErrorEncoder(nil, err, c.Writer)
 						return
 					}
 
-					spew.Dump(data)
-
+					c.JSON(http.StatusOK, message)
+					return
 				}
 			}
 

@@ -184,6 +184,6 @@ func (i *InventoryAction) Pages() []contracts.Page {
 // 动作
 func (i *InventoryAction) Actions(ctx *gin.Context) []contracts.Action {
 	return []contracts.Action{
-		actions.NewManualInventoryChangeStatus(),
+		actions.NewInventoryActionToFinished(),
 	}
 }

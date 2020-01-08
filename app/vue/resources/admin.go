@@ -110,7 +110,7 @@ func (a *Admin) Fields(ctx *gin.Context, model interface{}) func() []interface{}
 				{Rule: "required"},
 			})),
 
-			fields.NewSelect("用户类型", "Type", fields.SetRules([]*fields.FieldRule{
+			fields.NewSelectField("用户类型", "Type", fields.SetRules([]*fields.FieldRule{
 				{Rule: "required"},
 			})).WithOptions([]*fields.SelectOption{
 				{Label: "超级管理员", Value: "root"},

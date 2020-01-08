@@ -3,6 +3,7 @@ package contracts
 import (
 	"github.com/gin-gonic/gin"
 	"go-shop-v2/pkg/auth"
+	"go-shop-v2/pkg/vue/message"
 )
 
 // 列表页动作操作：
@@ -15,7 +16,7 @@ type Action interface {
 	// 名称
 	Name() string
 	// 是否可执行
-	CanRun(ctx *gin.Context,user auth.Authenticatable,model interface{}) bool
+	CanRun(ctx *gin.Context, user auth.Authenticatable, model interface{}) bool
 	// 列表页是否可见
 	ShowOnIndex() bool
 	// 详情页是否可见
@@ -23,7 +24,7 @@ type Action interface {
 	// 列表页table row 可见，暂时不实现
 	//ShowOnTableRow() bool
 	// 处理函数
-	HttpHandle(ctx *gin.Context, data map[string]interface{}, models []interface{}) error
+	HttpHandle(ctx *gin.Context, data map[string]interface{}) (msg message.Message,err error)
 	// 执行动作提示文字
 	ConfirmText() string
 	// 动作表单字段

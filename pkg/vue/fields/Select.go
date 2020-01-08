@@ -5,7 +5,7 @@ type Select struct {
 	Options     []*SelectOption `json:"options"`
 }
 
-func NewSelect(name string, fieldName string, opts ...FieldOption) *Select {
+func NewSelectField(name string, fieldName string, opts ...FieldOption) *Select {
 	var fieldOptions = []FieldOption{
 		SetPrefixComponent(true),
 		SetShowOnIndex(true),

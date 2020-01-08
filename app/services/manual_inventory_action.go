@@ -139,6 +139,24 @@ func (this *ManualInventoryActionService) UpdateTake(ctx context.Context, id str
 	panic(1)
 }
 
+// 确认操作
+func (this *ManualInventoryActionService) StatusToFinished(ctx context.Context, id string) (entity *models.ManualInventoryAction, err error) {
+	action, err := this.FindById(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// todo 具体逻辑
+	action.SetStatusToFinished()
+
+	saved := <-this.rep.Save(ctx, action)
+
+	if saved.Error != nil {
+		return nil, saved.Error
+	}
+	return saved.Result.(*models.ManualInventoryAction), nil
+}
+
 func (this *ManualInventoryActionService) SetShop(ctx context.Context, entity *models.ManualInventoryAction, shopId string) (*models.ManualInventoryAction, error) {
 	shop, err := this.shopService.FindById(ctx, shopId)
 	if err != nil {

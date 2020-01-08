@@ -90,7 +90,27 @@ func (this *ManualInventoryAction) SetStatus(status int8) *ManualInventoryAction
 }
 
 func (this *ManualInventoryAction) SetStatusToSaved() {
-	this.SetStatus(0)
+	this.SetStatus(int8(MANUAL_SAVED))
+}
+
+func (this *ManualInventoryAction) SetStatusToFinished() {
+	this.SetStatus(int8(MANUAL_FINISHED))
+}
+
+func (this *ManualInventoryAction) SetStatusToCancel() {
+	this.SetStatus(int8(MANUAL_CANCELED))
+}
+
+func (this *ManualInventoryAction) IsSaved() bool {
+	return this.Status == MANUAL_SAVED
+}
+
+func (this *ManualInventoryAction) IsFinished() bool {
+	return this.Status == MANUAL_FINISHED
+}
+
+func (this *ManualInventoryAction) IsCancel() bool {
+	return this.Status == MANUAL_CANCELED
 }
 
 // 标准库存操作子项
