@@ -5,6 +5,7 @@ import (
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
 	"go-shop-v2/app/services"
+	"go-shop-v2/app/vue/actions"
 	"go-shop-v2/app/vue/pages"
 	ctx2 "go-shop-v2/pkg/ctx"
 	err2 "go-shop-v2/pkg/err"
@@ -26,13 +27,12 @@ type InventoryAction struct {
 	service *services.ManualInventoryActionService
 }
 
-
 func (m *InventoryAction) Pagination(ctx *gin.Context, req *request.IndexRequest) (res interface{}, pagination response.Pagination, err error) {
-	return m.service.Pagination(ctx,req)
+	return m.service.Pagination(ctx, req)
 }
 
 func (m *InventoryAction) Show(ctx *gin.Context, id string) (res interface{}, err error) {
-	return m.service.FindById(ctx,id)
+	return m.service.FindById(ctx, id)
 }
 
 // 自定义创建页
@@ -44,8 +44,6 @@ func (this *InventoryAction) CreationComponent() contracts.Page {
 func (this *InventoryAction) UpdateComponent() contracts.Page {
 	return pages.NewManualInventoryUpdatePage()
 }
-
-
 
 func (m *InventoryAction) DisplayInNavigation(ctx *gin.Context, user interface{}) bool {
 	return true
@@ -78,14 +76,14 @@ func (m *InventoryAction) Fields(ctx *gin.Context, model interface{}) func() []i
 			fields.NewDateTime("创建时间", "CreatedAt"),
 			fields.NewDateTime("更新时间", "UpdatedAt"),
 
-			panels.NewPanel("商品列表",fields.NewTable("商品列表","Items", func() []contracts.Field {
+			panels.NewPanel("商品列表", fields.NewTable("商品列表", "Items", func() []contracts.Field {
 				return []contracts.Field{
-					fields.NewTextField("商品ID","Id"),
-					fields.NewTextField("商品货号","Code"),
-					fields.NewTextField("品牌","Product.Brand.Name"),
-					fields.NewTextField("类目","Product.Category.Name"),
-					fields.NewTextField("数量","Qty"),
-					fields.NewTextField("状态","Status"),
+					fields.NewTextField("商品ID", "Id"),
+					fields.NewTextField("商品货号", "Code"),
+					fields.NewTextField("品牌", "Product.Brand.Name"),
+					fields.NewTextField("类目", "Product.Category.Name"),
+					fields.NewTextField("数量", "Qty"),
+					fields.NewTextField("状态", "Status"),
 				}
 			})).SetWithoutPending(true),
 		}
@@ -157,7 +155,6 @@ func (m *InventoryAction) Model() interface{} {
 	return m.model
 }
 
-
 func (m InventoryAction) Make(model interface{}) contracts.Resource {
 	return &InventoryAction{
 		model:   model,
@@ -177,10 +174,16 @@ func (InventoryAction) Group() string {
 	return "Shop"
 }
 
-
 // 自定义页面
 func (i *InventoryAction) Pages() []contracts.Page {
 	return []contracts.Page{
 		pages.NewManualInventoryCreatePage(),
+	}
+}
+
+// 动作
+func (i *InventoryAction) Actions(ctx *gin.Context) []contracts.Action {
+	return []contracts.Action{
+		actions.NewManualInventoryChangeStatus(),
 	}
 }

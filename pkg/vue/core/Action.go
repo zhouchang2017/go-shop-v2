@@ -55,6 +55,24 @@ func serializeDetailActions(ctx *gin.Context, resource contracts.Resource) []int
 func serializeAction(ctx *gin.Context, action contracts.Action) map[string]interface{} {
 	res := make(map[string]interface{})
 	res["name"] = action.Name()
+	res["uri_key"] = ActionUriKey(action)
+	res["component"] = action.Component()
+	res["prefix_component"] = action.PrefixComponent()
+	fields := []contracts.Field{}
+	for _, field := range action.Fields(ctx) {
+		if field.AuthorizedTo(ctx, ctx2.GetUser(ctx).(auth.Authenticatable)) {
+			fields = append(fields, field)
+		}
+	}
+	res["fields"] = fields
+	res["confirm_text"] = action.ConfirmText()
+	res["confirm_button_text"] = action.ConfirmButtonText()
+	res["cancel_button_text"] = action.CancelButtonText()
+	for key, value := range action.Meta() {
+		res[key] = value
+	}
+	//action.
+	//action.
 	//res["key"] = filter.Key()
 	//res["component"] = filter.Component()
 	//res["prefix_component"] = filter.PrefixComponent()

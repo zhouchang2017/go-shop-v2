@@ -90,29 +90,23 @@ func (this *httpHandle) resourceActionHttpHandle() {
 						return
 					}
 
-					if hasFields, ok := action.(contracts.ActionFields); ok {
+					var fields []contracts.Field
 
-						var fields []contracts.Field
-
-						for _, field := range hasFields.Fields(c) {
-							if field.ShowOnUpdate() || field.ShowOnCreation() {
-								if field.AuthorizedTo(c, ctx.GetUser(c).(auth.Authenticatable)) {
-									fields = append(fields, field)
-								}
+					for _, field := range action.Fields(c) {
+						if field.ShowOnUpdate() || field.ShowOnCreation() {
+							if field.AuthorizedTo(c, ctx.GetUser(c).(auth.Authenticatable)) {
+								fields = append(fields, field)
 							}
 						}
-
-						data, err := Validator(c, fields)
-						if err != nil {
-							err2.ErrorEncoder(nil, err, c.Writer)
-							return
-						}
-
-						spew.Dump(data)
-
-						//action.HttpHandle()
-
 					}
+
+					data, err := Validator(c, fields)
+					if err != nil {
+						err2.ErrorEncoder(nil, err, c.Writer)
+						return
+					}
+
+					spew.Dump(data)
 
 				}
 			}

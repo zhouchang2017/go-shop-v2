@@ -5,12 +5,15 @@ import (
 	"go-shop-v2/pkg/auth"
 )
 
+// 列表页动作操作：
+// 导出excel、批量发送邮件、推送。。。
+// 列表页动作应该和详情页动作区分
+
 // 动作
 type Action interface {
+	Element
 	// 名称
 	Name() string
-	// 是否有权限可见
-	AuthorizedTo(ctx *gin.Context, user auth.Authenticatable) bool
 	// 是否可执行
 	CanRun(ctx *gin.Context,user auth.Authenticatable,model interface{}) bool
 	// 列表页是否可见
@@ -21,24 +24,12 @@ type Action interface {
 	//ShowOnTableRow() bool
 	// 处理函数
 	HttpHandle(ctx *gin.Context, data map[string]interface{}, models []interface{}) error
-}
-
-// 执行动作提示文字
-type ActionConfirmText interface {
+	// 执行动作提示文字
 	ConfirmText() string
-}
-
-// 动作表单字段
-type ActionFields interface {
+	// 动作表单字段
 	Fields(ctx *gin.Context) []Field
-}
-
-// 动作确认按钮文字
-type ActionConfirmButtonText interface {
+	// 动作确认按钮文字
 	ConfirmButtonText() string
-}
-
-// 动作取消按钮文字
-type ActionCancelButtonText interface {
+	// 动作取消按钮文字
 	CancelButtonText() string
 }
