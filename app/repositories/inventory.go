@@ -9,6 +9,7 @@ import (
 	"go-shop-v2/pkg/repository"
 	"go-shop-v2/pkg/request"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/x/bsonx"
@@ -23,6 +24,71 @@ type InventoryRep struct {
 	*mongoRep
 }
 
+func (this *InventoryRep) AggregateStockByShops(ctx context.Context, shopIds ...string) (data []*models.AggregateShopCountStockInventory, err error) {
+
+	var objIds []primitive.ObjectID
+	for _, id := range shopIds {
+		if ids, err := primitive.ObjectIDFromHex(id); err == nil {
+			objIds = append(objIds, ids)
+		}
+	}
+
+	pipelines1 := mongo.Pipeline{}
+
+	if len(objIds) > 0 {
+		pipelines1 = append(pipelines1, bson.D{{"$match", bson.M{
+			"shop.id": bson.D{{"$in", objIds}},
+		}}})
+	}
+
+	pipelines2 := mongo.Pipeline{
+		// 状态分组统计
+		bson.D{{"$group", bson.M{
+			"_id": bson.M{
+				"shop_id":   "$shop.id",
+				"shop_name": "$shop.name",
+				"status":    "$status",
+			},
+			"qty": bson.D{{"$sum", "$qty"}},
+		}}},
+		// 合并状态统计
+		bson.D{{"$group", bson.M{
+			"_id": bson.M{
+				"shop_id":   "$_id.shop_id",
+				"shop_name": "$_id.shop_name",
+			},
+			"total": bson.D{{"$sum", "$qty"}},
+			"status": bson.D{{"$push", bson.M{
+				"status": "$_id.status",
+				"qty":    "$qty",
+			}}},
+		}}},
+		// 改变数据结构
+		bson.D{{"$replaceRoot",
+			bson.D{{"newRoot",
+				bson.D{{"$mergeObjects",
+					bson.A{bson.M{
+						"shop_id":   "$_id.shop_id",
+						"shop_name": "$_id.shop_name",
+						"total":     "$total",
+						"status":    "$status",
+					}}}}}}}},
+	}
+
+	pipelines1 = append(pipelines1, pipelines2...)
+
+	cursor, err := this.Collection().Aggregate(ctx, pipelines1)
+	if err != nil {
+		return nil, err
+	}
+
+	data = []*models.AggregateShopCountStockInventory{}
+	if err := cursor.All(ctx, &data); err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
 func (this *InventoryRep) AggregatePagination(ctx context.Context, req *request.IndexRequest) <-chan repository.QueryPaginationResult {
 	result := make(chan repository.QueryPaginationResult)
 
@@ -33,7 +99,7 @@ func (this *InventoryRep) AggregatePagination(ctx context.Context, req *request.
 		filters := req.Filters.Unmarshal()
 		options := &QueryOption{}
 		err := mapstructure.Decode(filters, options)
-		spew.Dump(options)
+
 		if err != nil {
 			result <- repository.QueryPaginationResult{Error: err}
 			return
@@ -66,8 +132,8 @@ func (this *InventoryRep) AggregatePagination(ctx context.Context, req *request.
 				"_id": bson.M{
 					"item_id": "$_id.item_id",
 				},
-				"item": bson.D{{"$mergeObjects", "$item"}},
-				"total":  bson.D{{"$sum", "$qty"}},
+				"item":  bson.D{{"$mergeObjects", "$item"}},
+				"total": bson.D{{"$sum", "$qty"}},
 				"inventories": bson.D{{"$push", bson.M{
 					"status": "$_id.status",
 					"qty":    "$qty",
@@ -79,7 +145,7 @@ func (this *InventoryRep) AggregatePagination(ctx context.Context, req *request.
 				bson.D{{"newRoot",
 					bson.D{{"$mergeObjects",
 						bson.A{"$item", bson.M{
-							"total":         "$total",
+							"total":       "$total",
 							"inventories": "$inventories",
 						}}}}}}}},
 		}

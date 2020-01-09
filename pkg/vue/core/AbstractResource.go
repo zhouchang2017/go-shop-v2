@@ -47,3 +47,7 @@ func (AbstractResource) Pages() []contracts.Page {
 func (AbstractResource) Actions(ctx *gin.Context) []contracts.Action {
 	return []contracts.Action{}
 }
+
+func (AbstractResource) Cards(ctx *gin.Context) []contracts.Card {
+	return []contracts.Card{}
+}

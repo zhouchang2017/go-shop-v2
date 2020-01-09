@@ -6,6 +6,7 @@ import (
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
 	"go-shop-v2/app/services"
+	"go-shop-v2/app/vue/charts"
 	"go-shop-v2/app/vue/filters"
 	"go-shop-v2/app/vue/pages"
 	"go-shop-v2/pkg/request"
@@ -29,11 +30,11 @@ type Inventory struct {
 }
 
 func (this *Inventory) Pagination(ctx *gin.Context, req *request.IndexRequest) (res interface{}, pagination response.Pagination, err error) {
-	return this.service.Pagination(ctx,req)
+	return this.service.Pagination(ctx, req)
 }
 
 func (this *Inventory) Show(ctx *gin.Context, id string) (res interface{}, err error) {
-	return this.service.FindById(ctx,id)
+	return this.service.FindById(ctx, id)
 }
 
 func (this *Inventory) DisplayInNavigation(ctx *gin.Context, user interface{}) bool {
@@ -181,5 +182,12 @@ func (i *Inventory) Filters(ctx *gin.Context) []contracts.Filter {
 		filters.NewShopFilter(),
 		filters.NewInventoryStatusFilter(),
 		filters.NewUpdatedAtFilter(),
+	}
+}
+
+func (i *Inventory) Cards(ctx *gin.Context) []contracts.Card {
+	return []contracts.Card{
+		charts.NewShopsInventoryLine(),
+		charts.NewShopsInventoryBar(),
 	}
 }

@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/davecgh/go-spew/spew"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 )
 
 func ErrorEncoder(_ context.Context, err error, w http.ResponseWriter) {
+	spew.Dump(err)
 	convert := Convert(err)
 	w.WriteHeader(err2code(convert))
 	json.NewEncoder(w).Encode(convert)

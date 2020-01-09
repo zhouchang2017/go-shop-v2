@@ -71,15 +71,5 @@ func serializeAction(ctx *gin.Context, action contracts.Action) map[string]inter
 	for key, value := range action.Meta() {
 		res[key] = value
 	}
-	//action.
-	//action.
-	//res["key"] = filter.Key()
-	//res["component"] = filter.Component()
-	//res["prefix_component"] = filter.PrefixComponent()
-	//res["value"] = filter.DefaultValue(ctx)
-	//res["options"] = filter.Options(ctx)
-	//for key, value := range filter.Meta() {
-	//	res[key] = value
-	//}
 	return res
 }

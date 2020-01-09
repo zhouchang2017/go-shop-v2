@@ -43,7 +43,7 @@ type Inventory struct {
 	Status           InventoryStatus `json:"status"`           // 状态
 }
 
-func (I Inventory) StatusOkMap() []map[string]interface{}  {
+func (I Inventory) StatusOkMap() []map[string]interface{} {
 	return []map[string]interface{}{
 		{
 			"name":  "良品",
@@ -75,6 +75,19 @@ func (I Inventory) StatusMap() []map[string]interface{} {
 			"value": ITEM_BAD,
 		},
 	}
+}
+
+// 门店库存聚合结构
+type AggregateShopCountStockInventory struct {
+	ShopId   string                                    `json:"shop_id" bson:"shop_id"`
+	ShopName string                                    `json:"shop_name" bson:"shop_name"`
+	Total    int64                                     `json:"total"`
+	Status   []*AggregateShopCountStockInventoryStatus `json:"status"`
+}
+
+type AggregateShopCountStockInventoryStatus struct {
+	Status InventoryStatus `json:"status"`
+	Qty    int64           `json:"qty"`
 }
 
 // 聚合结构体

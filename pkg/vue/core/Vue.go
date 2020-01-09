@@ -17,6 +17,7 @@ type Vue struct {
 	prefix           string
 	resources        []contracts.Resource
 	pages            []contracts.Page
+	cards            map[string]contracts.Card
 	guard            string
 	httpHandle       *httpHandle
 	warps            map[string]*warp
@@ -30,6 +31,7 @@ func New(port int64) *Vue {
 		port:   port,
 		prefix: "app",
 		warps:  map[string]*warp{},
+		cards:  map[string]contracts.Card{},
 	}
 }
 
@@ -120,4 +122,9 @@ func (this *Vue) RegisterResource(resource contracts.Resource) {
 // 注册自定义页面
 func (this *Vue) RegisterPage(page contracts.Page) {
 	this.pages = append(this.pages, page)
+}
+
+// 注册Dashboard页面Cards
+func (this *Vue) RegisterCard(card contracts.Card) {
+	this.cards[CardUriKey(card)] = card
 }

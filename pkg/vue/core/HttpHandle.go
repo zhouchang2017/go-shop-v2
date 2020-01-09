@@ -39,7 +39,11 @@ func (this *httpHandle) exec() {
 	// vue路由表
 	this.vueRoutersHttpHandle()
 
+	// actions api
 	this.resourceActionHttpHandle()
+
+	// charts api
+	this.resourceChartsHttpHandle()
 
 	// 资源api
 	this.resourcesHttpHandle()
@@ -123,6 +127,97 @@ func (this *httpHandle) resourceActionHttpHandle() {
 
 					c.JSON(http.StatusOK, message)
 					return
+				}
+			}
+
+		}
+		err2.ErrorEncoder(nil, err2.Err404, c.Writer)
+		return
+	})
+
+}
+
+// charts处理函数
+func (this *httpHandle) resourceChartsHttpHandle() {
+	this.router.GET("/charts/app/:name", func(c *gin.Context) {
+		if card, ok := this.vue.cards[c.Param("name")]; ok {
+			if isCharts, ok := card.(contracts.Charts); ok {
+				if isCharts.ShowOnIndex() {
+					// 权限验证
+					if !isCharts.AuthorizedTo(c, ctx.GetUser(c).(auth.Authenticatable)) {
+						c.AbortWithStatus(403)
+						return
+					}
+
+					rows, err := isCharts.HttpHandle(c)
+					if err != nil {
+						err2.ErrorEncoder(nil, err, c.Writer)
+						return
+					}
+					c.JSON(http.StatusOK, rows)
+					return
+				}
+
+				c.AbortWithStatus(404)
+				return
+			}
+		}
+	})
+
+	this.router.GET("/charts/app/:name/:resourceName", func(c *gin.Context) {
+
+		if warp, ok := this.vue.warps[c.Param("resourceName")]; ok {
+			for _, card := range warp.resource.Cards(c) {
+				if c.Param("name") == CardUriKey(card) {
+
+					if isCharts, ok := card.(contracts.Charts); ok {
+						// 权限验证
+						if !isCharts.AuthorizedTo(c, ctx.GetUser(c).(auth.Authenticatable)) {
+							c.AbortWithStatus(403)
+							return
+						}
+
+						rows, err := isCharts.HttpHandle(c)
+						if err != nil {
+							err2.ErrorEncoder(nil, err, c.Writer)
+							return
+						}
+						c.JSON(http.StatusOK, rows)
+						return
+
+					}
+
+				}
+			}
+
+		}
+		err2.ErrorEncoder(nil, err2.Err404, c.Writer)
+		return
+	})
+
+	this.router.GET("/charts/app/:name/:resourceName/:resourceId", func(c *gin.Context) {
+
+		if warp, ok := this.vue.warps[c.Param("resourceName")]; ok {
+			for _, card := range warp.resource.Cards(c) {
+				if c.Param("name") == CardUriKey(card) {
+
+					if isCharts, ok := card.(contracts.Charts); ok {
+						// 权限验证
+						if !isCharts.AuthorizedTo(c, ctx.GetUser(c).(auth.Authenticatable)) {
+							c.AbortWithStatus(403)
+							return
+						}
+
+						rows, err := isCharts.HttpHandle(c)
+						if err != nil {
+							err2.ErrorEncoder(nil, err, c.Writer)
+							return
+						}
+						c.JSON(http.StatusOK, rows)
+						return
+
+					}
+
 				}
 			}
 
@@ -232,6 +327,8 @@ func (this *resourceHttpHandle) exec(router gin.IRouter) {
 	this.resourceRestoreHandle()       // 还原
 
 	this.resourceLensesHandle() // 聚合
+
+	this.resourceCardsHandle() // cards
 
 	this.resourcePagesHandle() // 自定义页面
 
@@ -595,6 +692,13 @@ func (this *resourceHttpHandle) resourceRestoreHandle() {
 			c.JSON(http.StatusOK, nil)
 		})
 	}
+}
+
+func (this *resourceHttpHandle) resourceCardsHandle() {
+	// 获取所有 cards
+	this.router.GET(fmt.Sprintf("/cards/%s", this.uriKey), func(c *gin.Context) {
+		c.JSON(http.StatusOK, serializeIndexCards(c, this.resource))
+	})
 }
 
 // lens聚合api

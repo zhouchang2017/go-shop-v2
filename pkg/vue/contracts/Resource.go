@@ -40,6 +40,8 @@ type (
 		Filters(ctx *gin.Context) []Filter
 		// 动作
 		Actions(ctx *gin.Context) []Action
+		// cards
+		Cards(ctx *gin.Context) []Card
 	}
 
 	// 可展示icon图标
