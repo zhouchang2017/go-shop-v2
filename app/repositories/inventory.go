@@ -13,7 +13,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/x/bsonx"
-	"log"
 )
 
 func init() {
@@ -284,9 +283,9 @@ func NewInventoryRep(con *mongodb.Connection) *InventoryRep {
 	rep := &InventoryRep{
 		mongoRep: NewBasicMongoRepositoryByDefault(&models.Inventory{}, con),
 	}
-	err := rep.CreateIndexes(context.Background(), rep.indexesModel())
-	if err != nil {
-		log.Fatal(err)
-	}
+	//err := rep.CreateIndexes(context.Background(), rep.indexesModel())
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
 	return rep
 }
