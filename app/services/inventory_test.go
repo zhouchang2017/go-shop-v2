@@ -19,11 +19,8 @@ func TestInventoryService_Put(t *testing.T) {
 
 	shopRep := repositories.NewShopRep(con)
 	itemRep := repositories.NewItemRep(con)
-	rep := repositories.NewManualInventoryActionRep(con)
-	service := NewInventoryService(
-		repositories.NewInventoryRep(con),
-		shopRep,
-		itemRep, rep)
+	//rep := repositories.NewManualInventoryActionRep(con)
+	service := MakeInventoryService()
 
 	type TestData struct {
 		ShopId string
@@ -72,11 +69,7 @@ func TestInventoryService_Take(t *testing.T) {
 	mongodb.TestConnect()
 	defer mongodb.Close()
 
-	con := mongodb.GetConFn()
-	service := NewInventoryService(
-		repositories.NewInventoryRep(con),
-		repositories.NewShopRep(con),
-		repositories.NewItemRep(con), repositories.NewManualInventoryActionRep(con))
+	service := MakeInventoryService()
 	inventory, err := service.Take(context.Background(), "5dfcd13c540b36a9ac259c65", 8)
 	if err != nil {
 		t.Fatal(err)
@@ -89,11 +82,7 @@ func TestInventoryService_GetRepository(t *testing.T) {
 	mongodb.TestConnect()
 	defer mongodb.Close()
 
-	con := mongodb.GetConFn()
-	service := NewInventoryService(
-		repositories.NewInventoryRep(con),
-		repositories.NewShopRep(con),
-		repositories.NewItemRep(con),repositories.NewManualInventoryActionRep(con))
+	service := MakeInventoryService()
 
 	res := &request.IndexRequest{}
 	es, pagination, err := service.Aggregate(context.Background(), res)
