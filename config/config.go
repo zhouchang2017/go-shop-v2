@@ -19,10 +19,11 @@ func init() {
 // mongodb config
 func (c *configServiceProvider) mongodbConfig() mongodb.Config {
 	return mongodb.Config{
-		Host:     "localhost",
-		Database: "go-shop",
-		Username: "root",
-		Password: "12345678",
+		Host:       "localhost",
+		Database:   "go-shop",
+		Username:   "root",
+		Password:   "12345678",
+		AuthSource: "go-shop",
 	}
 }
 
@@ -31,9 +32,9 @@ func (c *configServiceProvider) mysqlConfig() mysql.Config {
 	return mysql.Config{
 		Host:     "127.0.0.1",
 		Port:     "3306",
-		Database: "go-shop",
-		Username: "root",
-		Password: "12345678",
+		Database: "go_shop",
+		Username: "uhowep",
+		Password: "uhowep0770",
 	}
 }
 
