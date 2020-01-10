@@ -5,12 +5,12 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/services"
+	fields2 "go-shop-v2/app/vue/fields"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"go-shop-v2/pkg/vue/contracts"
 	"go-shop-v2/pkg/vue/core"
 	"go-shop-v2/pkg/vue/fields"
-	"go-shop-v2/pkg/vue/panels"
 )
 
 func init() {
@@ -23,6 +23,7 @@ type Category struct {
 	service *services.CategoryService
 }
 
+// 创建方法
 func (c *Category) Store(ctx *gin.Context, data map[string]interface{}) (redirect string, err error) {
 	option := services.CategoryCreateOption{}
 	if err := mapstructure.Decode(data, &option); err != nil {
@@ -33,13 +34,29 @@ func (c *Category) Store(ctx *gin.Context, data map[string]interface{}) (redirec
 		return "", err
 	}
 
+	return core.CreatedRedirect(c, category.GetID()), nil
+}
+
+// 更新方法
+func (c *Category) Update(ctx *gin.Context, model interface{}, data map[string]interface{}) (redirect string, err error) {
+	option := services.CategoryCreateOption{}
+	if err := mapstructure.Decode(data, &option); err != nil {
+		return "", err
+	}
+	category, err := c.service.Update(ctx, model.(*models.Category), option)
+	if err != nil {
+		return "", err
+	}
+
 	return core.UpdatedRedirect(c, category.GetID()), nil
 }
 
+// 详情方法
 func (c *Category) Show(ctx *gin.Context, id string) (res interface{}, err error) {
 	return c.service.FindById(ctx, id)
 }
 
+// 列表页
 func (c *Category) Pagination(ctx *gin.Context, req *request.IndexRequest) (res interface{}, pagination response.Pagination, err error) {
 	return c.service.Pagination(ctx, req)
 }
@@ -71,17 +88,8 @@ func (c *Category) Fields(ctx *gin.Context, model interface{}) func() []interfac
 			fields.NewTextField("名称", "Name"),
 			fields.NewDateTime("创建时间", "CreatedAt"),
 			fields.NewDateTime("更新时间", "UpdatedAt"),
-
-
-			panels.NewPanel("销售属性",
-				fields.NewTable("销售属性", "Options", func() []contracts.Field {
-					return []contracts.Field{
-						fields.NewTextField("名称", "Name"),
-						fields.NewTextField("权重", "Sort"),
-						fields.NewTextField("属性值", "Values"),
-					}
-				}),
-			).SetWithoutPending(true),
+			// 自定义字段
+			fields2.NewCategoryOptionField("销售属性", "Options"),
 		}
 	}
 }

@@ -13,13 +13,13 @@ func MakeBrandService() *BrandService {
 
 func MakeShopService() *ShopService {
 	con := mongodb.GetConFn()
-	return NewShopService(repositories.NewShopRep(con), repositories.NewAdminRep(con))
+	return NewShopService(repositories.NewShopRep(con))
 }
 
 func MakeAdminService() *AdminService {
 	con := mongodb.GetConFn()
 	rep := repositories.NewAdminRep(con)
-	return NewAdminService(rep, MakeShopService())
+	return NewAdminService(rep)
 }
 
 func MakeProductService() *ProductService {
@@ -38,6 +38,6 @@ func MakeManualInventoryActionService() *ManualInventoryActionService {
 	return NewManualInventoryActionService(rep, MakeInventoryService(), MakeShopService(), MakeProductService())
 }
 
-func MakeCategoryService() *CategoryService  {
+func MakeCategoryService() *CategoryService {
 	return NewCategoryService(repositories.NewCategoryRep(mongodb.GetConFn()))
 }

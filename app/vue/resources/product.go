@@ -10,7 +10,6 @@ import (
 	"go-shop-v2/pkg/vue/contracts"
 	"go-shop-v2/pkg/vue/core"
 	"go-shop-v2/pkg/vue/fields"
-	"go-shop-v2/pkg/vue/panels"
 )
 
 func init() {
@@ -74,31 +73,31 @@ func (this *Product) Fields(ctx *gin.Context, model interface{}) func() []interf
 			fields.NewTextField("价格", "Price"),
 			fields.NewTextField("销量", "TotalSalesQty"),
 
-			panels.NewPanel("基本属性", fields.NewTable("基本属性", "Attributes", func() []contracts.Field {
+			fields.NewTable("基本属性", "Attributes", func() []contracts.Field {
 				return []contracts.Field{
 					fields.NewTextField("属性名", "Name"),
 					fields.NewTextField("属性值", "Value"),
 				}
-			})).SetWithoutPending(true),
+			}),
 
-			panels.NewPanel("销售属性", fields.NewTable("销售属性", "Options", func() []contracts.Field {
+			fields.NewTable("销售属性", "Options", func() []contracts.Field {
 				return []contracts.Field{
 					fields.NewTextField("ID", "Id"),
 					fields.NewTextField("属性名", "Name"),
 					fields.NewTextField("权重", "Sort"),
-					fields.NewTextField("属性值", "Values"),
+					fields.NewLabelsFields("属性值", "Values").Label("value").Tooltip("code"),
 				}
-			})).SetWithoutPending(true),
+			}),
 
-			panels.NewPanel("SKU", fields.NewTable("SKU", "Items", func() []contracts.Field {
+			fields.NewTable("SKU", "Items", func() []contracts.Field {
 				return []contracts.Field{
 					fields.NewIDField(),
 					fields.NewTextField("编码", "Code"),
 					fields.NewTextField("价格", "Price"),
-					fields.NewTextField("销售属性", "OptionValues"),
+					fields.NewLabelsFields("销售属性", "OptionValues").Label("value").Tooltip("code"),
 					fields.NewTextField("销量", "SalesQty"),
 				}
-			})).SetWithoutPending(true),
+			}),
 		}
 	}
 }

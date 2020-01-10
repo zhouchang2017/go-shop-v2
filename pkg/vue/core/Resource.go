@@ -44,8 +44,8 @@ func resolveIndexFields(ctx *gin.Context, resource contracts.Resource) []contrac
 			}
 		}
 
-		if isPanel, ok := field.(*panels.Panel); ok {
-			for _, panelField := range isPanel.Fields {
+		if isPanel, ok := field.(contracts.Panel); ok {
+			for _, panelField := range isPanel.GetFields() {
 				if panelField.ShowOnIndex() && panelField.AuthorizedTo(ctx, ctx2.GetUser(ctx).(auth.Authenticatable)) {
 					// 自定义列表页组件
 					if hasIndexComponent, ok := panelField.(contracts.CustomIndexFieldComponent); ok {
@@ -60,9 +60,9 @@ func resolveIndexFields(ctx *gin.Context, resource contracts.Resource) []contrac
 }
 
 // 资源详情页字段
-func resolveDetailFields(ctx *gin.Context, resource contracts.Resource) ([]contracts.Field, []*panels.Panel) {
+func resolveDetailFields(ctx *gin.Context, resource contracts.Resource) ([]contracts.Field, []contracts.Panel) {
 	fields := []contracts.Field{}
-	panel := []*panels.Panel{}
+	panel := []contracts.Panel{}
 	for _, field := range resource.Fields(ctx, resource.Model())() {
 
 		if isField, ok := field.(contracts.Field); ok {
@@ -73,14 +73,25 @@ func resolveDetailFields(ctx *gin.Context, resource contracts.Resource) ([]contr
 					hasDetailComponent.DetailComponent()
 				}
 
+
+
+				// panel包裹字段
+				if asPanel, ok := isField.(contracts.AsPanel); ok {
+					warpPanel := asPanel.WarpPanel()
+					warpPanel.PrepareFields(isField)
+
+					panel = append(panel, warpPanel)
+				}
+
 				fields = append(fields, isField)
+
 				continue
 			}
 		}
 
-		if isPanel, ok := field.(*panels.Panel); ok {
+		if isPanel, ok := field.(contracts.Panel); ok {
 			availableFieldNum := 0
-			for _, panelField := range isPanel.Fields {
+			for _, panelField := range isPanel.GetFields() {
 				if panelField.ShowOnDetail() && panelField.AuthorizedTo(ctx, ctx2.GetUser(ctx).(auth.Authenticatable)) {
 					availableFieldNum++
 					// 自定义详情页组件
@@ -102,9 +113,9 @@ func resolveDetailFields(ctx *gin.Context, resource contracts.Resource) ([]contr
 }
 
 // 资源创建页字段
-func resolveCreationFields(ctx *gin.Context, resource contracts.Resource) ([]contracts.Field, []*panels.Panel) {
+func resolveCreationFields(ctx *gin.Context, resource contracts.Resource) ([]contracts.Field, []contracts.Panel) {
 	fields := []contracts.Field{}
-	panel := []*panels.Panel{}
+	panel := []contracts.Panel{}
 	defaultPanel := panels.NewPanel(fmt.Sprintf("创建%s", resource.Title()))
 	panel = append(panel, defaultPanel)
 
@@ -127,9 +138,9 @@ func resolveCreationFields(ctx *gin.Context, resource contracts.Resource) ([]con
 			}
 		}
 
-		if isPanel, ok := field.(*panels.Panel); ok {
+		if isPanel, ok := field.(contracts.Panel); ok {
 			availableFieldNum := 0
-			for _, panelField := range isPanel.Fields {
+			for _, panelField := range isPanel.GetFields() {
 				if panelField.ShowOnCreation() && panelField.AuthorizedTo(ctx, ctx2.GetUser(ctx).(auth.Authenticatable)) {
 					availableFieldNum++
 					// 自定义创建页组件
@@ -155,9 +166,9 @@ func resolveCreationFields(ctx *gin.Context, resource contracts.Resource) ([]con
 }
 
 // 资源更新页字段
-func resolveUpdateFields(ctx *gin.Context, resource contracts.Resource) ([]contracts.Field, []*panels.Panel) {
+func resolveUpdateFields(ctx *gin.Context, resource contracts.Resource) ([]contracts.Field, []contracts.Panel) {
 	fields := []contracts.Field{}
-	panel := []*panels.Panel{}
+	panel := []contracts.Panel{}
 	// TODO 自定义panel title
 	defaultPanel := panels.NewPanel(fmt.Sprintf("更新%s", resource.Title()))
 	panel = append(panel, defaultPanel)
@@ -179,9 +190,9 @@ func resolveUpdateFields(ctx *gin.Context, resource contracts.Resource) ([]contr
 			}
 		}
 
-		if isPanel, ok := field.(*panels.Panel); ok {
+		if isPanel, ok := field.(contracts.Panel); ok {
 			availableFieldNum := 0
-			for _, panelField := range isPanel.Fields {
+			for _, panelField := range isPanel.GetFields() {
 				if panelField.ShowOnUpdate() && panelField.AuthorizedTo(ctx, ctx2.GetUser(ctx).(auth.Authenticatable)) {
 					availableFieldNum++
 					// 自定义更新页组件
@@ -245,7 +256,7 @@ func SerializeForIndex(ctx *gin.Context, resource contracts.Resource) map[string
 func SerializeForDetail(ctx *gin.Context, resource contracts.Resource) map[string]interface{} {
 	var maps = map[string]interface{}{}
 	items := []contracts.Field{}
-	p := []*panels.Panel{}
+	p := []contracts.Panel{}
 	defaultPanel := panels.NewPanel(resource.Title() + "" + "详情")
 	defaultPanel.ShowToolbar = true
 	detailFields, panels := resolveDetailFields(ctx, resource)

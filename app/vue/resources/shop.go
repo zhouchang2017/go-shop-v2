@@ -2,15 +2,12 @@ package resources
 
 import (
 	"context"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/gin-gonic/gin"
 	"github.com/mitchellh/mapstructure"
 	"go-shop-v2/app/events"
 	"go-shop-v2/app/models"
-	"go-shop-v2/app/repositories"
 	"go-shop-v2/app/services"
 	"go-shop-v2/pkg/event"
-	"go-shop-v2/pkg/repository"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"go-shop-v2/pkg/vue/contracts"
@@ -26,102 +23,80 @@ func init() {
 type Shop struct {
 	core.AbstractResource
 	model        interface{}
-	rep          *repositories.ShopRep
 	service      *services.ShopService
 	adminService *services.AdminService
 }
 
-
-
 // 实现列表页api
 func (s *Shop) Pagination(ctx *gin.Context, req *request.IndexRequest) (res interface{}, pagination response.Pagination, err error) {
-	results := <-s.rep.Pagination(ctx, req)
-	return results.Result, results.Pagination, results.Error
+	return s.service.Pagination(ctx, req)
 }
 
 // 实现列表页api
 func (s *Shop) Show(ctx *gin.Context, id string) (res interface{}, err error) {
-	result := <-s.rep.FindById(ctx, id)
-	return result.Result, result.Error
+	return s.service.FindById(ctx, id)
 }
 
 // 实现创建api
 func (s *Shop) Store(ctx *gin.Context, data map[string]interface{}) (redirect string, err error) {
-	form := &shopForm{}
-	if err := mapstructure.Decode(data, form); err != nil {
+	form := services.ShopCreateOption{}
+	if err := mapstructure.Decode(data, &form); err != nil {
 		return "", err
 	}
-	shop := &models.Shop{
-		Name:     form.Name,
-		Address:  form.Address,
-		Location: form.Location,
+
+	members := []*models.AssociatedAdmin{}
+	if len(form.Members) > 0 {
+		admins, err := s.adminService.FindByIds(ctx, form.Members...)
+		if err != nil {
+			return "", err
+		}
+		for _, admin := range admins {
+			members = append(members, admin.ToAssociated())
+		}
 	}
-	entity, err := s.service.SetMembers(ctx, shop, form.Members...)
-	if err != nil {
-		return "", err
-	}
-	created := <-s.rep.Create(ctx, entity)
-	if created.Error != nil {
-		return "", created.Error
-	}
-	event.Dispatch(events.ShopCreated{Shop: created.Result.(*models.Shop)})
-	return core.CreatedRedirect(s, created.Id), nil
+
+	entity, err := s.service.Create(ctx, form, members...)
+	// 门店创建事件
+	event.Dispatch(events.ShopCreated{Shop: entity})
+
+	return core.CreatedRedirect(s, entity.GetID()), nil
 }
 
 func (s *Shop) Update(ctx *gin.Context, model interface{}, data map[string]interface{}) (redirect string, err error) {
-	spew.Dump(data)
-	panic("implement me")
+	form := services.ShopCreateOption{}
+	if err := mapstructure.Decode(data, &form); err != nil {
+		return "", err
+	}
+
+	members := []*models.AssociatedAdmin{}
+	if len(form.Members) > 0 {
+		admins, err := s.adminService.FindByIds(ctx, form.Members...)
+		if err != nil {
+			return "", err
+		}
+		for _, admin := range admins {
+			members = append(members, admin.ToAssociated())
+		}
+	}
+
+	entity, err := s.service.Update(ctx, model.(*models.Shop), form, members...)
+
+	// 门店更新事件
+	event.Dispatch(events.ShopUpdated{Shop: entity})
+
+	return core.UpdatedRedirect(s, entity.GetID()), nil
 }
-
-
 
 func (s *Shop) Make(model interface{}) contracts.Resource {
 	return &Shop{
 		model:        model,
-		rep:          s.rep,
 		service:      s.service,
 		adminService: s.adminService,
 	}
 }
 
-func NewShopResource(rep *repositories.ShopRep, service *services.ShopService, adminService *services.AdminService) *Shop {
-	return &Shop{model: &models.Shop{}, rep: rep, service: service, adminService: adminService}
-}
-
-type shopForm struct {
-	Name     string              `json:"name"`
-	Address  *models.ShopAddress `json:"address"`           // 地址
-	Location *models.Location    `json:"location"`          // 坐标
-	Members  []string            `json:"members,omitempty"` // 成员
-}
-
-// 更新表单处理
-func (s *Shop) UpdateFormParse(ctx *gin.Context, model interface{}) (entity interface{}, err error) {
-	shop := model.(*models.Shop)
-	form := &shopForm{}
-	if err = ctx.ShouldBind(form); err != nil {
-		return nil, err
-	}
-	shop.Name = form.Name
-	shop.Location = form.Location
-	shop.Address = form.Address
-
-	return s.service.SetMembers(ctx, shop, form.Members...)
-}
-
-// 创建表单处理
-func (s *Shop) CreateFormParse(ctx *gin.Context) (entity interface{}, err error) {
-	form := &shopForm{}
-	if err = ctx.ShouldBind(form); err != nil {
-		return nil, err
-	}
-	shop := &models.Shop{
-		Name:     form.Name,
-		Address:  form.Address,
-		Location: form.Location,
-	}
-
-	return s.service.SetMembers(ctx, shop, form.Members...)
+func NewShopResource(service *services.ShopService, adminService *services.AdminService) *Shop {
+	return &Shop{model: &models.Shop{}, service: service, adminService: adminService}
 }
 
 // 字段设置
@@ -135,7 +110,7 @@ func (s *Shop) Fields(ctx *gin.Context, model interface{}) func() []interface{} 
 
 			panels.NewPanel("地址",
 				fields.NewAreaCascader("省/市/区", "Address"),
-				fields.NewTextField("详细地址", "Address.Addr",fields.SetShowOnIndex(false)),
+				fields.NewTextField("详细地址", "Address.Addr", fields.SetShowOnIndex(false)),
 				fields.NewTextField("联系人", "Address.Name"),
 				fields.NewTextField("电话", "Address.Phone"),
 				fields.NewMapField("位置", "Location"),
@@ -155,23 +130,18 @@ func (s *Shop) Fields(ctx *gin.Context, model interface{}) func() []interface{} 
 			}),
 
 
-			panels.NewPanel("成员",
-				fields.NewTable("成员", "Members", func() []contracts.Field {
-					return []contracts.Field{
-						fields.NewTextField("ID", "Id", fields.ExceptOnForms()),
-						fields.NewTextField("昵称", "Nickname", fields.ExceptOnForms()),
-					}
-				})).SetWithoutPending(true),
+			fields.NewTable("成员", "Members", func() []contracts.Field {
+				return []contracts.Field{
+					fields.NewTextField("ID", "Id", fields.ExceptOnForms()),
+					fields.NewTextField("昵称", "Nickname", fields.ExceptOnForms()),
+				}
+			}),
 		}
 	}
 }
 
 func (s *Shop) Model() interface{} {
 	return s.model
-}
-
-func (s *Shop) Repository() repository.IRepository {
-	return s.rep
 }
 
 func (s *Shop) SetModel(model interface{}) {

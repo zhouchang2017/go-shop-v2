@@ -15,7 +15,7 @@ type Panel struct {
 }
 
 func NewPanel(name string, fields ...contracts.Field) *Panel {
-	p := &Panel{Element:element.NewElement(),Name: name}
+	p := &Panel{Element: element.NewElement(), Name: name}
 	p.WithComponent("panel")
 	p.PrepareFields(fields...)
 	return p
@@ -31,6 +31,10 @@ func (p *Panel) PrepareFields(fields ...contracts.Field) {
 		field.SetPanel(p.Name)
 		p.Fields = append(p.Fields, field)
 	}
+}
+
+func (p Panel) GetFields() []contracts.Field {
+	return p.Fields
 }
 
 // Set the number of initially visible fields.

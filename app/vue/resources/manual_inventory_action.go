@@ -7,14 +7,11 @@ import (
 	"go-shop-v2/app/services"
 	"go-shop-v2/app/vue/actions"
 	"go-shop-v2/app/vue/pages"
-	ctx2 "go-shop-v2/pkg/ctx"
-	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"go-shop-v2/pkg/vue/contracts"
 	"go-shop-v2/pkg/vue/core"
 	"go-shop-v2/pkg/vue/fields"
-	"go-shop-v2/pkg/vue/panels"
 )
 
 func init() {
@@ -69,23 +66,35 @@ func (m *InventoryAction) Fields(ctx *gin.Context, model interface{}) func() []i
 	return func() []interface{} {
 		return []interface{}{
 			fields.NewIDField(),
-			fields.NewTextField("类型", "Type"),
+			fields.NewStatusField("类型", "Type").WithOptions([]*fields.StatusOption{
+				fields.NewStatusOption("入库",0),
+				fields.NewStatusOption("出库",1),
+			}),
 			fields.NewTextField("门店", "Shop.Name"),
 			fields.NewTextField("操作者", "User.Nickname"),
-			fields.NewTextField("状态", "Status"),
+			fields.NewStatusField("状态", "Status").WithOptions([]*fields.StatusOption{
+				fields.NewStatusOption("未提交",0).Warning(),
+				fields.NewStatusOption("完成",1).Success(),
+				fields.NewStatusOption("取消",2).Cancel(),
+			}),
 			fields.NewDateTime("创建时间", "CreatedAt"),
 			fields.NewDateTime("更新时间", "UpdatedAt"),
 
-			panels.NewPanel("商品列表", fields.NewTable("商品列表", "Items", func() []contracts.Field {
+			fields.NewTable("商品列表", "Items", func() []contracts.Field {
 				return []contracts.Field{
 					fields.NewTextField("商品ID", "Id"),
 					fields.NewTextField("商品货号", "Code"),
 					fields.NewTextField("品牌", "Product.Brand.Name"),
 					fields.NewTextField("类目", "Product.Category.Name"),
 					fields.NewTextField("数量", "Qty"),
-					fields.NewTextField("状态", "Status"),
+					fields.NewStatusField("状态", "Status").WithOptions([]*fields.StatusOption{
+						fields.NewStatusOption("等待确认",0).Cancel(),
+						fields.NewStatusOption("锁定",1).Warning(),
+						fields.NewStatusOption("良品",2).Success(),
+						fields.NewStatusOption("不良品",3).Error(),
+					}),
 				}
-			})).SetWithoutPending(true),
+			}),
 		}
 	}
 }
@@ -95,60 +104,6 @@ func NewInventoryActionResource(rep *repositories.ManualInventoryActionRep, serv
 		model:   &models.ManualInventoryAction{},
 		service: service,
 	}
-}
-
-type manualInventoryActionForm struct {
-	Type   int8                                `json:"type" form:"type"`
-	ShopId string                              `json:"shop_id" form:"shop_id"`
-	Items  []*models.ManualInventoryActionItem `json:"items" form:"items"`
-	Status int8                                `json:"status" form:"status"`
-}
-
-func (m *InventoryAction) UpdateFormParse(ctx *gin.Context, model interface{}) (entity interface{}, err error) {
-	form := &manualInventoryActionForm{}
-	if err := ctx.ShouldBind(form); err != nil {
-		return nil, err
-	}
-	action := model.(*models.ManualInventoryAction)
-	user := ctx2.GetUser(ctx)
-	if admin, ok := user.(*models.Admin); ok {
-		if err := action.SetType(form.Type); err != nil {
-			return nil, err
-		}
-		// 创建设置为保存状态
-		action.SetStatusToSaved()
-		action.Items = form.Items
-		action.User = admin.ToAssociated()
-		if form.ShopId != action.Shop.Id {
-			return m.service.SetShop(ctx, action, form.ShopId)
-		}
-		return action, nil
-	}
-	return nil, err2.Err401
-}
-
-func (m *InventoryAction) CreateFormParse(ctx *gin.Context) (entity interface{}, err error) {
-	form := &manualInventoryActionForm{}
-	if err := ctx.ShouldBind(form); err != nil {
-		return nil, err
-	}
-	action := &models.ManualInventoryAction{}
-	user := ctx2.GetUser(ctx)
-	if admin, ok := user.(*models.Admin); ok {
-		if err := action.SetType(form.Type); err != nil {
-			return nil, err
-		}
-		// 创建设置为保存状态
-		action.SetStatusToSaved()
-		action.Items = form.Items
-		action.User = admin.ToAssociated()
-		return m.service.SetShop(ctx, action, form.ShopId)
-	}
-	return nil, err2.Err401
-}
-
-func (m *InventoryAction) IndexQuery(ctx *gin.Context, request *request.IndexRequest) error {
-	return nil
 }
 
 func (m *InventoryAction) Model() interface{} {
@@ -169,6 +124,12 @@ func (m *InventoryAction) SetModel(model interface{}) {
 func (m InventoryAction) Title() string {
 	return "库存操作"
 }
+
+// 左侧导航栏icon
+func (this InventoryAction) Icon() string {
+	return "icons-flag"
+}
+
 
 func (InventoryAction) Group() string {
 	return "Shop"
