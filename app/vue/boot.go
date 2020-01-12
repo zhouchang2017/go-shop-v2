@@ -21,6 +21,7 @@ func registerResources() {
 		resources2.NewInventoryActionResource(),
 		resources2.NewProductResource(),
 		resources2.NewShopResource(),
+		resources2.NewOrderResource(),
 	}
 }
 
