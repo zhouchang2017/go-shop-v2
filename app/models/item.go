@@ -5,9 +5,6 @@ import (
 	"go-shop-v2/pkg/db/model"
 )
 
-func init() {
-	register(NewItem)
-}
 
 type Item struct {
 	model.MongoModel `inline`

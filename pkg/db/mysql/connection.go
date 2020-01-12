@@ -87,4 +87,5 @@ func Close() {
 	if err := con.Close(); err != nil {
 		panic(err)
 	}
+	log.Printf("Close Mysql...\n")
 }

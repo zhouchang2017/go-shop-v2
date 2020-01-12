@@ -10,10 +10,6 @@ import (
 	"log"
 )
 
-func init() {
-	register(NewCategoryRep)
-}
-
 type CategoryRep struct {
 	*mongoRep
 }

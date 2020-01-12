@@ -3,6 +3,7 @@ package fields
 import (
 	"github.com/gin-gonic/gin"
 	"go-shop-v2/pkg/vue/contracts"
+	"go-shop-v2/pkg/vue/panels"
 	"reflect"
 )
 
@@ -10,6 +11,7 @@ type Table struct {
 	*Field        `inline`
 	Headings      []contracts.Field `json:"headings"`
 	fieldsFactory func() []contracts.Field
+	panel         contracts.Panel
 }
 
 func NewTable(name string, fieldName string, fields func() []contracts.Field, opts ...FieldOption) *Table {
@@ -22,10 +24,16 @@ func NewTable(name string, fieldName string, fields func() []contracts.Field, op
 	}
 	options = append(options, opts...)
 
-	table := &Table{Field: NewField(name, fieldName, options...), Headings: fields()}
+	panel := panels.NewPanel(name).SetWithoutPending(true)
+
+	table := &Table{Field: NewField(name, fieldName, options...), Headings: fields(), panel: panel}
 	table.fieldsFactory = fields
 	//table.WithMeta("headings", table.Headings)
 	return table
+}
+
+func (this *Table) WarpPanel() contracts.Panel {
+	return this.panel
 }
 
 //

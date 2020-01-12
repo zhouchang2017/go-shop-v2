@@ -18,10 +18,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-func init() {
-	register(NewInventoryResource)
-}
-
 // 库存管理
 type Inventory struct {
 	core.AbstractResource
@@ -65,7 +61,12 @@ func (this *Inventory) Fields(ctx *gin.Context, model interface{}) func() []inte
 			fields.NewTextField("类目", "Item.Product.Category.Name"),
 			fields.NewTextField("品牌", "Item.Product.Brand.Name"),
 			fields.NewTextField("货号", "Item.Code"),
-			fields.NewTextField("状态", "Status"),
+			fields.NewStatusField("状态", "Status").WithOptions([]*fields.StatusOption{
+				fields.NewStatusOption("等待确认",0).Cancel(),
+				fields.NewStatusOption("锁定",1).Warning(),
+				fields.NewStatusOption("良品",2).Success(),
+				fields.NewStatusOption("不良品",3).Error(),
+			}),
 			fields.NewTextField("库存", "Qty"),
 
 			panels.NewPanel("门店信息",
@@ -164,14 +165,14 @@ func (Inventory) CreateButtonName() string {
 // 自定义聚合
 func (i Inventory) Lenses() []contracts.Lens {
 	return []contracts.Lens{
-		//lenses.NewInventoryAggregate(),
+		//lenses.NewInventoryAggregatePage(),
 	}
 }
 
 // 自定义页面
 func (i Inventory) Pages() []contracts.Page {
 	return []contracts.Page{
-		pages.NewInventoryAggregate(),
+		pages.NewInventoryAggregatePage(),
 		pages.NewManualInventoryCreatePage(),
 	}
 }

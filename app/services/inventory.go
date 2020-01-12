@@ -12,9 +12,6 @@ import (
 	"log"
 )
 
-func init() {
-	register(NewInventoryService)
-}
 
 type InventoryService struct {
 	rep            *repositories.InventoryRep
@@ -135,11 +132,11 @@ func (this *InventoryService) Pagination(ctx context.Context, req *request.Index
 }
 
 // 详情
-func (this *InventoryService) FindById(ctx context.Context, id string) (category *models.Category, err error) {
+func (this *InventoryService) FindById(ctx context.Context, id string) (inventory *models.Inventory, err error) {
 	byId := <-this.rep.FindById(ctx, id)
 	if byId.Error != nil {
 		err = byId.Error
 		return
 	}
-	return byId.Result.(*models.Category), nil
+	return byId.Result.(*models.Inventory), nil
 }

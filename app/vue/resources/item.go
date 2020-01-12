@@ -4,16 +4,13 @@ import (
 	"github.com/gin-gonic/gin"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
+	"go-shop-v2/pkg/db/mongodb"
 	"go-shop-v2/pkg/repository"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"go-shop-v2/pkg/vue/contracts"
 	"go-shop-v2/pkg/vue/core"
 )
-
-func init() {
-	register(NewItemResource)
-}
 
 type Item struct {
 	core.AbstractResource
@@ -79,6 +76,6 @@ func (Item) Group() string {
 	return "Product"
 }
 
-func NewItemResource(model *models.Item, rep *repositories.ItemRep) *Item {
-	return &Item{model: model, rep: rep}
+func NewItemResource() *Item {
+	return &Item{model: &models.Item{}, rep: repositories.NewItemRep(mongodb.GetConFn())}
 }

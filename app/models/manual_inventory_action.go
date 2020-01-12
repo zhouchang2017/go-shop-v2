@@ -37,6 +37,14 @@ func (m manualInventoryActionType) Make(t int8) (res manualInventoryActionType, 
 	return res, fmt.Errorf("type %d not allow in [%d,%d]", t, MANUAL_TYPE_PUT, MANUAL_TYPE_TAKE)
 }
 
+func (m manualInventoryActionType) IsPut() bool {
+	return m == MANUAL_TYPE_PUT
+}
+
+func (m manualInventoryActionType) IsTake() bool {
+	return m == MANUAL_TYPE_TAKE
+}
+
 const (
 	MANUAL_TYPE_PUT  manualInventoryActionType = iota // 入库
 	MANUAL_TYPE_TAKE                                  // 出库

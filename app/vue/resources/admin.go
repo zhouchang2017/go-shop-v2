@@ -4,19 +4,16 @@ import (
 	"context"
 	"github.com/gin-gonic/gin"
 	"github.com/mitchellh/mapstructure"
+	"go-shop-v2/app/events"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/services"
+	"go-shop-v2/pkg/message"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"go-shop-v2/pkg/vue/contracts"
 	"go-shop-v2/pkg/vue/core"
 	"go-shop-v2/pkg/vue/fields"
-	"go-shop-v2/pkg/vue/panels"
 )
-
-func init() {
-	register(NewAdminResource)
-}
 
 type Admin struct {
 	core.AbstractResource
@@ -42,11 +39,29 @@ func (a *Admin) Store(ctx *gin.Context, data map[string]interface{}) (redirect s
 		return "", err
 	}
 
-	admin, err := a.service.Create(ctx, option)
+	// 查找管理门店
+	associatedShops := []*models.AssociatedShop{}
+
+	if len(option.Shops) > 0 {
+		shops, err := a.shopService.FindByIds(ctx, option.Shops...)
+		if err != nil {
+			return "", err
+		}
+		for _, shop := range shops {
+			associatedShops = append(associatedShops, shop.ToAssociated())
+		}
+	}
+
+	admin, err := a.service.Create(ctx, option, associatedShops...)
 
 	if err != nil {
 		return "", err
 	}
+
+	// 同步门店
+	defer func() {
+		message.Dispatch(events.AdminCreated{Admin: admin})
+	}()
 
 	return core.CreatedRedirect(a, admin.GetID()), nil
 }
@@ -60,10 +75,27 @@ func (a *Admin) Update(ctx *gin.Context, model interface{}, data map[string]inte
 
 	admin := model.(*models.Admin)
 
-	admin2, err := a.service.Update(ctx, admin, option)
+	// 查找管理门店
+	associatedShops := []*models.AssociatedShop{}
+
+	if len(option.Shops) > 0 {
+		shops, err := a.shopService.FindByIds(ctx, option.Shops...)
+		if err != nil {
+			return "", err
+		}
+		for _, shop := range shops {
+			associatedShops = append(associatedShops, shop.ToAssociated())
+		}
+	}
+
+	admin2, err := a.service.Update(ctx, admin, option, associatedShops...)
 	if err != nil {
 		return "", err
 	}
+
+	defer func() {
+		message.Dispatch(events.AdminUpdated{Admin: admin})
+	}()
 
 	return core.UpdatedRedirect(a, admin2.GetID()), nil
 }
@@ -138,14 +170,12 @@ func (a *Admin) Fields(ctx *gin.Context, model interface{}) func() []interface{}
 
 			fields.NewDateTime("创建时间", "CreatedAt"),
 			fields.NewDateTime("更新时间", "UpdatedAt"),
-			panels.NewPanel("所属门店",
-				fields.NewTable("所属门店", "Shops", func() []contracts.Field {
-					return []contracts.Field{
-						fields.NewTextField("ID", "Id"),
-						fields.NewTextField("门店", "Name"),
-					}
-				}),
-			).SetWithoutPending(true),
+			fields.NewTable("所属门店", "Shops", func() []contracts.Field {
+				return []contracts.Field{
+					fields.NewTextField("ID", "Id"),
+					fields.NewTextField("门店", "Name"),
+				}
+			}),
 		}
 	}
 }

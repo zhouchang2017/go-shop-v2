@@ -50,13 +50,13 @@ func (this *CategoryService) Create(ctx context.Context, opt CategoryCreateOptio
 	productOptions := []*models.ProductOption{}
 	for _, option := range opt.Options {
 		productOption := models.NewProductOption(option.Name)
-		option.Sort = productOption.Sort
+		productOption.Sort = option.Sort
 
 		values := []*models.OptionValue{}
 		for _, value := range option.Values {
 			values = append(values, productOption.NewValue(value.Value, value.Code))
 		}
-		productOption.AddValues(values...)
+		productOption.Values = values
 
 		productOptions = append(productOptions, productOption)
 	}
@@ -73,8 +73,35 @@ func (this *CategoryService) Create(ctx context.Context, opt CategoryCreateOptio
 
 // 更新
 func (this *CategoryService) Update(ctx context.Context, model *models.Category, opt CategoryCreateOption) (category *models.Category, err error) {
-	panic("待写。。。")
-	return model, nil
+	model.Name = opt.Name
+
+	productOptions := []*models.ProductOption{}
+	for _, option := range opt.Options {
+		var productOption *models.ProductOption
+		if option.Id != "" {
+			productOption = models.MakeProductOption(option.Id, option.Name, option.Sort)
+		} else {
+			productOption = models.NewProductOption(option.Name)
+			productOption.Sort = option.Sort
+		}
+
+		values := []*models.OptionValue{}
+		for _, value := range option.Values {
+			values = append(values, productOption.NewValue(value.Value, value.Code))
+		}
+		productOption.Values = values
+
+		productOptions = append(productOptions, productOption)
+	}
+	model.Options = productOptions
+
+	saved := <-this.rep.Save(ctx, model)
+
+	if saved.Error != nil {
+		err = saved.Error
+		return
+	}
+	return saved.Result.(*models.Category), nil
 }
 
 // 详情

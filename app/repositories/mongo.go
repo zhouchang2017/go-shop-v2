@@ -28,7 +28,6 @@ type mongoRep struct {
 
 func NewBasicMongoRepositoryByDefault(model interface{}, con *mongodb.Connection) *mongoRep {
 	plural := utils.StructNameToSnakeAndPlural(model)
-	log.Printf("new basic mongo repository model[%s]\n", plural)
 	return &mongoRep{table: plural, model: model, con: con}
 }
 

@@ -2,10 +2,8 @@ package services
 
 import (
 	"context"
-	"go-shop-v2/app/events"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
-	"go-shop-v2/pkg/event"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"go.mongodb.org/mongo-driver/bson"
@@ -13,19 +11,13 @@ import (
 	"log"
 )
 
-func init() {
-	register(NewAdminService)
-}
-
 type AdminService struct {
-	rep         *repositories.AdminRep
-	shopService *ShopService
+	rep *repositories.AdminRep
 }
 
-func NewAdminService(adminRep *repositories.AdminRep, shopService *ShopService) *AdminService {
+func NewAdminService(adminRep *repositories.AdminRep) *AdminService {
 	return &AdminService{
-		rep:         adminRep,
-		shopService: shopService,
+		rep: adminRep,
 	}
 }
 
@@ -50,7 +42,7 @@ func (this *AdminService) Pagination(ctx context.Context, req *request.IndexRequ
 }
 
 // 创建用户
-func (this *AdminService) Create(ctx context.Context, option AdminCreateOption) (admin *models.Admin, err error) {
+func (this *AdminService) Create(ctx context.Context, option AdminCreateOption, shops ...*models.AssociatedShop) (admin *models.Admin, err error) {
 	model := &models.Admin{
 		Username: option.Username,
 		Nickname: option.Nickname,
@@ -59,19 +51,12 @@ func (this *AdminService) Create(ctx context.Context, option AdminCreateOption) 
 
 	model.SetPassword(option.Password)
 
-	shops, err := this.shopService.FindByIds(ctx, option.Shops...)
-	if err != nil {
-		return model, err
-	}
-	model.SetShops(shops)
+
+	model.Shops = shops
 	created := <-this.rep.Create(ctx, model)
 	if created.Error != nil {
 		return nil, created.Error
 	}
-
-	defer func() {
-		event.Dispatch(events.AdminCreated{Admin: admin})
-	}()
 
 	admin = created.Result.(*models.Admin)
 
@@ -79,7 +64,7 @@ func (this *AdminService) Create(ctx context.Context, option AdminCreateOption) 
 }
 
 // 更新用户
-func (this *AdminService) Update(ctx context.Context, model *models.Admin, option AdminCreateOption) (admin *models.Admin, err error) {
+func (this *AdminService) Update(ctx context.Context, model *models.Admin, option AdminCreateOption,shops ...*models.AssociatedShop) (admin *models.Admin, err error) {
 
 	if option.Username != "" {
 		model.Username = option.Username
@@ -92,25 +77,17 @@ func (this *AdminService) Update(ctx context.Context, model *models.Admin, optio
 	}
 	model.Type = option.Type
 
-	shops, err := this.shopService.FindByIds(ctx, option.Shops...)
-	if err != nil {
-		return model, err
-	}
-	model.SetShops(shops)
+	model.Shops = shops
 	saved := <-this.rep.Save(ctx, model)
 	if saved.Error != nil {
 		return nil, saved.Error
 	}
 
-	defer func() {
-		event.Dispatch(events.AdminUpdated{Admin: admin})
-	}()
-
 	admin = saved.Result.(*models.Admin)
 	return
 }
 
-// 同步成员关联门店
+// 同步成员关联门店（shop模型更新时调用）
 func (this *AdminService) SyncAssociatedShop(ctx context.Context, shop *models.Shop) error {
 	admins := shop.Members
 	var objIds []primitive.ObjectID
@@ -181,13 +158,6 @@ func (this *AdminService) WithShops(ctx context.Context, model interface{}) (adm
 	if m, ok := model.(*models.Admin); ok {
 		admin = m
 	}
-	//if admin != nil {
-	//	shopsRes := <-this.shopRep.FindByIds(ctx, admin.GetShopIds()...)
-	//	if shopsRes.Error != nil {
-	//		return admin, shopsRes.Error
-	//	}
-	//	admin.SetShops(shopsRes.Result.([]*models.Shop))
-	//}
 	return admin, nil
 }
 

@@ -13,6 +13,7 @@ import (
 	"net/http"
 )
 
+
 var ManualInventoryCreatePage *manualInventoryCreatePage
 
 // 自定义页面，创建库存操作

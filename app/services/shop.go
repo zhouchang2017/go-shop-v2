@@ -11,13 +11,8 @@ import (
 	"log"
 )
 
-func init() {
-	register(NewShopService)
-}
-
 type ShopService struct {
-	rep      *repositories.ShopRep
-	adminRep *repositories.AdminRep
+	rep *repositories.ShopRep
 }
 
 func (this *ShopService) Pagination(ctx context.Context, req *request.IndexRequest) (shops []*models.Shop, pagination response.Pagination, err error) {
@@ -65,31 +60,43 @@ func (this *ShopService) AllAssociatedShops(ctx context.Context) (shops []*model
 	return shops, nil
 }
 
-type shopForm struct {
+type ShopCreateOption struct {
 	Name     string              `json:"name" form:"name" binding:"required"`
 	Address  *models.ShopAddress `json:"address"`           // 地址
 	Location *models.Location    `json:"location"`          // 坐标
 	Members  []string            `json:"members,omitempty"` // 成员
 }
 
-// 设置门店成员
-func (this *ShopService) SetMembers(ctx context.Context, shop *models.Shop, members ...string) (entity *models.Shop, err error) {
-	if len(members) == 0 {
-		shop.Members = []*models.AssociatedAdmin{}
+// 创建门店
+func (this *ShopService) Create(ctx context.Context, option ShopCreateOption, admins ...*models.AssociatedAdmin) (entity *models.Shop, err error) {
+	shop := models.NewShop()
+	shop.Name = option.Name
+	shop.Address = option.Address
+	shop.Location = option.Location
+	shop.Members = admins
+
+	created := <-this.rep.Create(ctx, shop)
+	if created.Error != nil {
+		return nil, created.Error
 	}
-	if len(members) > 0 {
-		result := <-this.adminRep.FindByIds(ctx, members...)
-		if result.Error != nil {
-			return nil, result.Error
-		}
-		for _, admin := range result.Result.([]*models.Admin) {
-			shop.Members = append(shop.Members, admin.ToAssociated())
-		}
-	}
-	return shop, nil
+	return created.Result.(*models.Shop), nil
 }
 
-// 同步门店关联成员
+// 更新门店
+func (this *ShopService) Update(ctx context.Context, shop *models.Shop, option ShopCreateOption, admins ...*models.AssociatedAdmin) (entity *models.Shop, err error) {
+	shop.Name = option.Name
+	shop.Address = option.Address
+	shop.Location = option.Location
+	shop.Members = admins
+
+	saved := <-this.rep.Save(ctx, shop)
+	if saved.Error != nil {
+		return nil, saved.Error
+	}
+	return saved.Result.(*models.Shop), nil
+}
+
+// 同步门店关联成员(创建用户、更新用户时调用)
 func (this *ShopService) SyncAssociatedMembers(ctx context.Context, admin *models.Admin) error {
 	shops := admin.Shops
 
@@ -132,6 +139,6 @@ func (this *ShopService) SyncAssociatedMembers(ctx context.Context, admin *model
 	return nil
 }
 
-func NewShopService(rep *repositories.ShopRep, adminRep *repositories.AdminRep) *ShopService {
-	return &ShopService{rep: rep, adminRep:adminRep}
+func NewShopService(rep *repositories.ShopRep) *ShopService {
+	return &ShopService{rep: rep}
 }

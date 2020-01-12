@@ -5,11 +5,6 @@ import (
 	"go-shop-v2/pkg/db/model"
 )
 
-func init() {
-	register(func() *Category {
-		return &Category{}
-	})
-}
 
 type Category struct {
 	model.MongoModel `inline`

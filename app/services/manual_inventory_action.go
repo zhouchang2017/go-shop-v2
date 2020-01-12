@@ -9,10 +9,6 @@ import (
 	"go-shop-v2/pkg/response"
 )
 
-func init() {
-	register(NewManualInventoryActionService)
-}
-
 type ManualInventoryActionService struct {
 	rep              *repositories.ManualInventoryActionRep
 	inventoryService *InventoryService
@@ -146,6 +142,14 @@ func (this *ManualInventoryActionService) StatusToFinished(ctx context.Context, 
 		return nil, err
 	}
 
+	if action.Type.IsPut() {
+		if err := this.putInventory(ctx, action); err != nil {
+			return nil, err
+		}
+	} else {
+
+	}
+
 	// todo 具体逻辑
 	action.SetStatusToFinished()
 
@@ -155,6 +159,19 @@ func (this *ManualInventoryActionService) StatusToFinished(ctx context.Context, 
 		return nil, saved.Error
 	}
 	return saved.Result.(*models.ManualInventoryAction), nil
+}
+
+// 推入仓库
+func (this *ManualInventoryActionService) putInventory(ctx context.Context, action *models.ManualInventoryAction) error {
+
+	for _, item := range action.Items {
+		_, err := this.inventoryService.Put(ctx, action.Shop.Id, item.Id, item.Qty, int8(item.Status))
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (this *ManualInventoryActionService) SetShop(ctx context.Context, entity *models.ManualInventoryAction, shopId string) (*models.ManualInventoryAction, error) {
@@ -231,6 +248,7 @@ func (this *ManualInventoryActionService) FindByIdWithInventory(ctx context.Cont
 	return action, nil
 }
 
+// 列表页
 func (this *ManualInventoryActionService) Pagination(ctx context.Context, req *request.IndexRequest) (action []*models.ManualInventoryAction, pagination response.Pagination, err error) {
 	results := <-this.rep.Pagination(ctx, req)
 	if results.Error != nil {
@@ -240,6 +258,7 @@ func (this *ManualInventoryActionService) Pagination(ctx context.Context, req *r
 	return results.Result.([]*models.ManualInventoryAction), results.Pagination, nil
 }
 
+// 详情页
 func (this *ManualInventoryActionService) FindById(ctx context.Context, id string) (action *models.ManualInventoryAction, err error) {
 	byId := <-this.rep.FindById(ctx, id)
 	if byId.Error != nil {

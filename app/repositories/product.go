@@ -9,10 +9,6 @@ import (
 	"sync"
 )
 
-func init() {
-	register(NewProductRep)
-}
-
 type ProductRep struct {
 	*mongoRep
 	itemRep *ItemRep

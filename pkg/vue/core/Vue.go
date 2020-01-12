@@ -93,10 +93,7 @@ func (this *Vue) Run() error {
 }
 
 func (this *Vue) Shutdown(ctx context.Context) error {
-	log.Println("Shutdown Server ...")
-	i, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	return this.server.Shutdown(i)
+	return this.server.Shutdown(ctx)
 }
 
 func (this *Vue) SetPrefix(prefix string) *Vue {

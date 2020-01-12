@@ -26,15 +26,6 @@ func (this *Select) WithOptions(opts []*SelectOption) *Select {
 	return this
 }
 
-// 列表页调用vue组件名称
-func (this *Select) IndexComponent() {
-	this.ElementComponent = "text-field"
-}
-
-// 详情页调用vue组件名称
-func (this *Select) DetailComponent() {
-	this.ElementComponent = "text-field"
-}
 
 type SelectOption struct {
 	Label string      `json:"label"`

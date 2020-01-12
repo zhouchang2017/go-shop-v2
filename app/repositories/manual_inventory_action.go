@@ -5,9 +5,6 @@ import (
 	"go-shop-v2/pkg/db/mongodb"
 )
 
-func init() {
-	register(NewManualInventoryActionRep)
-}
 
 type ManualInventoryActionRep struct {
 	*mongoRep
