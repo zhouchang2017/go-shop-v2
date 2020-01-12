@@ -12,10 +12,6 @@ import (
 	"go-shop-v2/pkg/vue/fields"
 )
 
-func init() {
-	register(NewProductResource)
-}
-
 type Product struct {
 	core.AbstractResource
 	model   interface{}
@@ -102,8 +98,8 @@ func (this *Product) Fields(ctx *gin.Context, model interface{}) func() []interf
 	}
 }
 
-func NewProductResource(service *services.ProductService) *Product {
-	return &Product{model: &models.Product{}, service: service}
+func NewProductResource() *Product {
+	return &Product{model: &models.Product{}, service: services.MakeProductService()}
 }
 
 // 自定义详情页数据

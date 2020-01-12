@@ -9,10 +9,6 @@ import (
 	"go-shop-v2/pkg/response"
 )
 
-func init() {
-	register(NewManualInventoryActionService)
-}
-
 type ManualInventoryActionService struct {
 	rep              *repositories.ManualInventoryActionRep
 	inventoryService *InventoryService

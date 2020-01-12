@@ -7,7 +7,7 @@ import (
 	"go-shop-v2/app/events"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/services"
-	"go-shop-v2/pkg/event"
+	"go-shop-v2/pkg/message"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"go-shop-v2/pkg/vue/contracts"
@@ -15,10 +15,6 @@ import (
 	"go-shop-v2/pkg/vue/fields"
 	"go-shop-v2/pkg/vue/panels"
 )
-
-func init() {
-	register(NewShopResource)
-}
 
 type Shop struct {
 	core.AbstractResource
@@ -57,7 +53,7 @@ func (s *Shop) Store(ctx *gin.Context, data map[string]interface{}) (redirect st
 
 	entity, err := s.service.Create(ctx, form, members...)
 	// 门店创建事件
-	event.Dispatch(events.ShopCreated{Shop: entity})
+	message.Dispatch(events.ShopCreated{Shop: entity})
 
 	return core.CreatedRedirect(s, entity.GetID()), nil
 }
@@ -82,7 +78,7 @@ func (s *Shop) Update(ctx *gin.Context, model interface{}, data map[string]inter
 	entity, err := s.service.Update(ctx, model.(*models.Shop), form, members...)
 
 	// 门店更新事件
-	event.Dispatch(events.ShopUpdated{Shop: entity})
+	message.Dispatch(events.ShopUpdated{Shop: entity})
 
 	return core.UpdatedRedirect(s, entity.GetID()), nil
 }
@@ -95,8 +91,8 @@ func (s *Shop) Make(model interface{}) contracts.Resource {
 	}
 }
 
-func NewShopResource(service *services.ShopService, adminService *services.AdminService) *Shop {
-	return &Shop{model: &models.Shop{}, service: service, adminService: adminService}
+func NewShopResource() *Shop {
+	return &Shop{model: &models.Shop{}, service: services.MakeShopService(), adminService: services.MakeAdminService()}
 }
 
 // 字段设置

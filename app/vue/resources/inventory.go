@@ -18,10 +18,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-func init() {
-	register(NewInventoryResource)
-}
-
 // 库存管理
 type Inventory struct {
 	core.AbstractResource
@@ -169,14 +165,14 @@ func (Inventory) CreateButtonName() string {
 // 自定义聚合
 func (i Inventory) Lenses() []contracts.Lens {
 	return []contracts.Lens{
-		//lenses.NewInventoryAggregate(),
+		//lenses.NewInventoryAggregatePage(),
 	}
 }
 
 // 自定义页面
 func (i Inventory) Pages() []contracts.Page {
 	return []contracts.Page{
-		pages.NewInventoryAggregate(),
+		pages.NewInventoryAggregatePage(),
 		pages.NewManualInventoryCreatePage(),
 	}
 }

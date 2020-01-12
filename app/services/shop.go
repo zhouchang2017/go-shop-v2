@@ -11,10 +11,6 @@ import (
 	"log"
 )
 
-func init() {
-	register(NewShopService)
-}
-
 type ShopService struct {
 	rep *repositories.ShopRep
 }

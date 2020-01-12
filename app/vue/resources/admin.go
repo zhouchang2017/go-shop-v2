@@ -7,17 +7,13 @@ import (
 	"go-shop-v2/app/events"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/services"
-	"go-shop-v2/pkg/event"
+	"go-shop-v2/pkg/message"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"go-shop-v2/pkg/vue/contracts"
 	"go-shop-v2/pkg/vue/core"
 	"go-shop-v2/pkg/vue/fields"
 )
-
-func init() {
-	register(NewAdminResource)
-}
 
 type Admin struct {
 	core.AbstractResource
@@ -64,7 +60,7 @@ func (a *Admin) Store(ctx *gin.Context, data map[string]interface{}) (redirect s
 
 	// 同步门店
 	defer func() {
-		event.Dispatch(events.AdminCreated{Admin: admin})
+		message.Dispatch(events.AdminCreated{Admin: admin})
 	}()
 
 	return core.CreatedRedirect(a, admin.GetID()), nil
@@ -98,7 +94,7 @@ func (a *Admin) Update(ctx *gin.Context, model interface{}, data map[string]inte
 	}
 
 	defer func() {
-		event.Dispatch(events.AdminUpdated{Admin: admin})
+		message.Dispatch(events.AdminUpdated{Admin: admin})
 	}()
 
 	return core.UpdatedRedirect(a, admin2.GetID()), nil

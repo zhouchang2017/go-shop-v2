@@ -24,3 +24,12 @@ services:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: 12345678
       TZ: "Asia/Shanghai"
+
+  rabbitmq:
+    image: rabbitmq:management
+    ports:
+      - 15672:15672
+      - 5672:5672
+    restart: always
+    volumes:
+      - ./docker/rabbitmq:/var/lib/rabbitmq

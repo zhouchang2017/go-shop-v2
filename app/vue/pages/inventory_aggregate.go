@@ -16,6 +16,7 @@ import (
 	"net/http"
 )
 
+
 var InventoryAggratePage *inventoryAggregate
 
 // 自定义聚合页
@@ -25,7 +26,7 @@ type inventoryAggregate struct {
 	router  contracts.Router
 }
 
-func NewInventoryAggregate() *inventoryAggregate {
+func NewInventoryAggregatePage() *inventoryAggregate {
 	if InventoryAggratePage == nil {
 		con := mongodb.GetConFn()
 		InventoryAggratePage = &inventoryAggregate{

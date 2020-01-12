@@ -8,9 +8,6 @@ import (
 
 var adminTypes = []string{"root", "admin", "manager", "salesman"}
 
-func init() {
-	register(NewAdmin)
-}
 
 // 后台用户
 // 用户类型：root、admin、manager、salesman

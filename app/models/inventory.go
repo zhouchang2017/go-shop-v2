@@ -5,12 +5,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-func init() {
-	register(func() *Inventory {
-		return &Inventory{}
-	})
-}
-
 type InventoryStatus int8
 
 func (i InventoryStatus) Make(status int8) (res InventoryStatus) {

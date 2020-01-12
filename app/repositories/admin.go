@@ -5,9 +5,6 @@ import (
 	"go-shop-v2/pkg/db/mongodb"
 )
 
-func init() {
-	register(NewAdminRep)
-}
 
 type AdminRep struct {
 	*mongoRep

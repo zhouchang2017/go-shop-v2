@@ -2,9 +2,12 @@ package listeners
 
 import (
 	"context"
+	"encoding/json"
 	"go-shop-v2/app/events"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/services"
+	"go-shop-v2/pkg/message"
+	"log"
 )
 
 func init() {
@@ -16,22 +19,30 @@ type SyncShopAssociatedAdmin struct {
 	shopService *services.ShopService
 }
 
-func NewSyncShopAssociatedAdmin(shopService *services.ShopService) *SyncShopAssociatedAdmin {
-	return &SyncShopAssociatedAdmin{shopService: shopService}
+func (SyncShopAssociatedAdmin) Event() message.Event {
+	return events.AdminCreated{}
 }
 
-func (s SyncShopAssociatedAdmin) Handle(ctx context.Context, event interface{}) error {
+func (SyncShopAssociatedAdmin) QueueName() string {
+	return "SyncShopAssociatedAdmin"
+}
+
+func (SyncShopAssociatedAdmin) OnError(err error) {
+	log.Printf("SyncShopAssociatedAdmin error:%s\n", err)
+}
+
+func (s SyncShopAssociatedAdmin) Handler(data []byte) error {
 	var admin *models.Admin
-	switch event.(type) {
-	case events.AdminCreated:
-		admin = event.(events.AdminCreated).Admin
-	case events.AdminUpdated:
-		admin = event.(events.AdminUpdated).Admin
-	default:
-		admin = nil
+	err := json.Unmarshal(data, admin)
+	if err != nil {
+		return err
 	}
 	if admin != nil {
-		return s.shopService.SyncAssociatedMembers(ctx, admin)
+		return s.shopService.SyncAssociatedMembers(context.Background(), admin)
 	}
 	return nil
+}
+
+func NewSyncShopAssociatedAdmin() message.Listener {
+	return &SyncShopAssociatedAdmin{shopService: services.MakeShopService()}
 }

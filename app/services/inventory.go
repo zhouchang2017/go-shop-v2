@@ -12,9 +12,6 @@ import (
 	"log"
 )
 
-func init() {
-	register(NewInventoryService)
-}
 
 type InventoryService struct {
 	rep            *repositories.InventoryRep

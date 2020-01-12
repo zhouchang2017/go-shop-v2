@@ -126,4 +126,5 @@ func Close() {
 	if err := con.client.Disconnect(context.Background()); err != nil {
 		panic(err)
 	}
+	log.Printf("Close Mongodb...\n")
 }

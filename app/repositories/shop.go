@@ -9,10 +9,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func init() {
-	register(NewShopRep)
-}
-
 type ShopRep struct {
 	*mongoRep
 }

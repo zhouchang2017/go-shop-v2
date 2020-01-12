@@ -13,10 +13,6 @@ import (
 	"go-shop-v2/pkg/vue/fields"
 )
 
-func init() {
-	register(NewCategoryResource)
-}
-
 type Category struct {
 	core.AbstractResource
 	model   interface{}

@@ -9,10 +9,6 @@ import (
 	"go-shop-v2/pkg/response"
 )
 
-func init() {
-	register(NewProductService)
-}
-
 type ProductService struct {
 	rep         *repositories.ProductRep
 	ItemService *ItemService

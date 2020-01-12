@@ -11,10 +11,6 @@ import (
 	"log"
 )
 
-func init() {
-	register(NewAdminService)
-}
-
 type AdminService struct {
 	rep *repositories.AdminRep
 }

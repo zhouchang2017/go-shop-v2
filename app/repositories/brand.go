@@ -5,9 +5,6 @@ import (
 	"go-shop-v2/pkg/db/mongodb"
 )
 
-func init() {
-	register(NewBrandRep)
-}
 
 type BrandRep struct {
 	*mongoRep

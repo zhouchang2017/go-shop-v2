@@ -11,10 +11,6 @@ import (
 	"go-shop-v2/pkg/vue/fields"
 )
 
-func init() {
-	register(NewBrandResource)
-}
-
 type Brand struct {
 	core.AbstractResource
 	model   interface{}

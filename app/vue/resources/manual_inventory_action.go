@@ -3,7 +3,6 @@ package resources
 import (
 	"github.com/gin-gonic/gin"
 	"go-shop-v2/app/models"
-	"go-shop-v2/app/repositories"
 	"go-shop-v2/app/services"
 	"go-shop-v2/app/vue/actions"
 	"go-shop-v2/app/vue/pages"
@@ -13,10 +12,6 @@ import (
 	"go-shop-v2/pkg/vue/core"
 	"go-shop-v2/pkg/vue/fields"
 )
-
-func init() {
-	register(NewInventoryActionResource)
-}
 
 type InventoryAction struct {
 	core.AbstractResource
@@ -67,15 +62,15 @@ func (m *InventoryAction) Fields(ctx *gin.Context, model interface{}) func() []i
 		return []interface{}{
 			fields.NewIDField(),
 			fields.NewStatusField("类型", "Type").WithOptions([]*fields.StatusOption{
-				fields.NewStatusOption("入库",0),
-				fields.NewStatusOption("出库",1),
+				fields.NewStatusOption("入库", 0),
+				fields.NewStatusOption("出库", 1),
 			}),
 			fields.NewTextField("门店", "Shop.Name"),
 			fields.NewTextField("操作者", "User.Nickname"),
 			fields.NewStatusField("状态", "Status").WithOptions([]*fields.StatusOption{
-				fields.NewStatusOption("未提交",0).Warning(),
-				fields.NewStatusOption("完成",1).Success(),
-				fields.NewStatusOption("取消",2).Cancel(),
+				fields.NewStatusOption("未提交", 0).Warning(),
+				fields.NewStatusOption("完成", 1).Success(),
+				fields.NewStatusOption("取消", 2).Cancel(),
 			}),
 			fields.NewDateTime("创建时间", "CreatedAt"),
 			fields.NewDateTime("更新时间", "UpdatedAt"),
@@ -88,10 +83,10 @@ func (m *InventoryAction) Fields(ctx *gin.Context, model interface{}) func() []i
 					fields.NewTextField("类目", "Product.Category.Name"),
 					fields.NewTextField("数量", "Qty"),
 					fields.NewStatusField("状态", "Status").WithOptions([]*fields.StatusOption{
-						fields.NewStatusOption("等待确认",0).Cancel(),
-						fields.NewStatusOption("锁定",1).Warning(),
-						fields.NewStatusOption("良品",2).Success(),
-						fields.NewStatusOption("不良品",3).Error(),
+						fields.NewStatusOption("等待确认", 0).Cancel(),
+						fields.NewStatusOption("锁定", 1).Warning(),
+						fields.NewStatusOption("良品", 2).Success(),
+						fields.NewStatusOption("不良品", 3).Error(),
 					}),
 				}
 			}),
@@ -99,10 +94,10 @@ func (m *InventoryAction) Fields(ctx *gin.Context, model interface{}) func() []i
 	}
 }
 
-func NewInventoryActionResource(rep *repositories.ManualInventoryActionRep, service *services.ManualInventoryActionService) *InventoryAction {
+func NewInventoryActionResource() *InventoryAction {
 	return &InventoryAction{
 		model:   &models.ManualInventoryAction{},
-		service: service,
+		service: services.MakeManualInventoryActionService(),
 	}
 }
 
@@ -129,7 +124,6 @@ func (m InventoryAction) Title() string {
 func (this InventoryAction) Icon() string {
 	return "icons-flag"
 }
-
 
 func (InventoryAction) Group() string {
 	return "Shop"

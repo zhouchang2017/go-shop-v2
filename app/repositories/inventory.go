@@ -15,9 +15,6 @@ import (
 	"go.mongodb.org/mongo-driver/x/bsonx"
 )
 
-func init() {
-	register(NewInventoryRep)
-}
 
 type InventoryRep struct {
 	*mongoRep

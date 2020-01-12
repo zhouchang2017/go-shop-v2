@@ -5,10 +5,6 @@ import (
 	"go-shop-v2/pkg/qiniu"
 )
 
-func init() {
-	register(NewProduct)
-}
-
 // 产品
 type Product struct {
 	model.MongoModel `inline`

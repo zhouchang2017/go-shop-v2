@@ -16,8 +16,21 @@ func init() {
 	}
 }
 
+type config struct {
+}
+
+func New() *config {
+	return &config{}
+}
+
+
+// rabbitMQ uri
+func (c *config) RabbitMQUri() string {
+	return "amqp://guest:guest@localhost:5672/"
+}
+
 // mongodb config
-func (c *configServiceProvider) mongodbConfig() mongodb.Config {
+func (c *config) MongodbConfig() mongodb.Config {
 	return mongodb.Config{
 		Host:     "localhost",
 		Database: "go-shop",
@@ -27,7 +40,7 @@ func (c *configServiceProvider) mongodbConfig() mongodb.Config {
 }
 
 // mysql config
-func (c *configServiceProvider) mysqlConfig() mysql.Config {
+func (c *config) MysqlConfig() mysql.Config {
 	return mysql.Config{
 		Host:     "127.0.0.1",
 		Port:     "3306",
@@ -38,7 +51,7 @@ func (c *configServiceProvider) mysqlConfig() mysql.Config {
 }
 
 // auth config
-func (c *configServiceProvider) authGuard(adminRep *repositories.AdminRep) func() auth.StatefulGuard {
+func (c *config) authGuard(adminRep *repositories.AdminRep) func() auth.StatefulGuard {
 	return func() auth.StatefulGuard {
 		return auth.NewJwtGuard(
 			"admin",
@@ -49,7 +62,7 @@ func (c *configServiceProvider) authGuard(adminRep *repositories.AdminRep) func(
 }
 
 // qiniu config
-func (c *configServiceProvider) qiniuConfig() qiniu.Config {
+func (c *config) QiniuConfig() qiniu.Config {
 	return qiniu.Config{
 		QiniuDomain:    "q2a066yfd.bkt.clouddn.com",
 		QiniuAccessKey: "bZbhwfl0pyHb4EMny9swOtZAhIrJvvzJ7h-NmZaF",
