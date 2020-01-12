@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"fmt"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/mitchellh/mapstructure"
 	"go-shop-v2/app/models"
@@ -13,11 +14,128 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/x/bsonx"
+	"sync"
 )
 
-
 type InventoryRep struct {
+	lock sync.Mutex
 	*mongoRep
+}
+
+// 锁定库存
+func (this *InventoryRep) Lock(ctx context.Context, shopId string, itemId string, qty int64, status int8) (err error) {
+
+	if models.InventoryStatus(status).IsLocked() {
+		// 已锁定，
+		return fmt.Errorf("该库存以锁定，无法再次锁定！")
+	}
+	this.lock.Lock()
+	defer this.lock.Unlock()
+
+	// 搜索库存
+	result := this.Collection().FindOneAndUpdate(ctx, bson.M{
+		"shop.id": shopId,
+		"item.id": itemId,
+		"qty":     bson.M{"$gte": qty},
+		"status":  status,
+	}, bson.M{
+		"$inc": bson.M{"qty": -qty},
+		"$currentDate": bson.M{
+			"updated_at": true,
+		},
+	}, options.FindOneAndUpdate().SetReturnDocument(options.After))
+	if result.Err() != nil {
+		// 库存不足
+		return result.Err()
+	}
+
+	// 更新锁定库存
+	findOne := this.Collection().FindOne(ctx, bson.M{
+		"shop.id": shopId,
+		"item.id": itemId,
+		"status":  models.ITEM_LOCKED,
+	})
+	if findOne.Err() != nil {
+		if findOne.Err() == mongo.ErrNoDocuments {
+			// 不存在锁定库存记录，创建一条
+			var inventory models.Inventory
+			if err := result.Decode(&inventory); err != nil {
+				return err
+			}
+
+			i := &models.Inventory{
+				Shop:   inventory.Shop,
+				Item:   inventory.Item,
+				Qty:    qty,
+				Status: models.ITEM_LOCKED,
+			}
+			created := <-this.Create(ctx, i)
+			if created.Error != nil {
+				return created.Error
+			}
+			return nil
+		}
+		return findOne.Err()
+	}
+
+	_, err = this.Collection().UpdateOne(ctx, bson.M{
+		"shop.id": shopId,
+		"item.id": itemId,
+		"status":  models.ITEM_LOCKED,
+	}, bson.M{
+		"$inc": bson.M{"qty": qty},
+		"$currentDate": bson.M{
+			"updated_at": true,
+		},
+	})
+
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// 解锁库存
+func (this *InventoryRep) UnLock(ctx context.Context, shopId string, itemId string, qty int64, status int8) (err error) {
+	if models.InventoryStatus(status).IsLocked() {
+		return fmt.Errorf("锁定库存，改变为锁定库存，无意义！")
+	}
+
+	this.lock.Lock()
+	defer this.lock.Unlock()
+	// 搜索锁定库存
+	result := this.Collection().FindOneAndUpdate(ctx, bson.M{
+		"shop.id": shopId,
+		"item.id": itemId,
+		"qty":     bson.M{"$gte": qty},
+		"status":  models.ITEM_LOCKED,
+	}, bson.M{
+		"$inc": bson.M{"qty": -qty},
+		"$currentDate": bson.M{
+			"updated_at": true,
+		},
+	})
+	if result.Err() != nil {
+		// 库存不足
+		return result.Err()
+	}
+
+	// 更新锁定库存
+	updated := this.Collection().FindOneAndUpdate(ctx, bson.M{
+		"shop.id": shopId,
+		"item.id": itemId,
+		"status":  status,
+	}, bson.M{
+		"$inc": bson.M{"qty": qty},
+		"$currentDate": bson.M{
+			"updated_at": true,
+		},
+	}, options.FindOneAndUpdate().SetUpsert(true))
+
+	if updated.Err() != nil {
+		return updated.Err()
+	}
+	return nil
 }
 
 func (this *InventoryRep) AggregateStockByShops(ctx context.Context, shopIds ...string) (data []*models.AggregateShopCountStockInventory, err error) {

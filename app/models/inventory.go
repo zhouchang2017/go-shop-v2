@@ -21,6 +21,10 @@ func (i InventoryStatus) Make(status int8) (res InventoryStatus) {
 	return res
 }
 
+func (i InventoryStatus) IsLocked() bool  {
+	return i == ITEM_LOCKED
+}
+
 const (
 	ITEM_PENDING InventoryStatus = iota
 	ITEM_LOCKED

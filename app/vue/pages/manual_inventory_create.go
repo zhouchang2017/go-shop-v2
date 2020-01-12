@@ -3,16 +3,17 @@ package pages
 import (
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"go-shop-v2/app/events"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/services"
 	"go-shop-v2/pkg/auth"
 	"go-shop-v2/pkg/ctx"
 	err2 "go-shop-v2/pkg/err"
+	"go-shop-v2/pkg/message"
 	"go-shop-v2/pkg/vue/contracts"
 	"go-shop-v2/pkg/vue/core"
 	"net/http"
 )
-
 
 var ManualInventoryCreatePage *manualInventoryCreatePage
 
@@ -89,6 +90,7 @@ func (this manualInventoryCreatePage) HttpHandles(router gin.IRouter) {
 				err2.ErrorEncoder(nil, err, c.Writer)
 				return
 			}
+			message.Dispatch(events.InventoryActionTakeCreated{Action: inventoryAction})
 			c.JSON(http.StatusOK, gin.H{
 				"redirect": fmt.Sprintf("/inventory_actions/%s", inventoryAction.GetID()),
 			})

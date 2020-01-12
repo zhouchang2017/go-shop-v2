@@ -94,7 +94,7 @@ func (a *Admin) Update(ctx *gin.Context, model interface{}, data map[string]inte
 	}
 
 	defer func() {
-		message.Dispatch(events.AdminUpdated{Admin: admin})
+		message.Dispatch(events.AdminUpdated{Admin: admin2})
 	}()
 
 	return core.UpdatedRedirect(a, admin2.GetID()), nil

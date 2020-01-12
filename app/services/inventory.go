@@ -12,7 +12,6 @@ import (
 	"log"
 )
 
-
 type InventoryService struct {
 	rep            *repositories.InventoryRep
 	shopService    *ShopService
@@ -119,6 +118,16 @@ func (this *InventoryService) Take(ctx context.Context, id string, qty int64) (i
 	}
 
 	return nil, fmt.Errorf("剩余库存不足！剩余库存 %d ,需出库数量 %d", inventory.Qty, qty)
+}
+
+// 锁定库存
+func (this *InventoryService) Lock(ctx context.Context, shopId string, itemId string, qty int64, status int8) (err error) {
+	return this.rep.Lock(ctx, shopId, itemId, qty, status)
+}
+
+// 解锁
+func (this *InventoryService) UnLock(ctx context.Context, shopId string, itemId string, qty int64, status int8) (err error) {
+	return this.rep.UnLock(ctx, shopId, itemId, qty, status)
 }
 
 // 列表

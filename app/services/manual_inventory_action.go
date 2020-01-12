@@ -105,17 +105,25 @@ func (this *ManualInventoryActionService) Take(ctx context.Context, option *Inve
 	action.SetTypeToTake()
 	action.SetStatusToSaved()
 	action.User = user.ToAssociated()
-	// TODO 检查库存，标记锁定状态
+
 	if _, err := this.SetShop(ctx, action, option.ShopId); err != nil {
 		return action, err
 	}
 	if _, err := this.SetItems(ctx, action, option.Items...); err != nil {
 		return action, err
 	}
+	// 标记锁定状态,TODO 开启事务
+	for _, item := range action.Items {
+		if err := this.inventoryService.Lock(ctx, action.Shop.Id, item.Id, item.Qty, int8(item.Status)); err != nil {
+			return action, err
+		}
+	}
+
 	created := <-this.rep.Create(ctx, action)
 	if created.Error != nil {
 		return action, created.Error
 	}
+
 	return created.Result.(*models.ManualInventoryAction), nil
 }
 
@@ -159,6 +167,26 @@ func (this *ManualInventoryActionService) StatusToFinished(ctx context.Context, 
 		return nil, saved.Error
 	}
 	return saved.Result.(*models.ManualInventoryAction), nil
+}
+
+// 取消操作
+func (this *ManualInventoryActionService) Cancel(ctx context.Context, id string) (err error) {
+	action, err := this.FindById(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	for _, item := range action.Items {
+		if err := this.inventoryService.UnLock(ctx, action.Shop.Id, item.Id, item.Qty, int8(item.Status)); err != nil {
+			return err
+		}
+	}
+
+	action.SetStatusToCancel()
+
+	saved := <-this.rep.Save(ctx, action)
+
+	return saved.Error
 }
 
 // 推入仓库
