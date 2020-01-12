@@ -35,6 +35,7 @@ type Config struct {
 	Database   string
 	Username   string
 	Password   string
+	AuthSource string
 	ReplicaSet string
 	Ctx        context.Context
 }
@@ -51,7 +52,7 @@ func (c Config) URI() string {
 
 	if c.Username != "" && c.Password != "" {
 		uri.User = url.UserPassword(c.Username, c.Password)
-		query.Add("authSource","admin")
+		query.Add("authSource", c.AuthSource)
 	}
 	if c.Database != "" {
 		uri.Path = fmt.Sprintf("/%s", c.Database)
