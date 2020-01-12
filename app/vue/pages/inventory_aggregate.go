@@ -44,6 +44,7 @@ func (this *inventoryAggregate) AuthorizedTo(ctx *gin.Context, user auth.Authent
 func (this *inventoryAggregate) getShops() []*models.AssociatedShop {
 	return this.shopRep.GetAllAssociatedShops(context.Background())
 }
+
 func (this *inventoryAggregate) VueRouter() contracts.Router {
 	if this.router == nil {
 		router := core.NewRouter()
