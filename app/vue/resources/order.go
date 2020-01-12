@@ -11,10 +11,6 @@ import (
 	"go-shop-v2/pkg/vue/fields"
 )
 
-func init() {
-	register(NewOrderResource)
-}
-
 type Order struct {
 	core.AbstractResource
 	rep *repositories.OrderRep
