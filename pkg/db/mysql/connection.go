@@ -36,11 +36,11 @@ func TestConnect() {
 }
 
 type Config struct {
-	Host     string
-	Port     string
-	Database string
-	Username string
-	Password string
+	Host     string `json:"host"`
+	Port     string `json:"port"`
+	Database string `json:"database"`
+	Username string `json:"username"`
+	Password string `json:"password"`
 }
 
 func (c Config) URI() string {

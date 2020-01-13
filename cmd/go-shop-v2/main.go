@@ -19,7 +19,7 @@ import (
 )
 
 func main() {
-	config := config.New()
+	config := config.NewConfig()
 	// 消息队列
 	mq := message.New(config.RabbitMQUri())
 	defer mq.Close()

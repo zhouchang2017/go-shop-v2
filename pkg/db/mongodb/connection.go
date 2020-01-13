@@ -31,13 +31,13 @@ func TestConnect() {
 }
 
 type Config struct {
-	Host       string
-	Database   string
-	Username   string
-	Password   string
-	AuthSource string
-	ReplicaSet string
-	Ctx        context.Context
+	Host       string          `json:"host"`
+	Database   string          `json:"database"`
+	Username   string          `json:"username"`
+	Password   string          `json:"password"`
+	AuthSource string          `json:"auth_source"`
+	ReplicaSet string          `json:"replica_set"`
+	Ctx        context.Context `json:"-"`
 }
 
 func (c Config) URI() string {

@@ -1,12 +1,16 @@
 package config
 
 import (
+	"encoding/json"
+	"fmt"
 	"go-shop-v2/app/repositories"
 	"go-shop-v2/pkg/auth"
 	"go-shop-v2/pkg/db/mongodb"
 	"go-shop-v2/pkg/db/mysql"
 	"go-shop-v2/pkg/qiniu"
+	"go-shop-v2/pkg/utils"
 	"go-shop-v2/pkg/vue/fields"
+	"os"
 )
 
 func init() {
@@ -17,12 +21,33 @@ func init() {
 }
 
 type config struct {
+	MongoCfg mongodb.Config `json:"mongo_config"`
+	MysqlCfg mysql.Config   `json:"mysql_config"`
+	QiniuCfg qiniu.Config   `json:"qiniu_config"`
 }
 
-func New() *config {
-	return &config{}
+func NewConfig() *config {
+	// todo:fix bug that rewrite this func
+	envPath, err := utils.GetFilePath(2, ".env")
+	if err != nil {
+		panic(fmt.Sprintf("get config path failed caused of %s", err.Error()))
+	}
+	// open file
+	file, openErr := os.Open(envPath)
+	if openErr != nil {
+		panic(fmt.Sprintf("open config file failed caused of %s", openErr.Error()))
+	}
+	defer file.Close()
+	// decode json
+	decoder := json.NewDecoder(file)
+	var config config
+	decodeErr := decoder.Decode(&config)
+	if decodeErr != nil {
+		panic(fmt.Sprintf("decode config file failed caused of %s", decodeErr.Error()))
+	}
+	// return
+	return &config
 }
-
 
 // rabbitMQ uri
 func (c *config) RabbitMQUri() string {
@@ -31,24 +56,12 @@ func (c *config) RabbitMQUri() string {
 
 // mongodb config
 func (c *config) MongodbConfig() mongodb.Config {
-	return mongodb.Config{
-		Host:       "localhost",
-		Database:   "go-shop",
-		Username:   "root",
-		Password:   "12345678",
-		AuthSource: "go-shop",
-	}
+	return c.MongoCfg
 }
 
 // mysql config
 func (c *config) MysqlConfig() mysql.Config {
-	return mysql.Config{
-		Host:     "127.0.0.1",
-		Port:     "3306",
-		Database: "go_shop",
-		Username: "uhowep",
-		Password: "uhowep0770",
-	}
+	return c.MysqlCfg
 }
 
 // auth config
@@ -64,10 +77,5 @@ func (c *config) authGuard(adminRep *repositories.AdminRep) func() auth.Stateful
 
 // qiniu config
 func (c *config) QiniuConfig() qiniu.Config {
-	return qiniu.Config{
-		QiniuDomain:    "q2a066yfd.bkt.clouddn.com",
-		QiniuAccessKey: "bZbhwfl0pyHb4EMny9swOtZAhIrJvvzJ7h-NmZaF",
-		QiniuSecretKey: "Jtq379mcl9lU0ZOB9rjXmQ_fEZ80fU9G4X3PiEVr",
-		Bucket:         "go-shop-v1",
-	}
+	return c.QiniuCfg
 }
