@@ -1,8 +1,5 @@
 package policies
 
-func init() {
-	register(NewInventoryPolicy)
-}
 
 type InventoryPolicy struct {
 
