@@ -69,6 +69,8 @@ func (this *Product) Fields(ctx *gin.Context, model interface{}) func() []interf
 			fields.NewTextField("价格", "Price"),
 			fields.NewTextField("销量", "TotalSalesQty"),
 
+			fields.NewImageField("图集","Images"),
+
 			fields.NewTable("基本属性", "Attributes", func() []contracts.Field {
 				return []contracts.Field{
 					fields.NewTextField("属性名", "Name"),
