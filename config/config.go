@@ -14,6 +14,8 @@ func init() {
 		Lng: 112.969625,
 		Lat: 28.199554,
 	}
+	// 文件默认上传地址
+	fields.DefaultFileUploadAction = "https://upload-z2.qiniup.com"
 }
 
 type config struct {
@@ -36,7 +38,7 @@ func (c *config) MongodbConfig() mongodb.Config {
 		Database:   "go-shop",
 		Username:   "root",
 		Password:   "12345678",
-		AuthSource: "go-shop",
+		AuthSource: "admin",
 	}
 }
 
@@ -45,9 +47,9 @@ func (c *config) MysqlConfig() mysql.Config {
 	return mysql.Config{
 		Host:     "127.0.0.1",
 		Port:     "3306",
-		Database: "go_shop",
-		Username: "uhowep",
-		Password: "uhowep0770",
+		Database: "go-shop",
+		Username: "root",
+		Password: "12345678",
 	}
 }
 
@@ -65,9 +67,9 @@ func (c *config) authGuard(adminRep *repositories.AdminRep) func() auth.Stateful
 // qiniu config
 func (c *config) QiniuConfig() qiniu.Config {
 	return qiniu.Config{
-		QiniuDomain:    "q2a066yfd.bkt.clouddn.com",
+		QiniuDomain:    "http://q411kyif7.bkt.clouddn.com",
 		QiniuAccessKey: "bZbhwfl0pyHb4EMny9swOtZAhIrJvvzJ7h-NmZaF",
 		QiniuSecretKey: "Jtq379mcl9lU0ZOB9rjXmQ_fEZ80fU9G4X3PiEVr",
-		Bucket:         "go-shop-v1",
+		Bucket:         "go-shop-v2",
 	}
 }

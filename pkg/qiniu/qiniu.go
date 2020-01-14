@@ -50,11 +50,7 @@ func (this Qiniu) Name() string {
 }
 
 func (this *Qiniu) Token(ctx context.Context) (token string, err error) {
-	i := url.URL{}
-	i.Host = this.domain
-	i.Scheme = "http"
-
-	body := fmt.Sprintf(`{"key":"$(key)","bucket":"$(bucket)","drive":"%s","url":"%s/$(key)"}`, this.Name(), i.String())
+	body := fmt.Sprintf(`{"key":"$(key)","name":"$(fname)","bucket":"$(bucket)","mime_type":"$(mimeType)","ext":"$(ext)","drive":"%s","image_info":$(imageInfo),"image_ave":$(imageAve),"domain":"%s"}`, this.Name(), this.domain)
 	putPolicy := storage.PutPolicy{
 		Scope:      this.bucket,
 		ReturnBody: body,
@@ -62,6 +58,11 @@ func (this *Qiniu) Token(ctx context.Context) (token string, err error) {
 	putPolicy.Expires = 7200 //示例2小时有效期
 
 	return putPolicy.UploadToken(this.mac()), nil
+}
+
+// 辅助函数
+func Token(ctx context.Context) (token string, err error) {
+	return instance.Token(ctx)
 }
 
 func (this *Qiniu) Put(ctx context.Context, key string, file *os.File) (res *Resource, err error) {

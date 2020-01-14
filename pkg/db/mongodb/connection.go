@@ -52,7 +52,11 @@ func (c Config) URI() string {
 
 	if c.Username != "" && c.Password != "" {
 		uri.User = url.UserPassword(c.Username, c.Password)
-		query.Add("authSource", c.AuthSource)
+		authSource := "admin"
+		if c.AuthSource !=""{
+			authSource = c.AuthSource
+		}
+		query.Add("authSource", authSource)
 	}
 	if c.Database != "" {
 		uri.Path = fmt.Sprintf("/%s", c.Database)
