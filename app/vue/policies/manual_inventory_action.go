@@ -6,9 +6,6 @@ import (
 	"go-shop-v2/pkg/auth"
 )
 
-func init() {
-	register(NewManualInventoryActionPolicy)
-}
 
 type ManualInventoryActionPolicy struct {
 
