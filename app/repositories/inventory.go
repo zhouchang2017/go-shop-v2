@@ -2,7 +2,6 @@ package repositories
 
 import (
 	"context"
-	"fmt"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/mitchellh/mapstructure"
 	"go-shop-v2/app/models"
@@ -25,10 +24,6 @@ type InventoryRep struct {
 // 锁定库存
 func (this *InventoryRep) Lock(ctx context.Context, shopId string, itemId string, qty int64, status int8) (err error) {
 
-	if models.InventoryStatus(status).IsLocked() {
-		// 已锁定，
-		return fmt.Errorf("该库存以锁定，无法再次锁定！")
-	}
 	this.lock.Lock()
 	defer this.lock.Unlock()
 
@@ -39,7 +34,7 @@ func (this *InventoryRep) Lock(ctx context.Context, shopId string, itemId string
 		"qty":     bson.M{"$gte": qty},
 		"status":  status,
 	}, bson.M{
-		"$inc": bson.M{"qty": -qty},
+		"$inc": bson.M{"qty": -qty, "locked_qty": qty},
 		"$currentDate": bson.M{
 			"updated_at": true,
 		},
@@ -49,68 +44,22 @@ func (this *InventoryRep) Lock(ctx context.Context, shopId string, itemId string
 		return result.Err()
 	}
 
-	// 更新锁定库存
-	findOne := this.Collection().FindOne(ctx, bson.M{
-		"shop.id": shopId,
-		"item.id": itemId,
-		"status":  models.ITEM_LOCKED,
-	})
-	if findOne.Err() != nil {
-		if findOne.Err() == mongo.ErrNoDocuments {
-			// 不存在锁定库存记录，创建一条
-			var inventory models.Inventory
-			if err := result.Decode(&inventory); err != nil {
-				return err
-			}
-
-			i := &models.Inventory{
-				Shop:   inventory.Shop,
-				Item:   inventory.Item,
-				Qty:    qty,
-				Status: models.ITEM_LOCKED,
-			}
-			created := <-this.Create(ctx, i)
-			if created.Error != nil {
-				return created.Error
-			}
-			return nil
-		}
-		return findOne.Err()
-	}
-
-	_, err = this.Collection().UpdateOne(ctx, bson.M{
-		"shop.id": shopId,
-		"item.id": itemId,
-		"status":  models.ITEM_LOCKED,
-	}, bson.M{
-		"$inc": bson.M{"qty": qty},
-		"$currentDate": bson.M{
-			"updated_at": true,
-		},
-	})
-
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
 // 解锁库存
 func (this *InventoryRep) UnLock(ctx context.Context, shopId string, itemId string, qty int64, status int8) (err error) {
-	if models.InventoryStatus(status).IsLocked() {
-		return fmt.Errorf("锁定库存，改变为锁定库存，无意义！")
-	}
 
 	this.lock.Lock()
 	defer this.lock.Unlock()
 	// 搜索锁定库存
 	result := this.Collection().FindOneAndUpdate(ctx, bson.M{
-		"shop.id": shopId,
-		"item.id": itemId,
-		"qty":     bson.M{"$gte": qty},
-		"status":  models.ITEM_LOCKED,
+		"shop.id":    shopId,
+		"item.id":    itemId,
+		"locked_qty": bson.M{"$gte": qty},
+		"status":     status,
 	}, bson.M{
-		"$inc": bson.M{"qty": -qty},
+		"$inc": bson.M{"qty": qty, "locked_qty": -qty},
 		"$currentDate": bson.M{
 			"updated_at": true,
 		},
@@ -120,21 +69,6 @@ func (this *InventoryRep) UnLock(ctx context.Context, shopId string, itemId stri
 		return result.Err()
 	}
 
-	// 更新锁定库存
-	updated := this.Collection().FindOneAndUpdate(ctx, bson.M{
-		"shop.id": shopId,
-		"item.id": itemId,
-		"status":  status,
-	}, bson.M{
-		"$inc": bson.M{"qty": qty},
-		"$currentDate": bson.M{
-			"updated_at": true,
-		},
-	}, options.FindOneAndUpdate().SetUpsert(true))
-
-	if updated.Err() != nil {
-		return updated.Err()
-	}
 	return nil
 }
 
@@ -163,7 +97,9 @@ func (this *InventoryRep) AggregateStockByShops(ctx context.Context, shopIds ...
 				"shop_name": "$shop.name",
 				"status":    "$status",
 			},
-			"qty": bson.D{{"$sum", "$qty"}},
+			"total":      bson.M{"$sum": bson.M{"$sum": bson.A{"$qty", "$locked_qty"}}}, // 合计
+			"qty":        bson.D{{"$sum", "$qty"}},                                      // 正常库存
+			"locked_qty": bson.D{{"$sum", "$locked_qty"}},                               // 锁定库存
 		}}},
 		// 合并状态统计
 		bson.D{{"$group", bson.M{
@@ -171,10 +107,11 @@ func (this *InventoryRep) AggregateStockByShops(ctx context.Context, shopIds ...
 				"shop_id":   "$_id.shop_id",
 				"shop_name": "$_id.shop_name",
 			},
-			"total": bson.D{{"$sum", "$qty"}},
+			"total": bson.D{{"$sum", "$total"}}, // 门店所有库存合计
 			"status": bson.D{{"$push", bson.M{
-				"status": "$_id.status",
-				"qty":    "$qty",
+				"status":     "$_id.status",
+				"qty":        "$qty",
+				"locked_qty": "$locked_qty",
 			}}},
 		}}},
 		// 改变数据结构
@@ -203,6 +140,7 @@ func (this *InventoryRep) AggregateStockByShops(ctx context.Context, shopIds ...
 	return data, nil
 }
 
+// 多门店库存聚合
 func (this *InventoryRep) AggregatePagination(ctx context.Context, req *request.IndexRequest) <-chan repository.QueryPaginationResult {
 	result := make(chan repository.QueryPaginationResult)
 
@@ -232,12 +170,15 @@ func (this *InventoryRep) AggregatePagination(ctx context.Context, req *request.
 					"item_id": "$item.id",
 					"status":  "$status",
 				},
-				"item": bson.D{{"$mergeObjects", "$item"}},
-				"qty":  bson.D{{"$sum", "$qty"}},
+				"item":       bson.D{{"$mergeObjects", "$item"}},
+				"total":      bson.D{{"$sum", bson.M{"$sum": bson.A{"$qty", "$locked_qty"}}}},
+				"qty":        bson.D{{"$sum", "$qty"}},
+				"locked_qty": bson.D{{"$sum", "$locked_qty"}},
 				"shops": bson.D{{"$push", bson.M{
 					"id":           "$shop.id",
 					"name":         "$shop.name",
 					"qty":          "$qty",
+					"locked_qty":   "$locked_qty",
 					"inventory_id": "$_id",
 				}}},
 			}}},
@@ -250,7 +191,9 @@ func (this *InventoryRep) AggregatePagination(ctx context.Context, req *request.
 				"total": bson.D{{"$sum", "$qty"}},
 				"inventories": bson.D{{"$push", bson.M{
 					"status": "$_id.status",
-					"qty":    "$qty",
+					"total":"$total",
+					"qty":"$qty",
+					"locked_qty":"$locked_qty",
 					"shops":  "$shops",
 				}}},
 			}}},

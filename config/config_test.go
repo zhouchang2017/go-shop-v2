@@ -1,6 +1,8 @@
 package config
 
 import (
+	"github.com/davecgh/go-spew/spew"
+	"github.com/novalagung/gubrak"
 	"testing"
 )
 
@@ -24,4 +26,9 @@ func TestNewConfig(t *testing.T) {
 	//assert.NotNil(t, testConfig.MongoCfg)
 	//assert.NotNil(t, testConfig.MysqlCfg)
 	//assert.NotNil(t, testConfig.QiniuCfg)
+	itemIds:= []string{"123","321","222"}
+	result := gubrak.From(itemIds).Chunk(50).Each(func(value []string) {
+		spew.Dump(value)
+	}).Error()
+	spew.Dump(result)
 }

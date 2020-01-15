@@ -9,36 +9,30 @@ type InventoryStatus int8
 
 func (i InventoryStatus) Make(status int8) (res InventoryStatus) {
 	switch status {
-	case int8(ITEM_LOCKED):
-		res = ITEM_LOCKED
+
 	case int8(ITEM_OK):
 		res = ITEM_OK
 	case int8(ITEM_BAD):
 		res = ITEM_BAD
 	default:
-		res = ITEM_PENDING
+		res = ITEM_OK
 	}
 	return res
 }
 
-func (i InventoryStatus) IsLocked() bool  {
-	return i == ITEM_LOCKED
-}
-
 const (
-	ITEM_PENDING InventoryStatus = iota
-	ITEM_LOCKED
-	ITEM_OK
+	ITEM_OK InventoryStatus = iota
 	ITEM_BAD
 )
 
 // 库存
 type Inventory struct {
 	model.MongoModel `inline`
-	Shop             *AssociatedShop `json:"shop" bson:"shop"` // 门店
-	Item             *AssociatedItem `json:"item"`             // sku
-	Qty              int64           `json:"qty"`              // 存量
-	Status           InventoryStatus `json:"status"`           // 状态
+	Shop             *AssociatedShop `json:"shop" bson:"shop"`             // 门店
+	Item             *AssociatedItem `json:"item"`                         // sku
+	Qty              int64           `json:"qty"`                          // 存量
+	LockedQty        int64           `json:"locked_qty" bson:"locked_qty"` // 锁定库存数量
+	Status           InventoryStatus `json:"status"`                       // 状态
 }
 
 func (I Inventory) StatusOkMap() []map[string]interface{} {
@@ -56,14 +50,6 @@ func (I Inventory) StatusOkMap() []map[string]interface{} {
 
 func (I Inventory) StatusMap() []map[string]interface{} {
 	return []map[string]interface{}{
-		{
-			"name":  "等待确认",
-			"value": ITEM_PENDING,
-		},
-		{
-			"name":  "锁定",
-			"value": ITEM_LOCKED,
-		},
 		{
 			"name":  "良品",
 			"value": ITEM_OK,
@@ -84,8 +70,9 @@ type AggregateShopCountStockInventory struct {
 }
 
 type AggregateShopCountStockInventoryStatus struct {
-	Status InventoryStatus `json:"status"`
-	Qty    int64           `json:"qty"`
+	Status    InventoryStatus `json:"status"`
+	Qty       int64           `json:"qty"`
+	LockedQty int64           `json:"locked_qty" bson:"locked_qty"` // 锁定库存数量
 }
 
 // 聚合结构体
@@ -97,9 +84,11 @@ type AggregateInventory struct {
 
 // 聚合库存单元
 type AggregateInventoryUnit struct {
-	Qty    int64                `json:"qty"`                // 存量
-	Status InventoryStatus      `json:"status"`             // 状态
-	Shops  []*InventoryUnitShop `json:"shops" bson:"shops"` // 门店
+	Qty       int64                `json:"qty"`                          // 库存小计
+	Status    InventoryStatus      `json:"status"`                       // 状态
+	Total     int64                `json:"total"`                        // 小计
+	LockedQty int64                `json:"locked_qty" bson:"locked_qty"` // 锁定库存小计
+	Shops     []*InventoryUnitShop `json:"shops" bson:"shops"`           // 门店
 }
 
 // 聚合门店结构
@@ -107,7 +96,8 @@ type InventoryUnitShop struct {
 	Id          string             `json:"id"`
 	InventoryId primitive.ObjectID `json:"inventory_id" bson:"inventory_id"`
 	Name        string             `json:"name"`
-	Qty         int64              `json:"qty"` // 存量
+	Qty         int64              `json:"qty"`                          // 存量
+	LockedQty   int64              `json:"locked_qty" bson:"locked_qty"` // 锁定库存
 }
 
 func (this *AggregateInventoryUnit) findShop(id string) (*InventoryUnitShop, bool) {

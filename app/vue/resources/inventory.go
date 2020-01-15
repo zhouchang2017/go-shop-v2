@@ -62,12 +62,11 @@ func (this *Inventory) Fields(ctx *gin.Context, model interface{}) func() []inte
 			fields.NewTextField("品牌", "Item.Product.Brand.Name"),
 			fields.NewTextField("货号", "Item.Code"),
 			fields.NewStatusField("状态", "Status").WithOptions([]*fields.StatusOption{
-				fields.NewStatusOption("等待确认",0).Cancel(),
-				fields.NewStatusOption("锁定",1).Warning(),
-				fields.NewStatusOption("良品",2).Success(),
-				fields.NewStatusOption("不良品",3).Error(),
+				fields.NewStatusOption("良品",0).Success(),
+				fields.NewStatusOption("不良品",1).Error(),
 			}),
 			fields.NewTextField("库存", "Qty"),
+			fields.NewTextField("锁定库存", "LockedQty"),
 
 			panels.NewPanel("门店信息",
 				fields.NewTextField("门店ID", "Shop.Id", fields.OnlyOnDetail()),

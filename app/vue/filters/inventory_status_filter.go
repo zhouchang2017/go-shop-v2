@@ -38,8 +38,6 @@ func (this InventoryStatusFilter) DefaultValue(ctx *gin.Context) interface{} {
 
 func (this InventoryStatusFilter) Options(ctx *gin.Context) []contracts.FilterOption {
 	return []contracts.FilterOption{
-		filters.NewSelectOption("等待处理", models.ITEM_PENDING),
-		filters.NewSelectOption("锁定", models.ITEM_LOCKED),
 		filters.NewSelectOption("良品", models.ITEM_OK),
 		filters.NewSelectOption("不良品", models.ITEM_BAD),
 	}

@@ -134,15 +134,6 @@ func (this *ManualInventoryActionItem) SetStatus(status int8) {
 	this.Status = this.Status.Make(status)
 }
 
-func (this *ManualInventoryActionItem) SetStatusToPending() *ManualInventoryActionItem {
-	this.Status = ITEM_PENDING
-	return this
-}
-
-func (this *ManualInventoryActionItem) SetStatusToLocked() *ManualInventoryActionItem {
-	this.Status = ITEM_LOCKED
-	return this
-}
 
 func (this *ManualInventoryActionItem) SetStatusToOk() *ManualInventoryActionItem {
 	this.Status = ITEM_OK

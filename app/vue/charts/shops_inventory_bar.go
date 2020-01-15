@@ -24,13 +24,13 @@ func NewShopsInventoryBar() *shopsInventoryBar {
 		ShopsInventoryBar.LabelMap(map[string]interface{}{
 			"shop_name": "门店名称",
 			"total":     "总计",
-			"status_0":  "待确认",
-			"status_1":  "锁定",
-			"status_2":  "良品",
-			"status_3":  "不良品",
+			"qty":       "非锁定库存",
+			"locked_qty":"锁定库存",
+			"status_0":  "良品",
+			"status_1":  "不良品",
 		})
 		ShopsInventoryBar.SetWidth50Percent()
-		ShopsInventoryBar.Stack([]string{"status_0", "status_1", "status_2", "status_3"})
+		ShopsInventoryBar.Stack([]string{"status_0", "status_1"})
 	}
 
 	return ShopsInventoryBar
@@ -41,7 +41,7 @@ func (shopsInventoryBar) Name() string {
 }
 
 func (shopsInventoryBar) Columns() []string {
-	return []string{"shop_name", "total", "status_2", "status_0", "status_1", "status_3"}
+	return []string{"shop_name", "total", "locked_qty", "status_0", "status_1", "qty"}
 }
 
 func (this shopsInventoryBar) HttpHandle(ctx *gin.Context) (rows interface{}, err error) {
@@ -58,6 +58,8 @@ func (this shopsInventoryBar) HttpHandle(ctx *gin.Context) (rows interface{}, er
 		statusLine["total"] = item.Total
 		for _, status := range item.Status {
 			statusLine[fmt.Sprintf("status_%d", status.Status)] = status.Qty
+			statusLine["qty"] = status.Qty
+			statusLine["locked_qty"] = status.LockedQty
 		}
 		res = append(res, statusLine)
 	}

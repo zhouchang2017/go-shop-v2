@@ -3,10 +3,12 @@ package services
 import (
 	"context"
 	"fmt"
+	"github.com/novalagung/gubrak"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
+	"log"
 )
 
 type ManualInventoryActionService struct {
@@ -214,30 +216,44 @@ func (this *ManualInventoryActionService) SetShop(ctx context.Context, entity *m
 func (this *ManualInventoryActionService) SetItems(ctx context.Context, entity *models.ManualInventoryAction, items ...*InventoryActionItemOption) (*models.ManualInventoryAction, error) {
 	var itemIds []string
 	var manualInventoryActionItems []*models.ManualInventoryActionItem
-	itemMap := map[string]*InventoryActionItemOption{}
 	for _, item := range items {
 		itemIds = append(itemIds, item.Id)
-		itemMap[item.Id] = item
 	}
 
-	if len(itemIds) > 0 {
-		items2, err := this.productService.ItemService.FindByIds(ctx, itemIds...)
-		if err != nil {
-			return entity, err
-		}
+	itemIds = gubrak.From(itemIds).Uniq().Result().([]string)
 
-		for _, item := range items2 {
-			associated := item.ToAssociated()
-			itemMap := itemMap[item.GetID()]
-			actionItem := &models.ManualInventoryActionItem{
-				AssociatedItem: associated,
-				Qty:            itemMap.Qty,
-				InventoryId:    itemMap.InventoryId,
+	var productItems []*models.Item
+
+
+	if len(itemIds) > 0 {
+		// chunk
+		gubrak.From(itemIds).Chunk(50).Each(func(value []string) {
+			items2, err := this.productService.ItemService.FindByIds(ctx, value...)
+			if err != nil {
+				log.Printf("findByIds error:%s\n", err)
 			}
-			actionItem.SetStatusToPending()
+			productItems = append(productItems, items2...)
+		})
+
+		for _, item := range items {
+			var currentItem *models.Item
+
+			currentItem = gubrak.From(productItems).Find(func(i *models.Item) bool {
+				return i.GetID() == item.Id
+			}).Result().(*models.Item)
+			actionItem := &models.ManualInventoryActionItem{
+				AssociatedItem: currentItem.ToAssociated(),
+				Qty:            item.Qty,
+			}
+			actionItem.SetStatus(item.Status)
+			if item.InventoryId != "" {
+				actionItem.InventoryId = item.InventoryId
+			}
+
 			manualInventoryActionItems = append(manualInventoryActionItems, actionItem)
 		}
 	}
+
 
 	entity.Items = manualInventoryActionItems
 	return entity, nil

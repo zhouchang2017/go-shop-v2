@@ -83,10 +83,8 @@ func (m *InventoryAction) Fields(ctx *gin.Context, model interface{}) func() []i
 					fields.NewTextField("类目", "Product.Category.Name"),
 					fields.NewTextField("数量", "Qty"),
 					fields.NewStatusField("状态", "Status").WithOptions([]*fields.StatusOption{
-						fields.NewStatusOption("等待确认", 0).Cancel(),
-						fields.NewStatusOption("锁定", 1).Warning(),
-						fields.NewStatusOption("良品", 2).Success(),
-						fields.NewStatusOption("不良品", 3).Error(),
+						fields.NewStatusOption("良品", 0).Success(),
+						fields.NewStatusOption("不良品", 1).Error(),
 					}),
 				}
 			}),
