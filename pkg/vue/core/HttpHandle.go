@@ -333,6 +333,8 @@ func (this *resourceHttpHandle) exec(router gin.IRouter) {
 	this.resourcePagesHandle() // 自定义页面
 
 	this.resourceFiltersHandle() // 过滤
+
+	this.resourceCustomHttpHandle() // 自定义路由
 }
 
 // 资源列表页api
@@ -809,4 +811,11 @@ func (this *resourceHttpHandle) resourceActionsHandle() {
 
 		c.JSON(http.StatusOK, data)
 	})
+}
+
+// 资源自定义api
+func (this *resourceHttpHandle) resourceCustomHttpHandle() {
+	if customHttpHandler, ok := this.resource.(contracts.ResourceCustomHttpHandler); ok {
+		customHttpHandler.CustomHttpHandle(this.router)
+	}
 }

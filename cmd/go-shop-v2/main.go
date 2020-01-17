@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"flag"
+	"fmt"
 	"go-shop-v2/app/listeners"
 	"go-shop-v2/app/repositories"
 	vue2 "go-shop-v2/app/vue"
@@ -18,18 +21,46 @@ import (
 	"time"
 )
 
+var configPathFlag = flag.String("c", ".env", "get the file path for config to parsed")
+
 func main() {
-	config := config.NewConfig()
+	// parse flag
+	flag.Parse()
+
+	// get config path
+	if *configPathFlag == "" {
+		fmt.Println("please use -c to set the config file path or use -h to see more")
+		return
+	}
+	// open file
+	file, openErr := os.Open(*configPathFlag)
+	if openErr != nil {
+		fmt.Println("open config file failed caused of %s", openErr.Error())
+		return
+	}
+	// decode json
+	decoder := json.NewDecoder(file)
+
+	decodeErr := decoder.Decode(&config.Config)
+
+	file.Close()
+
+	if decodeErr != nil {
+		fmt.Printf("decode config file failed caused of %s", decodeErr.Error())
+		return
+	}
+
+	configs := config.NewConfig()
 	// 消息队列
-	mq := message.New(config.RabbitMQUri())
+	mq := message.New(configs.RabbitMQUri())
 	defer mq.Close()
 	// 七牛云存储
-	newQiniu := qiniu.NewQiniu(config.QiniuConfig())
+	newQiniu := qiniu.NewQiniu(configs.QiniuConfig())
 	// mongodb
-	mongoConnect := mongodb.Connect(config.MongodbConfig())
+	mongoConnect := mongodb.Connect(configs.MongodbConfig())
 	defer mongodb.Close()
 	// mysql
-	mysql.Connect(config.MysqlConfig())
+	mysql.Connect(configs.MysqlConfig())
 	defer mysql.Close()
 	// auth service
 	authSrv := auth.NewAuth()

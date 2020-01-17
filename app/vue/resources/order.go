@@ -4,7 +4,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"go-shop-v2/app/repositories"
 	"go-shop-v2/pkg/db/mongodb"
-	"go-shop-v2/pkg/repository"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"go-shop-v2/pkg/vue/contracts"
@@ -16,6 +15,7 @@ import (
 type Order struct {
 	core.AbstractResource
 	rep *repositories.OrderRep
+	model interface{}
 }
 
 func (order *Order) Show(ctx *gin.Context, id string) (res interface{}, err error) {
@@ -33,15 +33,11 @@ func (order *Order) Title() string {
 }
 
 func (order *Order) Icon() string {
-	return "icons-store"
+	return "icons-clipboard"
 }
 
 func (order *Order) Group() string {
 	return "Order"
-}
-
-func (order *Order) Repository() repository.IRepository {
-	return order.rep
 }
 
 func (order *Order) Fields(ctx *gin.Context, model interface{}) func() []interface{} {
@@ -96,7 +92,7 @@ func (order *Order) Fields(ctx *gin.Context, model interface{}) func() []interfa
 }
 
 func (order *Order) Model() interface{} {
-	return nil
+	return order.model
 }
 
 func (order *Order) Make(mode interface{}) contracts.Resource {
@@ -106,7 +102,7 @@ func (order *Order) Make(mode interface{}) contracts.Resource {
 }
 
 func (order *Order) SetModel(model interface{}) {
-	panic("implement me")
+	order.model = model
 }
 
 func NewOrderResource() *Order {

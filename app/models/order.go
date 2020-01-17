@@ -1,6 +1,9 @@
 package models
 
-import "go-shop-v2/pkg/db/model"
+import (
+	"go-shop-v2/pkg/db/model"
+	"go-shop-v2/pkg/utils"
+)
 
 type Order struct {
 	model.MongoModel
@@ -11,6 +14,18 @@ type Order struct {
 	Logistics   *Logistics         `json:"logistics" name:"物流信息"`
 	Payment     *AssociatedPayment `json:"payment" name:"支付信息"`
 	Status      int                `json:"status" name:"订单状态"`
+}
+
+func (this *Order) OriginName() string {
+	return "订单出库"
+}
+
+func (this *Order) OriginModel() string {
+	return utils.StructNameToSnakeAndPlural(this)
+}
+
+func (this *Order) OriginId() string {
+	return this.GetID()
 }
 
 type OrderItem struct {

@@ -1,16 +1,12 @@
 package config
 
 import (
-	"encoding/json"
-	"fmt"
 	"go-shop-v2/app/repositories"
 	"go-shop-v2/pkg/auth"
 	"go-shop-v2/pkg/db/mongodb"
 	"go-shop-v2/pkg/db/mysql"
 	"go-shop-v2/pkg/qiniu"
-	"go-shop-v2/pkg/utils"
 	"go-shop-v2/pkg/vue/fields"
-	"os"
 )
 
 func init() {
@@ -22,6 +18,8 @@ func init() {
 	fields.DefaultFileUploadAction = "https://upload-z2.qiniup.com"
 }
 
+var Config *config
+
 type config struct {
 	MongoCfg mongodb.Config `json:"mongo_config"`
 	MysqlCfg mysql.Config   `json:"mysql_config"`
@@ -29,26 +27,7 @@ type config struct {
 }
 
 func NewConfig() *config {
-	// todo:fix bug that rewrite this func
-	envPath, err := utils.GetFilePath(2, ".env")
-	if err != nil {
-		panic(fmt.Sprintf("get config path failed caused of %s", err.Error()))
-	}
-	// open file
-	file, openErr := os.Open(envPath)
-	if openErr != nil {
-		panic(fmt.Sprintf("open config file failed caused of %s", openErr.Error()))
-	}
-	defer file.Close()
-	// decode json
-	decoder := json.NewDecoder(file)
-	var config config
-	decodeErr := decoder.Decode(&config)
-	if decodeErr != nil {
-		panic(fmt.Sprintf("decode config file failed caused of %s", decodeErr.Error()))
-	}
-	// return
-	return &config
+	return Config
 }
 
 // rabbitMQ uri

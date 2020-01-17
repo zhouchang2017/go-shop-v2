@@ -62,8 +62,8 @@ func (this *Inventory) Fields(ctx *gin.Context, model interface{}) func() []inte
 			fields.NewTextField("品牌", "Item.Product.Brand.Name"),
 			fields.NewTextField("货号", "Item.Code"),
 			fields.NewStatusField("状态", "Status").WithOptions([]*fields.StatusOption{
-				fields.NewStatusOption("良品",0).Success(),
-				fields.NewStatusOption("不良品",1).Error(),
+				fields.NewStatusOption("良品", 0).Success(),
+				fields.NewStatusOption("不良品", 1).Error(),
 			}),
 			fields.NewTextField("库存", "Qty"),
 			fields.NewTextField("锁定库存", "LockedQty"),
@@ -89,6 +89,8 @@ func (this *Inventory) Fields(ctx *gin.Context, model interface{}) func() []inte
 					}
 				}),
 			),
+
+			fields.NewHasManyField("日志", &InventoryLog{}),
 		}
 	}
 }

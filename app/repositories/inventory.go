@@ -2,7 +2,6 @@ package repositories
 
 import (
 	"context"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/mitchellh/mapstructure"
 	"go-shop-v2/app/models"
 	"go-shop-v2/pkg/db/mongodb"
@@ -38,10 +37,39 @@ func (this *InventoryRep) Lock(ctx context.Context, shopId string, itemId string
 		"$currentDate": bson.M{
 			"updated_at": true,
 		},
-	}, options.FindOneAndUpdate().SetReturnDocument(options.After))
+	})
 	if result.Err() != nil {
 		// 库存不足
 		return result.Err()
+	}
+
+	return nil
+}
+
+// 通过id锁定库存
+func (this *InventoryRep) LockById(ctx context.Context, id string, qty int64) (err error) {
+	this.lock.Lock()
+	defer this.lock.Unlock()
+
+	objId, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		// 404 not found!!
+		return err
+	}
+
+	updated := this.Collection().FindOneAndUpdate(ctx, bson.M{
+		"_id": objId,
+		"qty": bson.M{"$gte": qty},
+	}, bson.M{
+		"$inc": bson.M{"qty": -qty, "locked_qty": qty},
+		"$currentDate": bson.M{
+			"updated_at": true,
+		},
+	})
+
+	if updated.Err() != nil {
+		// 库存不足
+		return updated.Err()
 	}
 
 	return nil
@@ -72,6 +100,63 @@ func (this *InventoryRep) UnLock(ctx context.Context, shopId string, itemId stri
 	return nil
 }
 
+// 通过id解锁库存
+func (this *InventoryRep) UnLockById(ctx context.Context, id string, qty int64) (err error) {
+	this.lock.Lock()
+	defer this.lock.Unlock()
+
+	objId, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		// 404 not found!!
+		return err
+	}
+	// 搜索锁定库存
+	updated := this.Collection().FindOneAndUpdate(ctx, bson.M{
+		"_id":        objId,
+		"locked_qty": bson.M{"$gte": qty},
+	}, bson.M{
+		"$inc": bson.M{"qty": qty, "locked_qty": -qty},
+		"$currentDate": bson.M{
+			"updated_at": true,
+		},
+	})
+	if updated.Err() != nil {
+		// 库存不足
+		return updated.Err()
+	}
+
+	return nil
+}
+
+// 通过锁定库存直接出库
+func (this *InventoryRep) TakeByLocked(ctx context.Context, id string, qty int64) (err error) {
+	this.lock.Lock()
+	defer this.lock.Unlock()
+
+	objId, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		// 404 not found!!
+		return err
+	}
+	// 搜索锁定库存
+	updated := this.Collection().FindOneAndUpdate(ctx, bson.M{
+		"_id":        objId,
+		"locked_qty": bson.M{"$gte": qty},
+	}, bson.M{
+		"$inc": bson.M{"locked_qty": -qty},
+		"$currentDate": bson.M{
+			"updated_at": true,
+		},
+	})
+	if updated.Err() != nil {
+		// 库存不足
+		return updated.Err()
+	}
+
+	return nil
+}
+
+// 库存统计聚合
 func (this *InventoryRep) AggregateStockByShops(ctx context.Context, shopIds ...string) (data []*models.AggregateShopCountStockInventory, err error) {
 
 	var objIds []primitive.ObjectID
@@ -190,11 +275,11 @@ func (this *InventoryRep) AggregatePagination(ctx context.Context, req *request.
 				"item":  bson.D{{"$mergeObjects", "$item"}},
 				"total": bson.D{{"$sum", "$qty"}},
 				"inventories": bson.D{{"$push", bson.M{
-					"status": "$_id.status",
-					"total":"$total",
-					"qty":"$qty",
-					"locked_qty":"$locked_qty",
-					"shops":  "$shops",
+					"status":     "$_id.status",
+					"total":      "$total",
+					"qty":        "$qty",
+					"locked_qty": "$locked_qty",
+					"shops":      "$shops",
 				}}},
 			}}},
 			// 改变数据结构
@@ -248,6 +333,7 @@ type QueryOption struct {
 	ProductId   string   `json:"product_id"`
 	ProductCode string   `json:"product_code"`
 	Shops       []string `json:"shops"`
+	Qty         bson.M   `json:"qty"`
 	Location    *models.Location
 	Status      []int8
 }
@@ -262,7 +348,6 @@ func (this *InventoryRep) Pagination(ctx context.Context, req *request.IndexRequ
 	filters := req.Filters.Unmarshal()
 	options := &QueryOption{}
 	err := mapstructure.Decode(filters, options)
-	spew.Dump(options)
 	if err != nil {
 		defer close(result)
 		result <- repository.QueryPaginationResult{Error: err}
@@ -273,6 +358,10 @@ func (this *InventoryRep) Pagination(ctx context.Context, req *request.IndexRequ
 	}
 	if len(options.Shops) > 0 {
 		req.AppendFilter("shop.id", bson.D{{"$in", options.Shops}})
+	}
+
+	if options.Qty != nil {
+		req.AppendFilter("qty", options.Qty)
 	}
 
 	return this.mongoRep.Pagination(ctx, req)

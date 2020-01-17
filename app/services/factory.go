@@ -22,6 +22,11 @@ func MakeAdminService() *AdminService {
 	return NewAdminService(rep)
 }
 
+func MakeItemService() *ItemService {
+	rep := repositories.NewItemRep(mongodb.GetConFn())
+	return NewItemService(rep)
+}
+
 func MakeProductService() *ProductService {
 	rep := repositories.NewProductRep(mongodb.GetConFn())
 	return NewProductService(rep)
@@ -30,7 +35,8 @@ func MakeProductService() *ProductService {
 func MakeInventoryService() *InventoryService {
 	con := mongodb.GetConFn()
 	rep := repositories.NewInventoryRep(con)
-	return NewInventoryService(rep, MakeShopService(), MakeProductService())
+	historyRep := repositories.NewInventoryLogRep(con)
+	return NewInventoryService(rep, historyRep, MakeShopService(), MakeProductService())
 }
 
 func MakeManualInventoryActionService() *ManualInventoryActionService {

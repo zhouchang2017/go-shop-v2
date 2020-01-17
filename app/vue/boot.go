@@ -22,6 +22,7 @@ func registerResources() {
 		resources2.NewProductResource(),
 		resources2.NewShopResource(),
 		resources2.NewOrderResource(),
+		resources2.NewInventoryLogResource(),
 	}
 }
 

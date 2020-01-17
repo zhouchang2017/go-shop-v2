@@ -115,4 +115,9 @@ type (
 		// 资源硬删除方法
 		ForceDestroy(ctx *gin.Context, id string) (err error)
 	}
+
+	// 资源自定义api
+	ResourceCustomHttpHandler interface {
+		CustomHttpHandle(router gin.IRouter)
+	}
 )

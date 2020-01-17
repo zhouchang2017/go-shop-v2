@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
+	"go-shop-v2/pkg/auth"
+	ctx2 "go-shop-v2/pkg/ctx"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"go.mongodb.org/mongo-driver/bson"
@@ -14,6 +16,7 @@ import (
 
 type InventoryService struct {
 	rep            *repositories.InventoryRep
+	historyRep     *repositories.InventoryLogRep
 	shopService    *ShopService
 	productService *ProductService
 }
@@ -22,8 +25,8 @@ func (this *InventoryService) GetRepository() *repositories.InventoryRep {
 	return this.rep
 }
 
-func NewInventoryService(rep *repositories.InventoryRep, shopService *ShopService, productService *ProductService) *InventoryService {
-	return &InventoryService{rep: rep, shopService: shopService, productService: productService}
+func NewInventoryService(rep *repositories.InventoryRep, historyRep *repositories.InventoryLogRep, shopService *ShopService, productService *ProductService) *InventoryService {
+	return &InventoryService{rep: rep, historyRep: historyRep, shopService: shopService, productService: productService}
 }
 
 func (this *InventoryService) FindByIds(ctx context.Context, ids ...string) (inventories []*models.Inventory, err error) {
@@ -63,7 +66,7 @@ func (this *InventoryService) Aggregate(ctx context.Context, req *request.IndexR
 }
 
 // 入库
-func (this *InventoryService) Put(ctx context.Context, shopId string, itemId string, qty int64, status int8) (inventory *models.Inventory, err error) {
+func (this *InventoryService) Put(ctx context.Context, shopId string, itemId string, qty int64, status int8, changer models.InventoryChanger) (inventory *models.Inventory, err error) {
 	// 检查当前是否存在对应规格产品库存
 	incQtyRes := <-this.rep.IncQty(ctx, bson.M{
 		"shop.id": shopId,
@@ -95,11 +98,28 @@ func (this *InventoryService) Put(ctx context.Context, shopId string, itemId str
 		return nil, createdRes.Error
 	}
 	inventory = createdRes.Result.(*models.Inventory)
+
+	// 记录操作日志
+	go this.writeLog(ctx, inventory, qty, changer)
+
 	return inventory, nil
 }
 
+// 写操作日志
+func (this *InventoryService) writeLog(ctx context.Context, inventory *models.Inventory, qty int64, origin models.InventoryChanger) {
+	var user auth.Authenticatable
+	authUser := ctx2.GetUser(ctx)
+	if authUserd, ok := authUser.(auth.Authenticatable); ok {
+		user = authUserd
+	}
+	created := <-this.historyRep.Create(ctx, models.NewInventoryHistory(inventory, qty, origin, user))
+	if created.Error != nil {
+		log.Printf("write log error:%s\n", created.Error)
+	}
+}
+
 // 出库
-func (this *InventoryService) Take(ctx context.Context, id string, qty int64) (inventory *models.Inventory, err error) {
+func (this *InventoryService) Take(ctx context.Context, id string, qty int64, changer models.InventoryChanger) (inventory *models.Inventory, err error) {
 	byIdRes := <-this.rep.FindById(ctx, id)
 	if byIdRes.Error != nil {
 		return nil, byIdRes.Error
@@ -117,6 +137,9 @@ func (this *InventoryService) Take(ctx context.Context, id string, qty int64) (i
 		log.Printf("剩余库存不足！剩余库存 %d ,需出库数量 %d，inventory:%s\n", inventory.Qty, qty, bytes)
 	}
 
+	// 记录操作日志
+	go this.writeLog(ctx, inventory, -qty, changer)
+
 	return nil, fmt.Errorf("剩余库存不足！剩余库存 %d ,需出库数量 %d", inventory.Qty, qty)
 }
 
@@ -125,9 +148,38 @@ func (this *InventoryService) Lock(ctx context.Context, shopId string, itemId st
 	return this.rep.Lock(ctx, shopId, itemId, qty, status)
 }
 
+// 通过id锁定库存
+func (this *InventoryService) LockById(ctx context.Context, id string, qty int64) (err error) {
+	return this.rep.LockById(ctx, id, qty)
+}
+
 // 解锁
 func (this *InventoryService) UnLock(ctx context.Context, shopId string, itemId string, qty int64, status int8) (err error) {
 	return this.rep.UnLock(ctx, shopId, itemId, qty, status)
+}
+
+// 通过id解锁
+func (this *InventoryService) UnLockById(ctx context.Context, id string, qty int64) (err error) {
+	return this.rep.UnLockById(ctx, id, qty)
+}
+
+// 通过锁定库存出库
+func (this *InventoryService) TakeByLocked(ctx context.Context, id string, qty int64, changer models.InventoryChanger) (err error) {
+	err = this.rep.TakeByLocked(ctx, id, qty)
+	if err != nil {
+		return err
+	}
+	// 记录操作日志
+	go func() {
+		inventory, err := this.FindById(ctx, id)
+		if err != nil {
+			log.Printf("find by id error:%s\n", err)
+			return
+		}
+		this.writeLog(ctx, inventory, -qty, changer)
+	}()
+
+	return nil
 }
 
 // 列表

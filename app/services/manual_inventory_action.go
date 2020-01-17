@@ -49,10 +49,10 @@ func (this *ManualInventoryActionService) Put(ctx context.Context, option *Inven
 	action.SetStatusToSaved()
 	action.User = user.ToAssociated()
 
-	if _, err := this.SetShop(ctx, action, option.ShopId); err != nil {
+	if _, err := this.setShop(ctx, action, option.ShopId); err != nil {
 		return action, err
 	}
-	if _, err := this.SetItems(ctx, action, option.Items...); err != nil {
+	if _, err := this.setItems(ctx, action, option.Items...); err != nil {
 		return action, err
 	}
 	created := <-this.rep.Create(ctx, action)
@@ -75,11 +75,11 @@ func (this *ManualInventoryActionService) UpdatePut(ctx context.Context, id stri
 	// 设置更新用户
 	action.User = user.ToAssociated()
 	// 设置门店
-	if _, err := this.SetShop(ctx, action, option.ShopId); err != nil {
+	if _, err := this.setShop(ctx, action, option.ShopId); err != nil {
 		return action, err
 	}
 	// 设置商品集
-	if _, err := this.SetItems(ctx, action, option.Items...); err != nil {
+	if _, err := this.setItems(ctx, action, option.Items...); err != nil {
 		return action, err
 	}
 	saved := <-this.rep.Save(ctx, action)
@@ -108,15 +108,15 @@ func (this *ManualInventoryActionService) Take(ctx context.Context, option *Inve
 	action.SetStatusToSaved()
 	action.User = user.ToAssociated()
 
-	if _, err := this.SetShop(ctx, action, option.ShopId); err != nil {
+	if _, err := this.setShop(ctx, action, option.ShopId); err != nil {
 		return action, err
 	}
-	if _, err := this.SetItems(ctx, action, option.Items...); err != nil {
+	if _, err := this.setItems(ctx, action, option.Items...); err != nil {
 		return action, err
 	}
 	// 标记锁定状态,TODO 开启事务
 	for _, item := range action.Items {
-		if err := this.inventoryService.Lock(ctx, action.Shop.Id, item.Id, item.Qty, int8(item.Status)); err != nil {
+		if err := this.inventoryService.LockById(ctx, item.InventoryId, item.Qty); err != nil {
 			return action, err
 		}
 	}
@@ -141,8 +141,38 @@ func (this *ManualInventoryActionService) UpdateTake(ctx context.Context, id str
 	action.SetStatusToSaved()
 	// 设置更新用户
 	action.User = user.ToAssociated()
-	// TODO 解锁之前已锁定库存
-	panic(1)
+
+	if action.Shop.Id != option.ShopId {
+		if _, err := this.setShop(ctx, action, option.ShopId); err != nil {
+			return action, err
+		}
+	}
+
+	// TODO 开启事务
+	// 解锁之前锁定库存
+	for _, item := range action.Items {
+		err := this.inventoryService.UnLockById(ctx, item.InventoryId, item.Qty)
+		if err != nil {
+			return action, err
+		}
+	}
+	// 设置新的items
+	if _, err := this.setItems(ctx, action, option.Items...); err != nil {
+		return action, err
+	}
+	// 标记锁定状态
+	for _, item := range action.Items {
+		if err := this.inventoryService.LockById(ctx, item.InventoryId, item.Qty); err != nil {
+			return action, err
+		}
+	}
+
+	saved := <-this.rep.Save(ctx, action)
+
+	if saved.Error != nil {
+		return action, saved.Error
+	}
+	return saved.Result.(*models.ManualInventoryAction), nil
 }
 
 // 确认操作
@@ -153,14 +183,17 @@ func (this *ManualInventoryActionService) StatusToFinished(ctx context.Context, 
 	}
 
 	if action.Type.IsPut() {
+		// 入库
 		if err := this.putInventory(ctx, action); err != nil {
 			return nil, err
 		}
 	} else {
-
+		// 出库
+		if err := this.takeInventory(ctx, action); err != nil {
+			return nil, err
+		}
 	}
 
-	// todo 具体逻辑
 	action.SetStatusToFinished()
 
 	saved := <-this.rep.Save(ctx, action)
@@ -178,9 +211,12 @@ func (this *ManualInventoryActionService) Cancel(ctx context.Context, id string)
 		return err
 	}
 
-	for _, item := range action.Items {
-		if err := this.inventoryService.UnLock(ctx, action.Shop.Id, item.Id, item.Qty, int8(item.Status)); err != nil {
-			return err
+	if action.Type.IsTake() {
+		// 出库单，归还锁定库存
+		for _, item := range action.Items {
+			if err := this.inventoryService.UnLock(ctx, action.Shop.Id, item.Id, item.Qty, int8(item.Status)); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -195,7 +231,7 @@ func (this *ManualInventoryActionService) Cancel(ctx context.Context, id string)
 func (this *ManualInventoryActionService) putInventory(ctx context.Context, action *models.ManualInventoryAction) error {
 
 	for _, item := range action.Items {
-		_, err := this.inventoryService.Put(ctx, action.Shop.Id, item.Id, item.Qty, int8(item.Status))
+		_, err := this.inventoryService.Put(ctx, action.Shop.Id, item.Id, item.Qty, int8(item.Status), action)
 		if err != nil {
 			return err
 		}
@@ -204,7 +240,18 @@ func (this *ManualInventoryActionService) putInventory(ctx context.Context, acti
 	return nil
 }
 
-func (this *ManualInventoryActionService) SetShop(ctx context.Context, entity *models.ManualInventoryAction, shopId string) (*models.ManualInventoryAction, error) {
+// 推出仓库
+func (this *ManualInventoryActionService) takeInventory(ctx context.Context, action *models.ManualInventoryAction) error {
+	// TODO 事物
+	for _, item := range action.Items {
+		if err := this.inventoryService.TakeByLocked(ctx, item.InventoryId, item.Qty, action); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (this *ManualInventoryActionService) setShop(ctx context.Context, entity *models.ManualInventoryAction, shopId string) (*models.ManualInventoryAction, error) {
 	shop, err := this.shopService.FindById(ctx, shopId)
 	if err != nil {
 		return nil, err
@@ -213,7 +260,7 @@ func (this *ManualInventoryActionService) SetShop(ctx context.Context, entity *m
 	return entity, nil
 }
 
-func (this *ManualInventoryActionService) SetItems(ctx context.Context, entity *models.ManualInventoryAction, items ...*InventoryActionItemOption) (*models.ManualInventoryAction, error) {
+func (this *ManualInventoryActionService) setItems(ctx context.Context, entity *models.ManualInventoryAction, items ...*InventoryActionItemOption) (*models.ManualInventoryAction, error) {
 	var itemIds []string
 	var manualInventoryActionItems []*models.ManualInventoryActionItem
 	for _, item := range items {
@@ -223,7 +270,6 @@ func (this *ManualInventoryActionService) SetItems(ctx context.Context, entity *
 	itemIds = gubrak.From(itemIds).Uniq().Result().([]string)
 
 	var productItems []*models.Item
-
 
 	if len(itemIds) > 0 {
 		// chunk
@@ -253,7 +299,6 @@ func (this *ManualInventoryActionService) SetItems(ctx context.Context, entity *
 			manualInventoryActionItems = append(manualInventoryActionItems, actionItem)
 		}
 	}
-
 
 	entity.Items = manualInventoryActionItems
 	return entity, nil

@@ -3,6 +3,7 @@ package models
 import (
 	"fmt"
 	"go-shop-v2/pkg/db/model"
+	"go-shop-v2/pkg/utils"
 )
 
 type manualInventoryActionStatus int8
@@ -58,6 +59,22 @@ type ManualInventoryAction struct {
 	Items            []*ManualInventoryActionItem `json:"items"`
 	User             *AssociatedAdmin             `json:"user"`
 	Status           manualInventoryActionStatus  `json:"status"`
+}
+
+func (this *ManualInventoryAction) OriginName() string {
+	var name = "入库"
+	if this.Type.IsTake() {
+		name = "出库"
+	}
+	return fmt.Sprintf("标准库存操作(%s)", name)
+}
+
+func (this *ManualInventoryAction) OriginModel() string {
+	return utils.StructNameToSnakeAndPlural(this)
+}
+
+func (this *ManualInventoryAction) OriginId() string {
+	return this.GetID()
 }
 
 func (this *ManualInventoryAction) Types() []map[string]interface{} {
@@ -133,7 +150,6 @@ type ManualInventoryActionItem struct {
 func (this *ManualInventoryActionItem) SetStatus(status int8) {
 	this.Status = this.Status.Make(status)
 }
-
 
 func (this *ManualInventoryActionItem) SetStatusToOk() *ManualInventoryActionItem {
 	this.Status = ITEM_OK
