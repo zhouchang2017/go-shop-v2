@@ -47,3 +47,11 @@ func MakeManualInventoryActionService() *ManualInventoryActionService {
 func MakeCategoryService() *CategoryService {
 	return NewCategoryService(repositories.NewCategoryRep(mongodb.GetConFn()))
 }
+
+func MakeArticleService() *ArticleService {
+	return NewArticleService(repositories.NewArticleRep(mongodb.GetConFn()))
+}
+
+func MakeTopicService() *TopicService {
+	return NewTopicService(repositories.NewTopicRep(mongodb.GetConFn()))
+}

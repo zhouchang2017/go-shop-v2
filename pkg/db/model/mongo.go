@@ -6,16 +6,18 @@ import (
 )
 
 type MongoModel struct {
-	ID        primitive.ObjectID `json:"id" bson:"_id"`
-	CreatedAt time.Time          `json:"created_at,omitempty" bson:"created_at,omitempty"`
-	UpdatedAt time.Time          `json:"updated_at,omitempty" bson:"updated_at,omitempty"`
-	DeletedAt *time.Time         `json:"deleted_at,omitempty" bson:"deleted_at,omitempty"`
+	ID        primitive.ObjectID     `json:"id" bson:"_id"`
+	CreatedAt time.Time              `json:"created_at,omitempty" bson:"created_at,omitempty"`
+	UpdatedAt time.Time              `json:"updated_at,omitempty" bson:"updated_at,omitempty"`
+	DeletedAt *time.Time             `json:"deleted_at,omitempty" bson:"deleted_at,omitempty"`
+	Meta      map[string]interface{} `json:",inline,omitempty" bson:"-"`
 }
 
 func (this *MongoModel) SetID(id string) {
 	ids, _ := primitive.ObjectIDFromHex(id)
 	this.ID = ids
 }
+
 func (this *MongoModel) GetID() string {
 	return this.ID.Hex()
 }
@@ -38,4 +40,11 @@ func (this *MongoModel) SetUpdatedAt(t time.Time) {
 
 func (this *MongoModel) IsSoftDeleted() bool {
 	return this.DeletedAt != nil
+}
+
+func (this *MongoModel) WithMeta(key string,value interface{})  {
+	if this.Meta == nil {
+		this.Meta = map[string]interface{}{}
+	}
+	this.Meta[key] = value
 }

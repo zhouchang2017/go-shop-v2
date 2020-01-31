@@ -14,13 +14,14 @@ type Product struct {
 	Category         *AssociatedCategory `json:"category" bson:"category"`
 	Attributes       []*ProductAttribute `json:"attributes" bson:"attributes"`
 	Options          []*ProductOption    `json:"options" bson:"options"`
-	Items            []*Item             `json:"items" bson:"-"`
+	Items            []*Item             `json:"items,omitempty" bson:"-"`
 	Description      string              `json:"description" bson:"description"`
 	Price            int64               `json:"price" bson:"price"`
 	TotalSalesQty    int64               `json:"total_sales_qty" bson:"total_sales_qty"`
 	FakeSalesQty     int64               `json:"fake_sales_qty" bson:"fake_sales_qty"`
 	Images           []*qiniu.Resource   `json:"images" bson:"images"`
 	OnSale           bool                `json:"on_sale" bson:"on_sale"`
+	Sort             int64               `json:"sort"`
 }
 
 func NewProduct() *Product {
@@ -34,6 +35,14 @@ type AssociatedProduct struct {
 	Code     string              `json:"code"`
 	Brand    *AssociatedBrand    `json:"brand"`
 	Category *AssociatedCategory `json:"category"`
+}
+
+func (this Product) GetSort() int64 {
+	return this.Sort
+}
+
+func (this Product) GetType() string {
+	return "product"
 }
 
 func (this Product) ToAssociated() *AssociatedProduct {

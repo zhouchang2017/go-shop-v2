@@ -5,16 +5,13 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"go-shop-v2/app/listeners"
-	"go-shop-v2/app/repositories"
-	vue2 "go-shop-v2/app/vue"
+	"github.com/gin-gonic/gin"
+	http2 "go-shop-v2/app/transport/http"
 	"go-shop-v2/config"
-	"go-shop-v2/pkg/auth"
 	"go-shop-v2/pkg/db/mongodb"
 	"go-shop-v2/pkg/message"
-	"go-shop-v2/pkg/qiniu"
-	"go-shop-v2/pkg/vue/core"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"time"
@@ -22,7 +19,9 @@ import (
 
 var configPathFlag = flag.String("c", ".env", "get the file path for config to parsed")
 
-func main() {
+const PORT = 8081
+
+func main()  {
 	// parse flag
 	flag.Parse()
 
@@ -54,39 +53,33 @@ func main() {
 	mq := message.New(configs.RabbitMQUri())
 	defer mq.Close()
 	// 七牛云存储
-	newQiniu := qiniu.NewQiniu(configs.QiniuConfig())
+	// newQiniu := qiniu.NewQiniu(configs.QiniuConfig())
 	// mongodb
-	mongoConnect := mongodb.Connect(configs.MongodbConfig())
+	mongodb.Connect(configs.MongodbConfig())
 	defer mongodb.Close()
-	// mysql
-	//mysql.Connect(configs.MysqlConfig())
-	//defer mysql.Close()
-	// auth service
-	authSrv := auth.NewAuth()
-	// 注册guard
-	authSrv.Register(func() auth.StatefulGuard {
-		return auth.NewJwtGuard(
-			"admin",
-			"admin-secret-key",
-			auth.NewRepositoryUserProvider(repositories.NewAdminRep(mongoConnect)),
-		)
-	})
 
-	// 注册事件监听者
-	listeners.Boot(mq)
-	// 实例化vue后台组件
-	vue := core.New(8083)
-	// 设置授权守卫
-	vue.SetGuard("admin")
-	// 注册七牛api
-	vue.RegisterCustomHttpHandler(newQiniu.HttpHandle)
-	// vue相关启动项
-	vue2.Boot(vue)
-	// 启动vue后台组件框架
-	vue.Run()
 
-	ctx2, cancelFunc := context.WithCancel(context.Background())
-	mq.Run(ctx2)
+	app := gin.New()
+	app.Use(gin.Logger())
+	app.Use(gin.Recovery())
+
+	http2.Register(app)
+
+	srv := &http.Server{
+		Addr:           fmt.Sprintf(":%d", PORT),
+		Handler:        app,
+		ReadTimeout:    time.Second * 30,
+		WriteTimeout:   time.Second * 30,
+		MaxHeaderBytes: 1 << 20,
+	}
+	log.Printf("[info] start http server listening %d", PORT)
+
+	go func() {
+		// 服务连接
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("listen: %s\n", err)
+		}
+	}()
 
 	// 等待中断信号以优雅地关闭服务器（设置 5 秒的超时时间）
 	quit := make(chan os.Signal)
@@ -96,8 +89,7 @@ func main() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	defer cancelFunc()
-	if err := vue.Shutdown(ctx); err != nil {
+	if err := srv.Shutdown(ctx); err != nil {
 		log.Fatal("Server Shutdown:", err)
 	}
 	log.Println("Server exiting")

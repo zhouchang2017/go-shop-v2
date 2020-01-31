@@ -11,6 +11,7 @@ services:
       - ./docker/mysql:/data/db
     environment:
       MYSQL_ROOT_PASSWORD: 12345678
+      TZ: "Asia/Shanghai"
 
   mongo:
     image: mongo
