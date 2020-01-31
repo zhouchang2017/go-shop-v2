@@ -92,7 +92,7 @@ func (this *TopicService) Update(ctx context.Context, model *models.Topic, opt T
 }
 
 // 话题详情
-func (this *TopicService) FindById(ctx context.Context, id string) (article *models.Topic, err error) {
+func (this *TopicService) FindById(ctx context.Context, id string) (topic *models.Topic, err error) {
 	byId := <-this.rep.FindById(ctx, id)
 	if byId.Error != nil {
 		return nil, byId.Error

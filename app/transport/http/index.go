@@ -9,7 +9,7 @@ import (
 	"sort"
 )
 
-type ProductController struct {
+type IndexController struct {
 	productSrv *services.ProductService
 	topicSrv   *services.TopicService
 	articleSrv *services.ArticleService
@@ -33,8 +33,8 @@ func (d dataSlice) Swap(i, j int) {
 	d[i], d[j] = d[j], d[i]
 }
 
-// 产品列表
-func (this *ProductController) Index(ctx *gin.Context) {
+// morph index,include product、article、topic
+func (this *IndexController) Index(ctx *gin.Context) {
 	// 处理函数
 	form := &request.IndexRequest{}
 	if err := ctx.ShouldBind(form); err != nil {
@@ -53,7 +53,7 @@ func (this *ProductController) Index(ctx *gin.Context) {
 	}
 
 	for _, product := range products {
-		product.WithMeta("type",product.GetType())
+		product.WithMeta("type", product.GetType())
 		data = append(data, product)
 	}
 
@@ -74,7 +74,7 @@ func (this *ProductController) Index(ctx *gin.Context) {
 	}
 
 	for _, topic := range topics {
-		topic.WithMeta("type",topic.GetType())
+		topic.WithMeta("type", topic.GetType())
 		data = append(data, topic)
 	}
 	// articles
@@ -86,7 +86,7 @@ func (this *ProductController) Index(ctx *gin.Context) {
 	}
 
 	for _, article := range articles {
-		article.WithMeta("type",article.GetType())
+		article.WithMeta("type", article.GetType())
 		data = append(data, article)
 	}
 
@@ -96,4 +96,27 @@ func (this *ProductController) Index(ctx *gin.Context) {
 		"data":       data,
 		"pagination": pagination,
 	}, 200)
+}
+
+// article detail
+func (this *IndexController) article(ctx *gin.Context) {
+	id := ctx.Param("id")
+	article, err := this.articleSrv.FindById(ctx, id)
+	if err != nil {
+		// err
+		spew.Dump(err)
+	}
+
+	Response(ctx, article, 200)
+}
+
+// topic detail
+func (this *IndexController) Topic(ctx *gin.Context) {
+	id := ctx.Param("id")
+	topic, err := this.topicSrv.FindById(ctx, id)
+	if err != nil {
+		// err
+		spew.Dump(err)
+	}
+	Response(ctx, topic, 200)
 }

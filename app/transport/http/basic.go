@@ -8,14 +8,20 @@ import (
 func Register(app *gin.Engine) {
 
 	v1 := app.Group("v1")
-	productController := &ProductController{
+	indexController := &IndexController{
 		productSrv: services.MakeProductService(),
 		topicSrv:   services.MakeTopicService(),
 		articleSrv: services.MakeArticleService(),
 	}
 
-	v1.GET("/index", productController.Index)
+	// 首页列表
+	v1.GET("/index", indexController.Index)
 
+	// 文章详情
+	v1.GET("/articles/:id", indexController.article)
+
+	// 话题详情
+	v1.GET("/topics/:id", indexController.Topic)
 }
 
 //
