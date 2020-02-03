@@ -5,6 +5,7 @@ import (
 	"go-shop-v2/pkg/qiniu"
 )
 
+
 // 产品
 type Product struct {
 	model.MongoModel `inline`
@@ -22,6 +23,7 @@ type Product struct {
 	Images           []*qiniu.Resource   `json:"images" bson:"images"`
 	OnSale           bool                `json:"on_sale" bson:"on_sale"`
 	Sort             int64               `json:"sort"`
+	Qty              int64               `json:"qty" bson:"-"`
 }
 
 func NewProduct() *Product {

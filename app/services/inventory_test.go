@@ -3,8 +3,10 @@ package services
 import (
 	"context"
 	"github.com/davecgh/go-spew/spew"
+	"go-shop-v2/app/repositories"
 	"go-shop-v2/pkg/db/mongodb"
 	"go-shop-v2/pkg/request"
+	"go.mongodb.org/mongo-driver/bson"
 	"testing"
 )
 
@@ -90,4 +92,23 @@ func TestInventoryService_GetRepository(t *testing.T) {
 	spew.Dump(es)
 
 	spew.Dump(pagination)
+}
+
+func TestInventoryService_Search(t *testing.T) {
+	mongodb.TestConnect()
+	defer mongodb.Close()
+
+	service := MakeInventoryService()
+
+	inventories, err := service.Search(context.Background(), &repositories.QueryOption{
+		ProductId: "5e33fcd21f50bb25b7060ec0",
+		Qty:       bson.M{"$gt": 5},
+		Status:    []int8{0},
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	spew.Dump(inventories)
 }

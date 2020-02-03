@@ -69,7 +69,7 @@ func (this *Product) Fields(ctx *gin.Context, model interface{}) func() []interf
 			fields.NewTextField("价格", "Price"),
 			fields.NewTextField("销量", "TotalSalesQty"),
 
-			fields.NewImageField("图集","Images").RoundedLg(),
+			fields.NewImageField("图集", "Images").RoundedLg(),
 
 			fields.NewTable("基本属性", "Attributes", func() []contracts.Field {
 				return []contracts.Field{
@@ -96,6 +96,8 @@ func (this *Product) Fields(ctx *gin.Context, model interface{}) func() []interf
 					fields.NewTextField("销量", "SalesQty"),
 				}
 			}),
+
+			fields.NewRichTextField("描述", "Description"),
 		}
 	}
 }

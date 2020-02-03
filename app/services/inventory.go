@@ -201,3 +201,9 @@ func (this *InventoryService) FindById(ctx context.Context, id string) (inventor
 	}
 	return byId.Result.(*models.Inventory), nil
 }
+
+// 库存查询
+func (this *InventoryService) Search(ctx context.Context, opt *repositories.QueryOption) (inventories []*models.Inventory, err error) {
+	search := <-this.rep.Search(ctx, opt)
+	return search.Result, search.Error
+}

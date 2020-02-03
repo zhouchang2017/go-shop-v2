@@ -12,7 +12,7 @@ func NewImageField(name string, fieldName string, opts ...FieldOption) *Image {
 	}
 	options = append(options, opts...)
 	image := &Image{
-		File:NewFileField(name,fieldName,options...),
+		File: NewFileField(name, fieldName, options...),
 	}
 	image.Type = "image"
 	// 默认仅允许图片类型文件上传
@@ -25,7 +25,6 @@ func NewImageField(name string, fieldName string, opts ...FieldOption) *Image {
 	image.ShowDownload()
 	return image
 }
-
 
 // https://tailwindcss.com/docs/border-radius/#app
 // 圆角
@@ -44,7 +43,7 @@ func (this *Image) RoundedSm() *Image {
 	return this
 }
 
-func (this *Image) Rounded() *Image  {
+func (this *Image) Rounded() *Image {
 	this.Round = "rounded"
 	return this
 }
@@ -106,5 +105,11 @@ func (this *Image) Limit(max int64) *Image {
 // 设置最大上传尺寸
 func (this *Image) Size(size int64) *Image {
 	this.LimitMaxSize = &size
+	return this
+}
+
+// 上传后，只返回url链接
+func (this *Image) URL() *Image {
+	this.WithMeta("url", true)
 	return this
 }

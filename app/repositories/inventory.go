@@ -338,6 +338,73 @@ type QueryOption struct {
 	Status      []int8
 }
 
+type InventorySearchResult struct {
+	Result []*models.Inventory
+	Error  error
+}
+
+// 库存查询
+func (this *InventoryRep) Search(ctx context.Context, opt *QueryOption) <-chan InventorySearchResult {
+	result := make(chan InventorySearchResult)
+	go func() {
+		defer close(result)
+		filter := bson.M{}
+		if len(opt.Status) > 0 {
+			filter["status"] = bson.D{{"$in", opt.Status}}
+		}
+		if len(opt.Shops) > 0 {
+			filter["shop.id"] = bson.D{{"$in", opt.Shops}}
+		}
+
+		if len(opt.Brands) > 0 {
+			filter["item.product.brand.id"] = bson.D{{"$in", opt.Brands}}
+		}
+
+		if opt.ItemCode != "" {
+			filter["item.code"] = opt.ItemCode
+		}
+		if opt.ItemId != "" {
+			filter["item.id"] = opt.ItemId
+			delete(filter, "item.code")
+		}
+		if opt.ProductCode != "" {
+			filter["item.product.code"] = opt.ProductCode
+		}
+		if opt.ProductId != "" {
+			filter["item.product.id"] = opt.ProductId
+			delete(filter, "item.product.code")
+		}
+
+		if opt.Qty !=nil {
+			filter["qty"] = opt.Qty
+		}
+		// 位置搜索
+		if opt.Location != nil {
+			filter["shop.location"] = bson.M{
+				"$near":        opt.Location.GeoJSON(),
+				"$maxDistance": 1000,
+			}
+		}
+
+		cursor, err := this.Collection().Find(ctx, filter)
+
+		if err != nil {
+			result <- InventorySearchResult{Error: err}
+			return
+		}
+
+		var res []*models.Inventory
+		if err := cursor.All(ctx, &res); err != nil {
+			result <- InventorySearchResult{Error: err}
+			return
+		}
+
+		result <- InventorySearchResult{Error: nil, Result: res}
+
+	}()
+	return result
+}
+
 //func (q *QueryOption) SetStatus(status int8) {
 //	q.Status = &status
 //}

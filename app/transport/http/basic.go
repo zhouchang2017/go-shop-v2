@@ -9,9 +9,10 @@ func Register(app *gin.Engine) {
 
 	v1 := app.Group("v1")
 	indexController := &IndexController{
-		productSrv: services.MakeProductService(),
-		topicSrv:   services.MakeTopicService(),
-		articleSrv: services.MakeArticleService(),
+		productSrv:   services.MakeProductService(),
+		topicSrv:     services.MakeTopicService(),
+		articleSrv:   services.MakeArticleService(),
+		inventorySrv: services.MakeInventoryService(),
 	}
 
 	// 首页列表
@@ -22,6 +23,9 @@ func Register(app *gin.Engine) {
 
 	// 话题详情
 	v1.GET("/topics/:id", indexController.Topic)
+
+	// 产品详情
+	v1.GET("/products/:id", indexController.Product)
 }
 
 //

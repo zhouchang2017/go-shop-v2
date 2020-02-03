@@ -1,18 +1,21 @@
 package http
 
 import (
+	"fmt"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/gin-gonic/gin"
 	"go-shop-v2/app/services"
+	"go-shop-v2/app/usecases"
 	"go-shop-v2/pkg/request"
 	"math"
 	"sort"
 )
 
 type IndexController struct {
-	productSrv *services.ProductService
-	topicSrv   *services.TopicService
-	articleSrv *services.ArticleService
+	productSrv   *services.ProductService
+	topicSrv     *services.TopicService
+	articleSrv   *services.ArticleService
+	inventorySrv *services.InventoryService
 }
 
 type IndexMorph interface {
@@ -119,4 +122,51 @@ func (this *IndexController) Topic(ctx *gin.Context) {
 		spew.Dump(err)
 	}
 	Response(ctx, topic, 200)
+}
+
+// product detail
+func (this *IndexController) Product(ctx *gin.Context) {
+	id := ctx.Param("id")
+	product, err := usecases.ProductWithStock(ctx, id, this.productSrv, this.inventorySrv)
+	if err != nil {
+		// err
+		spew.Dump(err)
+	}
+
+	var items []map[string]interface{}
+	var images []string
+
+	for _, item := range product.Items {
+		items = append(items, map[string]interface{}{
+			"id":            item.GetID(),
+			"code":          item.Code,
+			"price":         item.Price,
+			"option_values": item.OptionValues,
+			"qty":           item.Qty,
+		})
+	}
+
+	for _, image := range product.Images {
+		images = append(images, fmt.Sprintf("%s/%s", image.Domain, image.Key))
+	}
+
+	productResponse := map[string]interface{}{
+		"id":              product.GetID(),
+		"name":            product.Name,
+		"code":            product.Code,
+		"brand":           product.Brand,
+		"category":        product.Category,
+		"attributes":      product.Attributes,
+		"options":         product.Options,
+		"items":           items,
+		"description":     product.Description,
+		"price":           product.Price,
+		"images":          images,
+		"total_sales_qty": product.TotalSalesQty + product.FakeSalesQty,
+		"on_sale":         product.OnSale,
+		"sort":            product.Sort,
+		"qty":             product.Qty,
+	}
+
+	Response(ctx, productResponse, 200)
 }

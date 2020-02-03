@@ -39,6 +39,10 @@ func (this *ProductService) FindByIdWithItems(ctx context.Context, id string) (p
 	return product, nil
 }
 
+func (this *ProductService) FindByIdWithItemsAndStock()  {
+
+}
+
 // 列表
 func (this *ProductService) Pagination(ctx context.Context, req *request.IndexRequest) (products []*models.Product, pagination response.Pagination, err error) {
 	results := <-this.rep.Pagination(ctx, req)

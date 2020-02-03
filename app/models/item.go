@@ -5,7 +5,6 @@ import (
 	"go-shop-v2/pkg/db/model"
 )
 
-
 type Item struct {
 	model.MongoModel `inline`
 	Code             string         `json:"code" bson:"code"`
@@ -13,6 +12,8 @@ type Item struct {
 	Price            int64          `json:"price,omitempty" bson:"price"`
 	OptionValues     []*OptionValue `json:"option_values" bson:"option_values" form"option_values" `
 	SalesQty         int64          `json:"sales_qty,omitempty" bson:"sales_qty" form"sales_qty" `
+	Qty              int64          `json:"qty" bson:"-"`
+	Inventories      []*Inventory   `json:"inventories,omitempty" bson:"-"`
 }
 
 // 关联简单SKU结构
