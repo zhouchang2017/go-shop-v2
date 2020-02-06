@@ -22,8 +22,9 @@ type IndexRequest struct {
 	Hidden         string          `json:"hidden" form:"hidden"`                   // 忽略字段
 	only           []string
 	hidden         []string
-	Filters        Filters `json:"filters" form:"filters"` // 筛选
-	query          map[string]interface{}                  // 自定义搜索
+	Filters        Filters                `json:"filters" form:"filters"` // 筛选
+	query          map[string]interface{} // 自定义搜索
+	projection     map[string]interface{} // 自定义projection
 }
 
 func (this *IndexRequest) SetSearchField(field string) {
@@ -70,6 +71,13 @@ func (this *IndexRequest) Sort() (bson.M, bool) {
 	return bson.M{"_id": -1}, true
 }
 
+func (this *IndexRequest) AppendProjection(key string,value interface{}) {
+	if this.projection == nil {
+		this.projection = map[string]interface{}{}
+	}
+	this.projection[key] = value
+}
+
 func (this *IndexRequest) Projection() (bson.M, bool) {
 	res := bson.M{}
 	for _, field := range this.GetOnly() {
@@ -77,6 +85,12 @@ func (this *IndexRequest) Projection() (bson.M, bool) {
 	}
 	for _, field := range this.getHidden() {
 		res[field] = 0
+	}
+
+	if this.projection != nil {
+		for key, value := range this.projection {
+			res[key] = value
+		}
 	}
 
 	return res, len(res) > 0

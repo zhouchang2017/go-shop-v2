@@ -2,6 +2,7 @@ package core
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"go-shop-v2/pkg/auth"
@@ -11,6 +12,7 @@ import (
 	"go-shop-v2/pkg/vue/contracts"
 	"net/http"
 	"reflect"
+	"strings"
 )
 
 func newHttpHandle(vue *Vue, router gin.IRouter) *httpHandle {
@@ -314,17 +316,19 @@ type resourceHttpHandle struct {
 
 func (this *resourceHttpHandle) exec(router gin.IRouter) {
 	this.router = router
-	this.resourceIndexHandle()         // 列表
-	this.resourceIndexApiHandle()      // 列表api
-	this.resourceDetailHandle()        // 详情
-	this.resourceDetailApiHandle()     // 详情api
-	this.resourceUpdateHandle()        // 更新
-	this.resourceCreateHandle()        // 创建
-	this.resourceCreationFieldHandle() // 创建字段
-	this.resourceUpdateFieldHandle()   // 更新字段
-	this.resourceDestroyHandle()       // 删除
-	this.resourceForceDestroyHandle()  // 销毁
-	this.resourceRestoreHandle()       // 还原
+	this.resourceIndexHandle()            // 列表
+	this.resourceIndexApiHandle()         // 列表api
+	this.resourceRelationsListHandle()    // 资源关系api
+	this.resourceRelationsResolveHandle() // 资源关系查询api
+	this.resourceDetailHandle()           // 详情
+	this.resourceDetailApiHandle()        // 详情api
+	this.resourceUpdateHandle()           // 更新
+	this.resourceCreateHandle()           // 创建
+	this.resourceCreationFieldHandle()    // 创建字段
+	this.resourceUpdateFieldHandle()      // 更新字段
+	this.resourceDestroyHandle()          // 删除
+	this.resourceForceDestroyHandle()     // 销毁
+	this.resourceRestoreHandle()          // 还原
 
 	this.resourceLensesHandle() // 聚合
 
@@ -387,6 +391,61 @@ func (this *resourceHttpHandle) resourceIndexHandle() {
 			c.JSON(http.StatusOK, gin.H{
 				"pagination": pagination,
 				"data":       indexResources,
+			})
+		})
+	}
+}
+
+// 资源relations list api
+func (this *resourceHttpHandle) resourceRelationsListHandle() {
+	if relationable, ok := this.resource.(contracts.ResourceRelations); ok {
+
+		this.router.GET(fmt.Sprintf("relations/%s/list", this.uriKey), func(c *gin.Context) {
+
+			// 处理函数
+			form := &request.IndexRequest{}
+			if err := c.ShouldBind(form); err != nil {
+				err2.ErrorEncoder(nil, err, c.Writer)
+				return
+			}
+
+			res, pagination, err := relationable.List(c, form)
+
+			if err != nil {
+				err2.ErrorEncoder(nil, err, c.Writer)
+				return
+			}
+
+			c.JSON(http.StatusOK, gin.H{
+				"pagination": pagination,
+				"data":       res,
+			})
+		})
+	}
+}
+
+// 资源relations resolve api
+func (this *resourceHttpHandle) resourceRelationsResolveHandle() {
+	if relationable, ok := this.resource.(contracts.ResourceRelations); ok {
+
+		this.router.GET(fmt.Sprintf("relations/%s/resolve", this.uriKey), func(c *gin.Context) {
+			ids := strings.Split(c.Query("ids"), ",")
+
+			// 处理函数
+			if len(ids) < 1 {
+				err2.ErrorEncoder(nil, errors.New("ids 参数不正确"), c.Writer)
+				return
+			}
+
+			res, err := relationable.Resolve(c, ids)
+
+			if err != nil {
+				err2.ErrorEncoder(nil, err, c.Writer)
+				return
+			}
+
+			c.JSON(http.StatusOK, gin.H{
+				"data": res,
 			})
 		})
 	}

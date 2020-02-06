@@ -18,6 +18,16 @@ type Product struct {
 	service *services.ProductService
 }
 
+// 实现关联关系 列表
+func (this *Product) List(ctx *gin.Context, req *request.IndexRequest) (data []contracts.RelationsOption, pagination response.Pagination, err error) {
+	return this.service.List(ctx, req)
+}
+
+// 实现关联关系 查询
+func (this *Product) Resolve(ctx *gin.Context, ids []string) (data []contracts.RelationsOption, err error) {
+	return this.service.RelationResolveIds(ctx, ids)
+}
+
 // 自定义更新页
 func (this *Product) UpdateComponent() contracts.Page {
 	return pages.NewProductUpdatePage()

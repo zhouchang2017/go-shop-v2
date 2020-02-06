@@ -2,11 +2,15 @@ package services
 
 import (
 	"context"
+	"fmt"
+	"github.com/davecgh/go-spew/spew"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
 	"go-shop-v2/pkg/qiniu"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
+	"go-shop-v2/pkg/vue/contracts"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 type ProductService struct {
@@ -39,8 +43,63 @@ func (this *ProductService) FindByIdWithItems(ctx context.Context, id string) (p
 	return product, nil
 }
 
-func (this *ProductService) FindByIdWithItemsAndStock()  {
+func (this *ProductService) FindByIdWithItemsAndStock() {
 
+}
+
+func (this *ProductService) List(ctx context.Context, req *request.IndexRequest) (products []contracts.RelationsOption, pagination response.Pagination, err error) {
+	req.SetSearchField("code")
+	req.AppendProjection("images", bson.M{"$slice": 1})
+	req.AppendProjection("_id", 1)
+	req.AppendProjection("name", 1)
+	req.AppendProjection("code", 1)
+	results := <-this.rep.Pagination(ctx, req)
+	if results.Error != nil {
+		err = results.Error
+		return
+	}
+	for _, product := range results.Result.([]*models.Product) {
+		var avatar string
+		if len(product.Images) == 1 {
+			avatar = fmt.Sprintf("%s/%s", product.Images[0].Domain, product.Images[0].Key)
+		}
+		products = append(products, contracts.RelationsOption{
+			Id:     product.GetID(),
+			Name:   product.Code,
+			Avatar: avatar,
+		})
+	}
+	pagination = results.Pagination
+	return
+}
+
+func (this *ProductService) FindByIds(ctx context.Context, ids []string) (products []*models.Product, err error) {
+	results := <-this.rep.FindByIds(ctx, ids...)
+	if results.Error != nil {
+		err = results.Error
+		return
+	}
+	spew.Dump(results)
+	return results.Result.([]*models.Product), nil
+}
+
+func (this *ProductService) RelationResolveIds(ctx context.Context, ids []string) (products []contracts.RelationsOption, err error) {
+	products2, err := this.FindByIds(ctx, ids)
+	if err != nil {
+		return
+	}
+	for _, product := range products2 {
+		var avatar string
+		if len(product.Images) > 0 {
+			avatar = fmt.Sprintf("%s/%s", product.Images[0].Domain, product.Images[0].Key)
+		}
+		products = append(products, contracts.RelationsOption{
+			Id:     product.GetID(),
+			Name:   product.Code,
+			Avatar: avatar,
+		})
+	}
+	return
 }
 
 // 列表

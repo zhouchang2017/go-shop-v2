@@ -80,6 +80,15 @@ type (
 		Pagination(ctx *gin.Context, req *request.IndexRequest) (res interface{}, pagination response.Pagination, err error)
 	}
 
+	// Relation
+	ResourceRelations interface {
+		Resource
+		// 资源列表
+		List(ctx *gin.Context, req *request.IndexRequest) (data []RelationsOption, pagination response.Pagination, err error)
+		// 查询资源
+		Resolve(ctx *gin.Context, ids []string) (data []RelationsOption, err error)
+	}
+
 	// 资源详情接口
 	ResourceShowable interface {
 		// 资源详情页方法
@@ -121,3 +130,9 @@ type (
 		CustomHttpHandle(router gin.IRouter)
 	}
 )
+
+type RelationsOption struct {
+	Id     string `json:"id"`
+	Name   string `json:"name"`
+	Avatar string `json:"avatar"`
+}

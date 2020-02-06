@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"github.com/davecgh/go-spew/spew"
 	"github.com/gin-gonic/gin"
 	"github.com/mitchellh/mapstructure"
 	"go-shop-v2/app/models"
@@ -33,6 +34,19 @@ func (a *Article) Store(ctx *gin.Context, data map[string]interface{}) (redirect
 	return core.CreatedRedirect(a, article.GetID()), nil
 }
 
+func (a *Article) Update(ctx *gin.Context, model interface{}, data map[string]interface{}) (redirect string, err error) {
+	option := services.ArticleOption{}
+	if err := mapstructure.Decode(data, &option); err != nil {
+		return "", err
+	}
+	article := model.(*models.Article)
+
+	spew.Dump(option)
+	article2, err := a.service.Update(ctx, article, option)
+
+	return core.UpdatedRedirect(a, article2.GetID()), nil
+}
+
 func (a *Article) Pagination(ctx *gin.Context, req *request.IndexRequest) (res interface{}, pagination response.Pagination, err error) {
 	return a.service.Pagination(ctx, req)
 }
@@ -50,9 +64,12 @@ func (a Article) Fields(ctx *gin.Context, model interface{}) func() []interface{
 		return []interface{}{
 			fields.NewIDField(),
 			fields.NewTextField("标题", "Title"),
-			fields.NewTextField("副标题", "ShortTitle"),
-			fields.NewImageField("图集", "Photos").Multiple().Limit(5).URL(),
+			fields.NewTextField("副标题", "ShortTitle").Textarea(),
+			fields.NewImageField("图集", "Photos").Multiple().Limit(5).Rounded().URL(),
 			fields.NewRichTextField("正文", "Content").UseQiniu(),
+			fields.NewTextField("权重", "Sort").Min(0).Max(9999).InputNumber(),
+			fields.NewRelationsField(&Product{}, "ProductId").WithName("关联产品").Searchable(),
+			fields.NewDateTime("更新时间", "UpdatedAt"),
 		}
 	}
 }

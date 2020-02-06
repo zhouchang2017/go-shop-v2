@@ -54,10 +54,11 @@ func (this *ArticleService) Count(ctx context.Context) int64 {
 // 表单结构
 type ArticleOption struct {
 	Title      string   `json:"title"`
-	ShortTitle string   `json:"short_title"`
+	ShortTitle string   `json:"short_title" mapstructure:"short_title"`
 	Photos     []string `json:"photos"`
 	Content    string   `json:"content"`
 	ProductId  string   `json:"product_id"`
+	Sort       int64    `json:"sort"`
 }
 
 // 创建文章
@@ -68,6 +69,7 @@ func (this *ArticleService) Create(ctx context.Context, opt ArticleOption) (arti
 		Photos:     opt.Photos,
 		Content:    opt.Content,
 		ProductId:  opt.ProductId,
+		Sort:       opt.Sort,
 	})
 
 	if created.Error != nil {
@@ -84,6 +86,7 @@ func (this *ArticleService) Update(ctx context.Context, model *models.Article, o
 	model.Photos = opt.Photos
 	model.Content = opt.Content
 	model.ProductId = opt.ProductId
+	model.Sort = opt.Sort
 	saved := <-this.rep.Save(ctx, model)
 	if saved.Error != nil {
 		return nil, saved.Error
