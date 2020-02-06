@@ -86,6 +86,10 @@ func (t *Topic) SetModel(model interface{}) {
 	t.model = model
 }
 
+func (order *Topic) Icon() string {
+	return "icons-hash-tag"
+}
+
 func NewTopicResource() *Topic {
 	return &Topic{model: &models.Topic{}, service: services.MakeTopicService()}
 }

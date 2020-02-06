@@ -89,3 +89,7 @@ func (a Article) Make(mode interface{}) contracts.Resource {
 func (a *Article) SetModel(model interface{}) {
 	a.model = model
 }
+
+func (order *Article) Icon() string {
+	return "icons-exclamation"
+}
