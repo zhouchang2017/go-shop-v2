@@ -57,7 +57,7 @@ type ArticleOption struct {
 	ShortTitle string   `json:"short_title" mapstructure:"short_title"`
 	Photos     []string `json:"photos"`
 	Content    string   `json:"content"`
-	ProductId  string   `json:"product_id"`
+	ProductId  string   `json:"product_id" mapstructure:"product_id"`
 	Sort       int64    `json:"sort"`
 }
 

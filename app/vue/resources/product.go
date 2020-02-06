@@ -25,7 +25,17 @@ func (this *Product) List(ctx *gin.Context, req *request.IndexRequest) (data []c
 
 // 实现关联关系 查询
 func (this *Product) Resolve(ctx *gin.Context, ids []string) (data []contracts.RelationsOption, err error) {
-	return this.service.RelationResolveIds(ctx, ids)
+	products, err := this.service.RelationResolveIds(ctx, ids)
+	if err != nil {
+		return
+	}
+
+	// TODO 访问权限
+	//for _, product := range products {
+	//	product.AuthorizedToView = core.AuthorizedToView(ctx, this)
+	//}
+
+	return products,nil
 }
 
 // 自定义更新页

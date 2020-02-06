@@ -21,6 +21,10 @@ func NewPanel(name string, fields ...contracts.Field) *Panel {
 	return p
 }
 
+func (p *Panel) SetName(name string) {
+	p.Name = name
+}
+
 func (p *Panel) SetWithoutPending(flag bool) *Panel {
 	p.WithoutPending = flag
 	return p

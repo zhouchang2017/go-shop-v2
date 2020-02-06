@@ -1,7 +1,6 @@
 package resources
 
 import (
-	"github.com/davecgh/go-spew/spew"
 	"github.com/gin-gonic/gin"
 	"github.com/mitchellh/mapstructure"
 	"go-shop-v2/app/models"
@@ -40,9 +39,11 @@ func (a *Article) Update(ctx *gin.Context, model interface{}, data map[string]in
 		return "", err
 	}
 	article := model.(*models.Article)
-
-	spew.Dump(option)
 	article2, err := a.service.Update(ctx, article, option)
+
+	if err != nil {
+		return "", err
+	}
 
 	return core.UpdatedRedirect(a, article2.GetID()), nil
 }

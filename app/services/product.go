@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"fmt"
-	"github.com/davecgh/go-spew/spew"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
 	"go-shop-v2/pkg/qiniu"
@@ -16,6 +15,7 @@ import (
 type ProductService struct {
 	rep         *repositories.ProductRep
 	ItemService *ItemService
+
 }
 
 func NewProductService(rep *repositories.ProductRep) *ProductService {
@@ -79,7 +79,6 @@ func (this *ProductService) FindByIds(ctx context.Context, ids []string) (produc
 		err = results.Error
 		return
 	}
-	spew.Dump(results)
 	return results.Result.([]*models.Product), nil
 }
 

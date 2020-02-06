@@ -54,10 +54,11 @@ func (this *TopicService) SimplePagination(ctx context.Context, page int64, perP
 // 表单结构
 type TopicOption struct {
 	Title      string   `json:"title"`
-	ShortTitle string   `json:"short_title"`
+	ShortTitle string   `json:"short_title" mapstructure:"short_title"`
 	Avatar     string   `json:"avatar"`
 	Content    string   `json:"content"`
-	ProductIds []string `json:"product_ids"`
+	ProductIds []string `json:"product_ids" mapstructure:"product_ids"`
+	Sort       int64    `json:"sort"`
 }
 
 // 创建话题
@@ -68,6 +69,7 @@ func (this *TopicService) Create(ctx context.Context, opt TopicOption) (topic *m
 		Avatar:     opt.Avatar,
 		Content:    opt.Content,
 		ProductIds: opt.ProductIds,
+		Sort:       opt.Sort,
 	})
 
 	if created.Error != nil {
@@ -78,12 +80,13 @@ func (this *TopicService) Create(ctx context.Context, opt TopicOption) (topic *m
 }
 
 // 更新话题
-func (this *TopicService) Update(ctx context.Context, model *models.Topic, opt TopicOption) (article *models.Topic, err error) {
+func (this *TopicService) Update(ctx context.Context, model *models.Topic, opt TopicOption) (topic *models.Topic, err error) {
 	model.Title = opt.Title
 	model.ShortTitle = opt.ShortTitle
 	model.Avatar = opt.Avatar
 	model.Content = opt.Content
 	model.ProductIds = opt.ProductIds
+	model.Sort = opt.Sort
 	saved := <-this.rep.Save(ctx, model)
 	if saved.Error != nil {
 		return nil, saved.Error
