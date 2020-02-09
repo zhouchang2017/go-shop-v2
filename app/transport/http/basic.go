@@ -26,6 +26,9 @@ func Register(app *gin.Engine) {
 
 	// 产品详情
 	v1.GET("/products/:id", indexController.Product)
+
+	// 淘宝详情接口
+	v1.GET("/taobao/:id", indexController.TaobaoDetail)
 }
 
 //

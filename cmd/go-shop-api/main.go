@@ -10,6 +10,7 @@ import (
 	"go-shop-v2/config"
 	"go-shop-v2/pkg/db/mongodb"
 	"go-shop-v2/pkg/message"
+	"go-shop-v2/pkg/qiniu"
 	"log"
 	"net/http"
 	"os"
@@ -53,6 +54,7 @@ func main()  {
 	mq := message.New(configs.RabbitMQUri())
 	defer mq.Close()
 	// 七牛云存储
+	qiniu.NewQiniu(configs.QiniuConfig())
 	// newQiniu := qiniu.NewQiniu(configs.QiniuConfig())
 	// mongodb
 	mongodb.Connect(configs.MongodbConfig())

@@ -4,13 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/davecgh/go-spew/spew"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 )
 
 func ErrorEncoder(_ context.Context, err error, w http.ResponseWriter) {
-	spew.Dump(err)
 	convert := Convert(err)
 	w.WriteHeader(err2code(convert))
 	json.NewEncoder(w).Encode(convert)
@@ -25,9 +23,9 @@ var Err401 = NewFromCode(http.StatusUnauthorized)
 var Err422 = NewFromCode(http.StatusUnprocessableEntity)
 
 type err struct {
-	Message string `json:"message,omitempty"`
-	Code    int    `json:"code,omitempty"`
-	Data interface{} `json:"errors,omitempty"`
+	Message string      `json:"message,omitempty"`
+	Code    int         `json:"code,omitempty"`
+	Data    interface{} `json:"errors,omitempty"`
 }
 
 func (e err) String() string {

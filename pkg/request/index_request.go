@@ -23,6 +23,7 @@ type IndexRequest struct {
 	only           []string
 	hidden         []string
 	Filters        Filters                `json:"filters" form:"filters"` // 筛选
+	Ids            *string                 `json:"ids" form:"ids"`         // filter by ids,Split ","
 	query          map[string]interface{} // 自定义搜索
 	projection     map[string]interface{} // 自定义projection
 }
@@ -71,7 +72,7 @@ func (this *IndexRequest) Sort() (bson.M, bool) {
 	return bson.M{"_id": -1}, true
 }
 
-func (this *IndexRequest) AppendProjection(key string,value interface{}) {
+func (this *IndexRequest) AppendProjection(key string, value interface{}) {
 	if this.projection == nil {
 		this.projection = map[string]interface{}{}
 	}

@@ -17,20 +17,26 @@ import (
 var once sync.Once
 var instance *Qiniu
 
+func GetQiniu() *Qiniu {
+	return instance
+}
+
 type Qiniu struct {
-	accessKey string
-	secretKey string
-	bucket    string
-	domain    string
+	accessKey        string
+	secretKey        string
+	bucket           string
+	domain           string
+	fileUploadAction string
 }
 
 func NewQiniu(config Config) *Qiniu {
 	once.Do(func() {
 		instance = &Qiniu{
-			accessKey: config.QiniuAccessKey,
-			secretKey: config.QiniuSecretKey,
-			bucket:    config.Bucket,
-			domain:    config.QiniuDomain,
+			accessKey:        config.QiniuAccessKey,
+			secretKey:        config.QiniuSecretKey,
+			bucket:           config.Bucket,
+			domain:           config.QiniuDomain,
+			fileUploadAction: config.FileUploadAction,
 		}
 	})
 	return instance
@@ -38,6 +44,10 @@ func NewQiniu(config Config) *Qiniu {
 
 func (this *Qiniu) mac() *qbox.Mac {
 	return qbox.NewMac(this.accessKey, this.secretKey)
+}
+
+func (this *Qiniu) FileUploadAction() string {
+	return this.fileUploadAction
 }
 
 func (this *Qiniu) BucketManager() *storage.BucketManager {
@@ -63,6 +73,20 @@ func (this *Qiniu) Token(ctx context.Context) (token string, err error) {
 // 辅助函数
 func Token(ctx context.Context) (token string, err error) {
 	return instance.Token(ctx)
+}
+
+func (this *Qiniu) PutByUrl(ctx context.Context, url string, key string) (res *Resource, err error) {
+	fetchRet, err := this.BucketManager().Fetch(url, this.bucket, key)
+	if err != nil {
+		return nil, err
+	}
+	return &Resource{
+		Key:      fetchRet.Key,
+		Bucket:   this.bucket,
+		Domain:   this.domain,
+		Drive:    this.Name(),
+		MimeType: fetchRet.MimeType,
+	}, nil
 }
 
 func (this *Qiniu) Put(ctx context.Context, key string, file *os.File) (res *Resource, err error) {

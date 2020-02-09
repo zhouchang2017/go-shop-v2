@@ -14,8 +14,6 @@ func init() {
 		Lng: 112.969625,
 		Lat: 28.199554,
 	}
-	// 文件默认上传地址
-	fields.DefaultFileUploadAction = "https://upload-z2.qiniup.com"
 }
 
 var Config *config

@@ -1,11 +1,14 @@
 package http
 
 import (
+	"errors"
 	"fmt"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/gin-gonic/gin"
 	"go-shop-v2/app/services"
+	"go-shop-v2/app/tb"
 	"go-shop-v2/app/usecases"
+	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/request"
 	"math"
 	"sort"
@@ -44,6 +47,8 @@ func (this *IndexController) Index(ctx *gin.Context) {
 		// error handle
 		spew.Dump(err)
 	}
+
+	form.AppendFilter("on_sale", true)
 
 	var data dataSlice
 
@@ -169,4 +174,67 @@ func (this *IndexController) Product(ctx *gin.Context) {
 	}
 
 	Response(ctx, productResponse, 200)
+}
+
+type taobaoResponse struct {
+	Data *tbResponseBody `json:"data"`
+}
+
+type tbResponseBody struct {
+	//ApiStack []tbApiStackItem       `json:"apiStack"`
+	Item     tbResponseBodyItem     `json:"item"`
+	MockData string                 `json:"mockData,omitempty"`
+	Data     map[string]interface{} `json:"data,omitempty"`
+	Props    interface{}            `json:"props"`
+	PropsCut string                 `json:"propsCut"`
+	SkuBase  skuBase                `json:"skuBase"`
+}
+
+type tbApiStackItem map[string]interface{}
+
+type skuBase struct {
+	Props []tbSkuBaseItem `json:"props"`
+}
+
+type tbSkuBaseItem struct {
+	Name   string               `json:"name"`
+	Pid    string               `json:"pid"`
+	Values []tbSkuBaseItemValue `json:"values"`
+}
+
+type tbSkuBaseItemValue struct {
+	Name string `json:"name"`
+	Vid  string `json:"vid"`
+}
+
+type tbResponseBodyItem struct {
+	BrandValueId    string   `json:"brandValueId"`
+	CartUrl         string   `json:"cartUrl"`
+	CategoryId      string   `json:"categoryId"`
+	CommentCount    string   `json:"commentCount"`
+	H5moduleDescUrl string   `json:"h5moduleDescUrl"`
+	Images          []string `json:"images"`
+	ItemId          string   `json:"itemId"`
+	Title           string   `json:"title"`
+}
+
+// test taobao product detail api
+func (this *IndexController) TaobaoDetail(ctx *gin.Context) {
+	id := ctx.Param("id")
+	if id == "" {
+		// err
+		err2.ErrorEncoder(ctx, errors.New("id 参数缺少"), ctx.Writer)
+		return
+	}
+
+	service := &tb.TaobaoSdkService{}
+	data, err := service.Detail(id)
+
+	if err != nil {
+		// err
+		err2.ErrorEncoder(ctx, err, ctx.Writer)
+		return
+	}
+
+	ctx.JSON(200, data)
 }

@@ -11,6 +11,7 @@ import (
 	"go-shop-v2/pkg/response"
 	"go-shop-v2/pkg/utils"
 	"log"
+	"strings"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -264,6 +265,20 @@ func (this *mongoRep) Pagination(ctx context.Context, req *request.IndexRequest)
 		// 自定义过滤
 		for key, value := range req.Query() {
 			filter[key] = value
+		}
+		// filter ids
+		if req.Ids != nil {
+			var objIds []primitive.ObjectID
+			for _, id := range strings.Split(*req.Ids, ",") {
+				if ids, err := primitive.ObjectIDFromHex(id); err == nil {
+					objIds = append(objIds, ids)
+				}
+			}
+			if len(objIds) > 0 {
+				filter["_id"] = bson.M{"$in": objIds}
+			} else {
+				filter["_id"] = bson.M{"$in": bson.A{}}
+			}
 		}
 
 		var total int64

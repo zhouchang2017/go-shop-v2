@@ -273,7 +273,10 @@ func (this *httpHandle) resourcesConfigHttpHandle() {
 			info["title"] = warp.resource.Title()
 			res = append(res, info)
 		}
-		c.JSON(http.StatusOK, res)
+		c.JSON(http.StatusOK, gin.H{
+			"resources": res,
+			"config":       this.vue.config,
+		})
 	})
 }
 

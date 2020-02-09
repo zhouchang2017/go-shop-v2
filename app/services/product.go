@@ -15,7 +15,6 @@ import (
 type ProductService struct {
 	rep         *repositories.ProductRep
 	ItemService *ItemService
-
 }
 
 func NewProductService(rep *repositories.ProductRep) *ProductService {
@@ -124,6 +123,7 @@ type ProductCreateOption struct {
 	FakeSalesQty int64                      `json:"fake_sales_qty" form:"fake_sales_qty"`
 	Images       []*qiniu.Resource          `json:"images" form:"images"`
 	OnSale       bool                       `json:"on_sale" form:"on_sale"`
+	Sort         int64                      `json:"sort" form:"sort"`
 }
 
 // 创建

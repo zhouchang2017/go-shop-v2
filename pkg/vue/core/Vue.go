@@ -22,6 +22,7 @@ type Vue struct {
 	httpHandle       *httpHandle
 	warps            map[string]*warp
 	customHttpHandle []func(router gin.IRouter)
+	config           map[string]interface{}
 }
 
 func New(port int64) *Vue {
@@ -33,6 +34,14 @@ func New(port int64) *Vue {
 		warps:  map[string]*warp{},
 		cards:  map[string]contracts.Card{},
 	}
+}
+
+func (this *Vue) WithConfig(key string, value interface{}) *Vue {
+	if this.config == nil {
+		this.config = map[string]interface{}{}
+	}
+	this.config[key] = value
+	return this
 }
 
 // 处理跨域请求,支持options访问

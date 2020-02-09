@@ -1,10 +1,13 @@
 package resources
 
 import (
+	"errors"
 	"github.com/gin-gonic/gin"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/services"
+	"go-shop-v2/app/tb"
 	"go-shop-v2/app/vue/pages"
+	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"go-shop-v2/pkg/vue/contracts"
@@ -35,7 +38,7 @@ func (this *Product) Resolve(ctx *gin.Context, ids []string) (data []contracts.R
 	//	product.AuthorizedToView = core.AuthorizedToView(ctx, this)
 	//}
 
-	return products,nil
+	return products, nil
 }
 
 // 自定义更新页
@@ -56,6 +59,27 @@ func (this *Product) Pagination(ctx *gin.Context, req *request.IndexRequest) (re
 // 实现详情页api
 func (this *Product) Show(ctx *gin.Context, id string) (res interface{}, err error) {
 	return this.service.FindByIdWithItems(ctx, id)
+}
+
+// 自定义api
+func (this *Product) CustomHttpHandle(router gin.IRouter) {
+	service := &tb.TaobaoSdkService{}
+	router.GET("taobao/products/:id", func(ctx *gin.Context) {
+		id := ctx.Param("id")
+		if id == "" {
+			// err
+			err2.ErrorEncoder(ctx, errors.New("id 参数缺少"), ctx.Writer)
+			return
+		}
+		data, err := service.Detail(id)
+		if err != nil {
+			// err
+			err2.ErrorEncoder(ctx, err, ctx.Writer)
+			return
+		}
+
+		ctx.JSON(200, data)
+	})
 }
 
 func (this *Product) DisplayInNavigation(ctx *gin.Context, user interface{}) bool {
@@ -118,6 +142,12 @@ func (this *Product) Fields(ctx *gin.Context, model interface{}) func() []interf
 			}),
 
 			fields.NewRichTextField("描述", "Description"),
+			fields.NewTextField("权重", "Sort").Min(0).Max(9999).InputNumber(),
+			fields.NewTextField("虚拟销量", "FakeSalesQty", fields.SetShowOnIndex(false)),
+			fields.NewStatusField("是否可售", "OnSale").WithOptions([]*fields.StatusOption{
+				fields.NewStatusOption("上架", true).Success(),
+				fields.NewStatusOption("下架", false).Error(),
+			}),
 		}
 	}
 }

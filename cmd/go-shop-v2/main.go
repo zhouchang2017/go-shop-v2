@@ -14,6 +14,7 @@ import (
 	"go-shop-v2/pkg/message"
 	"go-shop-v2/pkg/qiniu"
 	"go-shop-v2/pkg/vue/core"
+	"go-shop-v2/pkg/vue/fields"
 	"log"
 	"os"
 	"os/signal"
@@ -55,6 +56,9 @@ func main() {
 	defer mq.Close()
 	// 七牛云存储
 	newQiniu := qiniu.NewQiniu(configs.QiniuConfig())
+
+	fields.DefaultFileUploadAction = newQiniu.FileUploadAction()
+
 	// mongodb
 	mongoConnect := mongodb.Connect(configs.MongodbConfig())
 	defer mongodb.Close()
@@ -80,6 +84,8 @@ func main() {
 	vue.SetGuard("admin")
 	// 注册七牛api
 	vue.RegisterCustomHttpHandler(newQiniu.HttpHandle)
+	// 注册全局前端配置
+	vue.WithConfig("qiniu_upload_action", newQiniu.FileUploadAction())
 	// vue相关启动项
 	vue2.Boot(vue)
 	// 启动vue后台组件框架
