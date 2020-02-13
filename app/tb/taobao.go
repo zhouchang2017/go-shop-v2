@@ -229,10 +229,7 @@ func (this *TaobaoSdkService) Detail(id string) (data *models.Product, err error
 		var options []*models.ProductOption
 		if res.Data.SkuBase != nil {
 			for _, prop := range res.Data.SkuBase.Props {
-				option := &models.ProductOption{
-					Name: prop.Name,
-				}
-
+				option := models.NewProductOption(prop.Name)
 				for _, value := range prop.Values {
 					option.AddValues(option.NewValue(value.Name, value.Vid))
 				}

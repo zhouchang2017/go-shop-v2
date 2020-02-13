@@ -2,17 +2,23 @@ package resources
 
 import (
 	"errors"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/gin-gonic/gin"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/services"
 	"go-shop-v2/app/tb"
 	"go-shop-v2/app/vue/pages"
 	err2 "go-shop-v2/pkg/err"
+	"go-shop-v2/pkg/qiniu"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
+	"go-shop-v2/pkg/utils"
 	"go-shop-v2/pkg/vue/contracts"
 	"go-shop-v2/pkg/vue/core"
 	"go-shop-v2/pkg/vue/fields"
+	"regexp"
+	"strings"
+	"sync"
 )
 
 type Product struct {
@@ -53,6 +59,7 @@ func (this *Product) CreationComponent() contracts.Page {
 
 // 实现列表页api
 func (this *Product) Pagination(ctx *gin.Context, req *request.IndexRequest) (res interface{}, pagination response.Pagination, err error) {
+	req.SetSearchField("code")
 	return this.service.Pagination(ctx, req)
 }
 
@@ -60,6 +67,11 @@ func (this *Product) Pagination(ctx *gin.Context, req *request.IndexRequest) (re
 func (this *Product) Show(ctx *gin.Context, id string) (res interface{}, err error) {
 	return this.service.FindByIdWithItems(ctx, id)
 }
+
+// 正则匹配富文本img src地址
+var imgRE = regexp.MustCompile(`<img[^>]+\bsrc=["']([^"']+)["']`)
+
+var paserCache = map[string]interface{}{}
 
 // 自定义api
 func (this *Product) CustomHttpHandle(router gin.IRouter) {
@@ -80,6 +92,76 @@ func (this *Product) CustomHttpHandle(router gin.IRouter) {
 
 		ctx.JSON(200, data)
 	})
+
+	qiniuService := qiniu.GetQiniu()
+	// 第三方外部图片转存七牛
+	router.POST("taobao/products/parse-url", func(ctx *gin.Context) {
+		var form parseUrlForm
+		if err := ctx.ShouldBind(&form); err != nil {
+			err2.ErrorEncoder(ctx, err, ctx.Writer)
+			return
+		}
+
+		// TODO 通过id 创建 ttl 缓存
+		// https://github.com/patrickmn/go-cache
+
+		if res, ok := paserCache[form.Id]; ok {
+			ctx.JSON(200, res)
+			return
+		}
+
+		var images []*qiniu.Resource
+		var description = form.Description
+		for _, image := range form.Images {
+			res, err := qiniuService.PutByUrl(ctx, image, utils.RandomString(32))
+			if err == nil {
+				images = append(images, res)
+			}
+		}
+
+		submatch := imgRE.FindAllStringSubmatch(description, -1)
+
+		matchImages := sync.Map{}
+		//i := sync.Map{}
+		spew.Dump(submatch)
+		wg := sync.WaitGroup{}
+		spew.Dump(wg)
+		for _, match := range submatch {
+			wg.Add(1)
+			go func(ma []string) {
+				if len(ma) >= 2 {
+					res, err := qiniuService.PutByUrl(ctx, ma[1], utils.RandomString(32))
+					if err == nil {
+						matchImages.Store(ma[1], res.PreviewUrl())
+					}
+				}
+				wg.Done()
+			}(match)
+		}
+
+		wg.Wait()
+		spew.Dump(matchImages)
+		matchImages.Range(func(key, value interface{}) bool {
+			description = strings.ReplaceAll(description, key.(string), value.(string))
+			return true
+		})
+
+		paserCache[form.Id] = map[string]interface{}{
+			"images":      images,
+			"description": description,
+		}
+
+		ctx.JSON(200, gin.H{
+			"images":      images,
+			"description": description,
+		})
+	})
+}
+
+type parseUrlForm struct {
+	Id          string   `json:"id"`
+	Images      []string `json:"images"`
+	Description string   `json:"description"`
 }
 
 func (this *Product) DisplayInNavigation(ctx *gin.Context, user interface{}) bool {
@@ -110,7 +192,7 @@ func (this *Product) Fields(ctx *gin.Context, model interface{}) func() []interf
 			fields.NewTextField("商品名称", "Name"),
 			fields.NewTextField("品牌", "Brand.Name"),
 			fields.NewTextField("类目", "Category.Name"),
-			fields.NewTextField("价格", "Price"),
+			fields.NewCurrencyField("价格", "Price"),
 			fields.NewTextField("销量", "TotalSalesQty"),
 
 			fields.NewImageField("图集", "Images").RoundedLg(),
@@ -135,7 +217,7 @@ func (this *Product) Fields(ctx *gin.Context, model interface{}) func() []interf
 				return []contracts.Field{
 					fields.NewIDField(),
 					fields.NewTextField("编码", "Code"),
-					fields.NewTextField("价格", "Price"),
+					fields.NewCurrencyField("价格", "Price"),
 					fields.NewLabelsFields("销售属性", "OptionValues").Label("value").Tooltip("code"),
 					fields.NewTextField("销量", "SalesQty"),
 				}

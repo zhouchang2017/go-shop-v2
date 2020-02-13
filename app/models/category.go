@@ -29,6 +29,7 @@ type ProductOption struct {
 	Values []*OptionValue `json:"values"`
 }
 
+
 func (this *ProductOption) NewValue(value, code string) *OptionValue {
 	return &OptionValue{
 		Code:  code,
