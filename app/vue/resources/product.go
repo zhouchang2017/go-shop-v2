@@ -200,7 +200,7 @@ func (this *Product) Fields(ctx *gin.Context, model interface{}) func() []interf
 			fields.NewTable("基本属性", "Attributes", func() []contracts.Field {
 				return []contracts.Field{
 					fields.NewTextField("属性名", "Name"),
-					fields.NewTextField("属性值", "Value"),
+					fields.NewTextField("属性值", "Name"),
 				}
 			}),
 
@@ -208,8 +208,9 @@ func (this *Product) Fields(ctx *gin.Context, model interface{}) func() []interf
 				return []contracts.Field{
 					fields.NewTextField("ID", "Id"),
 					fields.NewTextField("属性名", "Name"),
+					//fields.NewStatusField("")
 					fields.NewTextField("权重", "Sort"),
-					fields.NewLabelsFields("属性值", "Values").Label("value").Tooltip("code"),
+					fields.NewLabelsFields("属性值", "Values").Label("name"),
 				}
 			}),
 
@@ -218,7 +219,7 @@ func (this *Product) Fields(ctx *gin.Context, model interface{}) func() []interf
 					fields.NewIDField(),
 					fields.NewTextField("编码", "Code"),
 					fields.NewCurrencyField("价格", "Price"),
-					fields.NewLabelsFields("销售属性", "OptionValues").Label("value").Tooltip("code"),
+					fields.NewLabelsFields("销售属性", "OptionValues").Label("name"),
 					fields.NewTextField("销量", "SalesQty"),
 				}
 			}),

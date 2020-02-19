@@ -85,7 +85,7 @@ func (this *Inventory) Fields(ctx *gin.Context, model interface{}) func() []inte
 				fields.NewTable("销售属性", "Item.OptionValues", func() []contracts.Field {
 					return []contracts.Field{
 						fields.NewTextField("编码", "Code"),
-						fields.NewTextField("值", "Value"),
+						fields.NewTextField("值", "Name"),
 					}
 				}),
 			),

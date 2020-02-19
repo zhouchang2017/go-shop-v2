@@ -83,3 +83,18 @@ func TestIndexController_TaobaoDetail(t *testing.T) {
 	spew.Dump(desc)
 
 }
+
+func TestTaobaoShortUrl(t *testing.T)  {
+	uri:= "https://m.tb.cn/h.VX7dGft?sm=3d0625"
+	resp, err := http.Get(uri)
+	if err!=nil {
+		t.Fatal(err)
+	}
+
+	bytes, err := ioutil.ReadAll(resp.Body)
+	if err!=nil {
+		t.Fatal(err)
+	}
+	spew.Dump(string(bytes))
+
+}

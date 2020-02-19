@@ -64,7 +64,7 @@ func (*InventoryLog) Fields(ctx *gin.Context, model interface{}) func() []interf
 			fields.NewIDField(),
 			fields.NewTextField("Before Qty", "BeforeQty"),
 			fields.NewTextField("After Qty", "AfterQty"),
-			fields.NewTextField("数量", "Value"),
+			fields.NewTextField("数量", "Name"),
 			fields.NewTextField("操作用户", "User.Nickname"),
 			fields.NewDateTime("操作时间", "UpdatedAt"),
 		}

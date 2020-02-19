@@ -28,14 +28,14 @@ func (this *CategoryService) Pagination(ctx context.Context, req *request.IndexR
 
 type CategoryCreateOption struct {
 	Name    string               `json:"name" form:"name" binding:"required"`
-	Options []CategoryOptionForm `json:"options"`
 }
 
 type CategoryOptionForm struct {
-	Id     string             `json:"id"`
-	Name   string             `json:"name" form:"name"`
-	Sort   int64              `json:"sort" form:"sort"`
-	Values []*optionValueForm `json:"values" form:"values"`
+	Id        string             `json:"id"`
+	Name      string             `json:"name" form:"name"`
+	Sort      int64              `json:"sort" form:"sort"`
+	Thumbnail bool               `json:"thumbnail form:"thumbnail"`
+	Values    []*optionValueForm `json:"values" form:"values"`
 }
 
 type optionValueForm struct {
@@ -47,21 +47,21 @@ type optionValueForm struct {
 func (this *CategoryService) Create(ctx context.Context, opt CategoryCreateOption) (category *models.Category, err error) {
 	newCategory := models.NewCategory(opt.Name)
 
-	productOptions := []*models.ProductOption{}
-	for _, option := range opt.Options {
-		productOption := models.NewProductOption(option.Name)
-		productOption.Sort = option.Sort
-
-		values := []*models.OptionValue{}
-		for _, value := range option.Values {
-			values = append(values, productOption.NewValue(value.Value, value.Code))
-		}
-		productOption.Values = values
-
-		productOptions = append(productOptions, productOption)
-	}
-
-	newCategory.Options = productOptions
+	//productOptions := []*models.ProductOption{}
+	//for _, option := range opt.Options {
+	//	productOption := models.NewProductOption(option.Name)
+	//	productOption.Sort = option.Sort
+	//	productOption.Thumbnail = option.Thumbnail
+	//	values := []*models.OptionValue{}
+	//	for _, value := range option.Values {
+	//		values = append(values, productOption.NewValue(value.Value, value.Code))
+	//	}
+	//	productOption.Values = values
+	//
+	//	productOptions = append(productOptions, productOption)
+	//}
+	//
+	//newCategory.Options = productOptions
 
 	created := <-this.rep.Create(ctx, newCategory)
 	if created.Error != nil {
@@ -75,25 +75,26 @@ func (this *CategoryService) Create(ctx context.Context, opt CategoryCreateOptio
 func (this *CategoryService) Update(ctx context.Context, model *models.Category, opt CategoryCreateOption) (category *models.Category, err error) {
 	model.Name = opt.Name
 
-	productOptions := []*models.ProductOption{}
-	for _, option := range opt.Options {
-		var productOption *models.ProductOption
-		if option.Id != "" {
-			productOption = models.MakeProductOption(option.Id, option.Name, option.Sort)
-		} else {
-			productOption = models.NewProductOption(option.Name)
-			productOption.Sort = option.Sort
-		}
-
-		values := []*models.OptionValue{}
-		for _, value := range option.Values {
-			values = append(values, productOption.NewValue(value.Value, value.Code))
-		}
-		productOption.Values = values
-
-		productOptions = append(productOptions, productOption)
-	}
-	model.Options = productOptions
+	//productOptions := []*models.ProductOption{}
+	//for _, option := range opt.Options {
+	//	var productOption *models.ProductOption
+	//	if option.Id != "" {
+	//		productOption = models.MakeProductOption(option.Id, option.Name, option.Sort)
+	//	} else {
+	//		productOption = models.NewProductOption(option.Name)
+	//		productOption.Sort = option.Sort
+	//	}
+	//	productOption.Thumbnail = option.Thumbnail
+	//
+	//	values := []*models.OptionValue{}
+	//	for _, value := range option.Values {
+	//		values = append(values, productOption.NewValue(value.Value, value.Code))
+	//	}
+	//	productOption.Values = values
+	//
+	//	productOptions = append(productOptions, productOption)
+	//}
+	//model.Options = productOptions
 
 	saved := <-this.rep.Save(ctx, model)
 

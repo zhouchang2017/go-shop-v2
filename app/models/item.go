@@ -40,7 +40,7 @@ func (this Item) ToAssociated() *AssociatedItem {
 func (this *Item) OptionValueString() string {
 	bufferString := bytes.NewBufferString("")
 	for _, opt := range this.OptionValues {
-		bufferString.WriteString(opt.Value)
+		bufferString.WriteString(opt.Name)
 	}
 	return bufferString.String()
 }

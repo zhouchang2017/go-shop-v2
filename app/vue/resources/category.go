@@ -5,7 +5,6 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/services"
-	fields2 "go-shop-v2/app/vue/fields"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"go-shop-v2/pkg/vue/contracts"
@@ -85,7 +84,7 @@ func (c *Category) Fields(ctx *gin.Context, model interface{}) func() []interfac
 			fields.NewDateTime("创建时间", "CreatedAt"),
 			fields.NewDateTime("更新时间", "UpdatedAt"),
 			// 自定义字段
-			fields2.NewCategoryOptionField("销售属性", "Options"),
+			// fields2.NewCategoryOptionField("销售属性", "Options"),
 		}
 	}
 }
@@ -108,7 +107,7 @@ func NewCategoryResource() *Category {
 //		option.Sort = form.Sort
 //		var values []*models.OptionValue
 //		for _, value := range form.Values {
-//			values = append(values, option.NewValue(value.Value, value.Code))
+//			values = append(values, option.NewValue(value.Name, value.Code))
 //		}
 //		option.AddValues(values...)
 //		err = this.rep.AddOption(c, c.Param(singularLabel), option)
@@ -132,7 +131,7 @@ func NewCategoryResource() *Category {
 //		option := models.MakeProductOption(c.Param("optionId"), form.Name, form.Sort)
 //		values := []*models.OptionValue{}
 //		for _, value := range form.Values {
-//			values = append(values, option.NewValue(value.Value, value.Code))
+//			values = append(values, option.NewValue(value.Name, value.Code))
 //		}
 //		option.AddValues(values...)
 //		this.rep.UpdateOption(c, c.Param(singularLabel), option)

@@ -176,6 +176,12 @@ func (this *IndexController) Product(ctx *gin.Context) {
 	Response(ctx, productResponse, 200)
 }
 
+// product 简约接口，获取 主图，标题，价格，等
+func (this *IndexController) Products(ctx *gin.Context)  {
+	//id := ctx.Query("ids")
+
+}
+
 type taobaoResponse struct {
 	Data *tbResponseBody `json:"data"`
 }

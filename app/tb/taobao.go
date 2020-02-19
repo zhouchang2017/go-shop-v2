@@ -3,6 +3,7 @@ package tb
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"go-shop-v2/app/models"
 	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/utils"
@@ -11,6 +12,9 @@ import (
 	"net/url"
 	"reflect"
 	"regexp"
+	"sort"
+	"strings"
+	"sync"
 )
 
 type taobaoResponse struct {
@@ -19,12 +23,174 @@ type taobaoResponse struct {
 
 type tbResponseBody struct {
 	//ApiStack []tbApiStackItem       `json:"apiStack"`
-	Item     *tbResponseBodyItem    `json:"item"`
-	MockData string                 `json:"mockData,omitempty"`
-	Data     map[string]interface{} `json:"data,omitempty"`
-	Props    map[string]interface{} `json:"props"`
-	PropsCut string                 `json:"propsCut"`
-	SkuBase  *skuBase               `json:"skuBase"`
+	Item                  *tbResponseBodyItem    `json:"item"`
+	MockData              string                 `json:"mockData,omitempty"`
+	Data                  map[string]interface{} `json:"data,omitempty"`
+	Props                 map[string]interface{} `json:"props"`
+	PropsCut              string                 `json:"propsCut"`
+	SkuBase               *skuBase               `json:"skuBase"`
+	productOptions        models.ProductOptions
+	optionValuesMap       map[string]*models.OptionValue
+	productOptionsRunOnce sync.Once
+}
+
+func (this *tbResponseBody) parseMockData() {
+	// 解析 MockData
+	if this.MockData != "" && this.Data == nil {
+		var data map[string]interface{}
+		err := json.Unmarshal([]byte(this.MockData), &data)
+
+		if err == nil {
+			this.Data = data
+		}
+	}
+}
+
+func (this *tbResponseBody) GetProductPrice() int64 {
+	this.parseMockData()
+
+	if this.Data != nil {
+		if price, err := utils.MapGet(this.Data, "skuCore.sku2info.0.price.priceMoney"); err == nil {
+			return int64(price.(float64))
+		}
+	}
+
+	return 0
+}
+
+func (this *tbResponseBody) GetItemPrice(itemId string) int64 {
+	this.parseMockData()
+	if this.Data != nil {
+		key := fmt.Sprintf("skuCore.sku2info.%s.price.priceMoney", itemId)
+		if price, err := utils.MapGet(this.Data, key); err == nil {
+			return int64(price.(float64))
+		}
+	}
+
+	return 0
+
+}
+
+func (this *tbResponseBody) GetProductOptions() []*models.ProductOption {
+
+	this.productOptionsRunOnce.Do(func() {
+		if this.SkuBase != nil {
+			this.optionValuesMap = map[string]*models.OptionValue{}
+			for _, prop := range this.SkuBase.Props {
+				option := models.NewProductOption(prop.Name)
+				var hasImage bool
+				for _, value := range prop.Values {
+					image := value.Image
+					if (image != "") {
+						if parse, err := url.Parse(image); err == nil {
+							hasImage = true
+							parse.Scheme = "https"
+							image = parse.String()
+						}
+					}
+
+					optionValue := option.NewValue(value.Name).SetImage(image)
+
+					option.AddValues(optionValue)
+
+					this.optionValuesMap[fmt.Sprintf("%s:%s", prop.Pid, value.Vid)] = optionValue
+				}
+				if hasImage {
+					option.Image = true
+				}
+				this.productOptions = append(this.productOptions, option)
+			}
+			sort.Sort(this.productOptions)
+		}
+	})
+	return this.productOptions
+
+}
+
+func (this *tbResponseBody) GetOptionValueByPropPath(path string) (optionValue *models.OptionValue, err error) {
+	this.GetProductOptions()
+	if value, ok := this.optionValuesMap[path]; ok {
+		optionValue = value
+		return
+	}
+	err = fmt.Errorf("OptionValue prop path = %s , not found!!", path)
+	return
+}
+
+func (this *tbResponseBody) GetAttributes() []*models.ProductAttribute {
+	// 基本属性组
+	var productAttributes []*models.ProductAttribute
+
+	if this.Props != nil {
+		basicAttrs, err := utils.MapGet(this.Props, "groupProps.0.基本信息")
+		if err == nil {
+			if attrs, ok := basicAttrs.([]interface{}); ok {
+				for _, attr := range attrs {
+					if item, ok := attr.(map[string]interface{}); ok {
+						for k, v := range item {
+							productAttributes = append(productAttributes, &models.ProductAttribute{
+								Name:  k,
+								Value: v.(string),
+							})
+						}
+					}
+
+				}
+			}
+
+		}
+	}
+	return productAttributes
+}
+
+func (this *tbResponseBody) GetName() string {
+	if this.Item != nil {
+		return this.Item.Title
+	}
+	return ""
+}
+
+func (this *tbResponseBody) GetImages() []string {
+	var images []string
+	if this.Item != nil {
+		for _, image := range this.Item.Images {
+			if parse, err := url.Parse(image); err == nil {
+				parse.Scheme = "https"
+				images = append(images, parse.String())
+			}
+		}
+	}
+	return images
+}
+
+func (this *tbResponseBody) GetItems() (items []*models.Item, err error) {
+	if this.SkuBase != nil {
+		for _, sku := range this.SkuBase.Skus {
+			item := &models.Item{}
+
+			item.Price = this.GetItemPrice(sku.SkuId)
+			propPaths := strings.Split(sku.PropPath, ";")
+			var optionValues []*models.OptionValue
+			for _, path := range propPaths {
+				optionValue, err := this.GetOptionValueByPropPath(path)
+				if err != nil {
+					return nil, err
+				}
+				optionValues = append(optionValues, optionValue)
+			}
+
+			// 排序
+			sortValues := models.SortOptionValues{
+				Values:  optionValues,
+				Options: this.GetProductOptions(),
+			}
+
+			sort.Sort(sortValues)
+			item.OptionValues = sortValues.Values
+			items = append(items, item)
+		}
+	}
+	return
 }
 
 type tbApiStackItem map[string]interface{}
@@ -46,8 +212,9 @@ type tbSkuBaseItem struct {
 }
 
 type tbSkuBaseItemValue struct {
-	Name string `json:"name"`
-	Vid  string `json:"vid"`
+	Name  string `json:"name"`
+	Vid   string `json:"vid"`
+	Image string `json:"image,omitempty"`
 }
 
 type tbResponseBodyItem struct {
@@ -168,94 +335,26 @@ func (this *TaobaoSdkService) Detail(id string) (data *models.Product, err error
 		if res.Data.Item == nil {
 			return nil, err2.NewFromCode(404).F("该商品不存在")
 		}
-		if res.Data.MockData != "" {
-			var data map[string]interface{}
-			if err := json.Unmarshal([]byte(res.Data.MockData), &data); err != nil {
-				return nil, err
-			}
-			res.Data.MockData = ""
-			res.Data.Data = data
-		}
 
-		if res.Data.Item != nil {
-			product.Name = res.Data.Item.Title
-
-			if s, err := this.Description(id); err == nil {
-				product.Description = imgReg.ReplaceAllString(s, "src=\"https://img")
-			}
-
-			//if res.Data.Item.H5moduleDescUrl != "" {
-			//	parse, err := url.Parse(res.Data.Item.H5moduleDescUrl)
-			//	if err != nil {
-			//		panic(err)
-			//	}
-			//
-			//	parse.Scheme = "https"
-			//
-			//	if response, err := http.Get(parse.String()); err == nil {
-			//		if bytes, err := ioutil.ReadAll(response.Body); err == nil {
-			//
-			//			spew.Dump(string(bytes))
-			//		}
-			//
-			//	}
-			//
-			//}
-
+		product.Name = res.Data.GetName()
+		// 图集
+		product.WithMeta("images", res.Data.GetImages())
+		// 描述
+		if s, err := this.Description(id); err == nil {
+			product.Description = imgReg.ReplaceAllString(s, "src=\"https://img")
 		}
 
 		// 基本属性组
-		var productAttributes []*models.ProductAttribute
-
-		basicAttrs, err := utils.MapGet(res.Data.Props, "groupProps.0.基本信息")
-		if err == nil {
-			if attrs, ok := basicAttrs.([]interface{}); ok {
-				for _, attr := range attrs {
-					if item, ok := attr.(map[string]interface{}); ok {
-						for k, v := range item {
-							productAttributes = append(productAttributes, &models.ProductAttribute{
-								Name:  k,
-								Value: v.(string),
-							})
-						}
-					}
-
-				}
-			}
-
-		}
-		product.Attributes = productAttributes
-
-		var options []*models.ProductOption
-		if res.Data.SkuBase != nil {
-			for _, prop := range res.Data.SkuBase.Props {
-				option := models.NewProductOption(prop.Name)
-				for _, value := range prop.Values {
-					option.AddValues(option.NewValue(value.Name, value.Vid))
-				}
-
-				options = append(options, option)
-
-			}
+		product.Attributes = res.Data.GetAttributes()
+		// 销售属性
+		product.Options = res.Data.GetProductOptions()
+		// 价格
+		product.Price = res.Data.GetProductPrice()
+		// 变体
+		if items, err := res.Data.GetItems(); err == nil {
+			product.Items = items
 		}
 
-		product.Options = options
-
-		if res.Data.Data != nil {
-			if price, err := utils.MapGet(res.Data.Data, "skuCore.sku2info.0.price.priceMoney"); err == nil {
-				product.Price = int64(price.(float64))
-			}
-		}
-
-		//qn := qiniu.GetQiniu()
-		var images []string
-		for _, image := range res.Data.Item.Images {
-			if parse, err := url.Parse(image); err == nil {
-				parse.Scheme = "https"
-				images = append(images, parse.String())
-			}
-		}
-		product.WithMeta("images", images)
 	}
 
 	return product, nil
