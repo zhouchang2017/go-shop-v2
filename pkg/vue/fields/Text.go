@@ -68,6 +68,7 @@ func (this *Text) Pattern(reg string) *Text {
 
 func (this *Text) InputNumber() *Text {
 	this.WithMeta("input_number", true)
+	this.Value = 0
 	return this
 }
 

@@ -23,7 +23,11 @@ func (this *ItemService) Pagination(ctx context.Context, req *request.IndexReque
 		err = results.Error
 		return
 	}
-	return results.Result.([]*models.Item), results.Pagination, nil
+	items = results.Result.([]*models.Item)
+	for _, item := range items {
+		item.WithMeta("avatar", item.GetAvatar())
+	}
+	return items, results.Pagination, nil
 }
 
 // 创建

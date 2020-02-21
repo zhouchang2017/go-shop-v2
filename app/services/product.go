@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"fmt"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
 	"go-shop-v2/pkg/qiniu"
@@ -60,7 +59,7 @@ func (this *ProductService) List(ctx context.Context, req *request.IndexRequest)
 	for _, product := range results.Result.([]*models.Product) {
 		var avatar string
 		if len(product.Images) == 1 {
-			avatar = fmt.Sprintf("%s/%s", product.Images[0].Domain, product.Images[0].Key)
+			avatar = product.Images[0].Src()
 		}
 		products = append(products, contracts.RelationsOption{
 			Id:     product.GetID(),
@@ -89,7 +88,7 @@ func (this *ProductService) RelationResolveIds(ctx context.Context, ids []string
 	for _, product := range products2 {
 		var avatar string
 		if len(product.Images) > 0 {
-			avatar = fmt.Sprintf("%s/%s", product.Images[0].Domain, product.Images[0].Key)
+			avatar = product.Images[0].Src()
 		}
 		products = append(products, contracts.RelationsOption{
 			Id:     product.GetID(),
@@ -121,13 +120,17 @@ type ProductCreateOption struct {
 	Description  string                     `json:"description"`
 	Price        int64                      `json:"price"`
 	FakeSalesQty int64                      `json:"fake_sales_qty" form:"fake_sales_qty"`
-	Images       []*qiniu.Resource          `json:"images" form:"images"`
+	Images       []qiniu.Image              `json:"images" form:"images"`
 	OnSale       bool                       `json:"on_sale" form:"on_sale"`
 	Sort         int64                      `json:"sort" form:"sort"`
 }
 
 // 创建
 func (this *ProductService) Create(ctx context.Context, opt ProductCreateOption) (product *models.Product, err error) {
+	var images []qiniu.Image
+	for _, image := range opt.Images {
+		images = append(images, qiniu.NewImage(image.Src()))
+	}
 	model := &models.Product{
 		Name:         opt.Name,
 		Code:         opt.Code,
@@ -138,7 +141,7 @@ func (this *ProductService) Create(ctx context.Context, opt ProductCreateOption)
 		Description:  opt.Description,
 		Price:        opt.Price,
 		FakeSalesQty: opt.FakeSalesQty,
-		Images:       opt.Images,
+		Images:       images,
 		OnSale:       opt.OnSale,
 		Items:        opt.Items,
 	}

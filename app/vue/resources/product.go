@@ -2,7 +2,6 @@ package resources
 
 import (
 	"errors"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/gin-gonic/gin"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/services"
@@ -110,10 +109,15 @@ func (this *Product) CustomHttpHandle(router gin.IRouter) {
 			return
 		}
 
-		var images []*qiniu.Resource
+		var images []qiniu.Image
 		var description = form.Description
+		var optionValues = []*models.OptionValue{}
+
+
 		for _, image := range form.Images {
-			res, err := qiniuService.PutByUrl(ctx, image, utils.RandomString(32))
+
+			res, err := qiniuService.PutByUrl(ctx, image.Src(), utils.RandomString(32))
+
 			if err == nil {
 				images = append(images, res)
 			}
@@ -121,18 +125,32 @@ func (this *Product) CustomHttpHandle(router gin.IRouter) {
 
 		submatch := imgRE.FindAllStringSubmatch(description, -1)
 
-		matchImages := sync.Map{}
-		//i := sync.Map{}
-		spew.Dump(submatch)
+		matchImages := map[string]string{}
 		wg := sync.WaitGroup{}
-		spew.Dump(wg)
+		for _, value := range form.OptionValues {
+			wg.Add(1)
+			go func(ov *models.OptionValue) {
+				if ov.Image.IsUrl() {
+					res, err := qiniuService.PutByUrl(ctx, ov.Image.Src(), utils.RandomString(32))
+					if err == nil {
+						optionValues = append(optionValues, &models.OptionValue{
+							Id:    ov.Id,
+							Name:  ov.Name,
+							Image: &res,
+						})
+					}
+				}
+				wg.Done()
+			}(value)
+		}
+
 		for _, match := range submatch {
 			wg.Add(1)
 			go func(ma []string) {
 				if len(ma) >= 2 {
 					res, err := qiniuService.PutByUrl(ctx, ma[1], utils.RandomString(32))
 					if err == nil {
-						matchImages.Store(ma[1], res.PreviewUrl())
+						matchImages[ma[1]] = res.Src()
 					}
 				}
 				wg.Done()
@@ -140,28 +158,30 @@ func (this *Product) CustomHttpHandle(router gin.IRouter) {
 		}
 
 		wg.Wait()
-		spew.Dump(matchImages)
-		matchImages.Range(func(key, value interface{}) bool {
-			description = strings.ReplaceAll(description, key.(string), value.(string))
-			return true
-		})
+		for key, value := range matchImages {
+			description = strings.ReplaceAll(description, key, value)
+		}
+
 
 		paserCache[form.Id] = map[string]interface{}{
-			"images":      images,
-			"description": description,
+			"images":        images,
+			"description":   description,
+			"option_values": optionValues,
 		}
 
 		ctx.JSON(200, gin.H{
-			"images":      images,
-			"description": description,
+			"images":        images,
+			"description":   description,
+			"option_values": optionValues,
 		})
 	})
 }
 
 type parseUrlForm struct {
-	Id          string   `json:"id"`
-	Images      []string `json:"images"`
-	Description string   `json:"description"`
+	Id           string                `json:"id"`
+	Images       []qiniu.Image         `json:"images"`
+	Description  string                `json:"description"`
+	OptionValues []*models.OptionValue `json:"option_values" form:"option_values"`
 }
 
 func (this *Product) DisplayInNavigation(ctx *gin.Context, user interface{}) bool {

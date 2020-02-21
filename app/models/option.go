@@ -1,6 +1,9 @@
 package models
 
-import uuid "github.com/satori/go.uuid"
+import (
+	uuid "github.com/satori/go.uuid"
+	"go-shop-v2/pkg/qiniu"
+)
 
 // 产品销售属性
 type ProductOption struct {
@@ -66,9 +69,9 @@ func (this *ProductOption) findValueById(id string) (*OptionValue, bool) {
 
 // 产品销售属性值
 type OptionValue struct {
-	Id    string `json:"id"`
-	Name  string `json:"name"`
-	Image string `json:"image,omitempty"` // 缩略图
+	Id    string       `json:"id"`
+	Name  string       `json:"name"`
+	Image *qiniu.Image `json:"image,omitempty" bson:"image,omitempty"` // 缩略图
 }
 
 // 用于排序
@@ -107,7 +110,8 @@ func (this *OptionValue) Equal(value *OptionValue) bool {
 }
 
 func (this *OptionValue) SetImage(url string) *OptionValue {
-	this.Image = url
+	image := qiniu.NewImage(url)
+	this.Image = &image
 	return this
 }
 

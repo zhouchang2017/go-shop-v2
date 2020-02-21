@@ -4,6 +4,7 @@ import (
 	"context"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
+	"go-shop-v2/pkg/qiniu"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"go.mongodb.org/mongo-driver/bson"
@@ -55,7 +56,7 @@ func (this *ArticleService) Count(ctx context.Context) int64 {
 type ArticleOption struct {
 	Title      string   `json:"title"`
 	ShortTitle string   `json:"short_title" mapstructure:"short_title"`
-	Photos     []string `json:"photos"`
+	Photos     []qiniu.Image `json:"photos"`
 	Content    string   `json:"content"`
 	ProductId  string   `json:"product_id" mapstructure:"product_id"`
 	Sort       int64    `json:"sort"`

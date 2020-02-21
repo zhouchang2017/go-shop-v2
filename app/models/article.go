@@ -1,13 +1,16 @@
 package models
 
-import "go-shop-v2/pkg/db/model"
+import (
+	"go-shop-v2/pkg/db/model"
+	"go-shop-v2/pkg/qiniu"
+)
 
 // 文章
 type Article struct {
 	model.MongoModel `inline`
 	Title            string   `json:"title"`
 	ShortTitle       string   `json:"short_title" bson:"short_title"`
-	Photos           []string `json:"photos"`
+	Photos           []qiniu.Image `json:"photos"`
 	Content          string   `json:"content"`
 	ProductId        string   `json:"product_id" bson:"product_id"`
 	Sort             int64    `json:"sort"`

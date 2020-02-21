@@ -9,9 +9,7 @@ type ShopCart struct {
 }
 
 type ShopCartItem struct {
-	ProductId    string         `json:"product_id" bson:"product_id"`                           // 产品id
-	ItemId       string         `json:"item_id" bson:"item_id"`                                 // sku id
-	OptionValues []*OptionValue `json:"option_values" bson:"option_values" form"option_values"` // 销售属性值
-	Qty          int64          `json:"qty"`                                                    // 数量
-	Checked      bool           `json:"checked"`                                                // 用户是否选定
+	Item    *AssociatedItem `json:"item" bson:"item"` // sku id
+	Qty     int64           `json:"qty"`              // 数量
+	Checked bool            `json:"checked"`          // 用户是否选定
 }

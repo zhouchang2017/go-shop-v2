@@ -55,12 +55,37 @@ func (this *Qiniu) BucketManager() *storage.BucketManager {
 	return storage.NewBucketManager(this.mac(), &config)
 }
 
+func (this Qiniu)Domain() string  {
+	return this.domain
+}
+
 func (this Qiniu) Name() string {
 	return "qiniu"
 }
 
+// 图片上传token
+func (this *Qiniu) ImageToken(ctx context.Context) (token string, err error) {
+	putPolicy := storage.PutPolicy{
+		Scope: this.bucket,
+	}
+	putPolicy.Expires = 7200 //示例2小时有效期
+	return putPolicy.UploadToken(this.mac()), nil
+}
+
+// 文件上传token
+func (this *Qiniu) FileToken(ctx context.Context) (token string, err error) {
+	body := fmt.Sprintf(`{"key":"$(key)","name":"$(fname)","bucket":"$(bucket)","mime_type":"$(mimeType)","ext":"$(ext)","drive":"%s","domain":"%s"}`, this.Name(), this.domain)
+	putPolicy := storage.PutPolicy{
+		Scope:      this.bucket,
+		ReturnBody: body,
+	}
+	putPolicy.Expires = 7200 //示例2小时有效期
+
+	return putPolicy.UploadToken(this.mac()), nil
+}
+
 func (this *Qiniu) Token(ctx context.Context) (token string, err error) {
-	body := fmt.Sprintf(`{"key":"$(key)","name":"$(fname)","bucket":"$(bucket)","mime_type":"$(mimeType)","ext":"$(ext)","drive":"%s","image_info":$(imageInfo),"image_ave":$(imageAve),"domain":"%s"}`, this.Name(), this.domain)
+	body := fmt.Sprintf(`{"key":"$(key)","name":"$(fname)","bucket":"$(bucket)","mime_type":"$(mimeType)","ext":"$(ext)","drive":"%s","domain":"%s"}`, this.Name(), this.domain)
 	putPolicy := storage.PutPolicy{
 		Scope:      this.bucket,
 		ReturnBody: body,
@@ -75,18 +100,12 @@ func Token(ctx context.Context) (token string, err error) {
 	return instance.Token(ctx)
 }
 
-func (this *Qiniu) PutByUrl(ctx context.Context, url string, key string) (res *Resource, err error) {
+func (this *Qiniu) PutByUrl(ctx context.Context, url string, key string) (res Image, err error) {
 	fetchRet, err := this.BucketManager().Fetch(url, this.bucket, key)
 	if err != nil {
-		return nil, err
+		return res, err
 	}
-	return &Resource{
-		Key:      fetchRet.Key,
-		Bucket:   this.bucket,
-		Domain:   this.domain,
-		Drive:    this.Name(),
-		MimeType: fetchRet.MimeType,
-	}, nil
+	return Image(fetchRet.Key), nil
 }
 
 func (this *Qiniu) Put(ctx context.Context, key string, file *os.File) (res *Resource, err error) {
@@ -161,7 +180,19 @@ func (this *Qiniu) Delete(ctx context.Context, key string) error {
 
 func (this *Qiniu) HttpHandle(router gin.IRouter) {
 	router.GET("/qiniu", func(c *gin.Context) {
-		token, err := instance.Token(context.Background())
+		tokenType := c.Query("type")
+		if tokenType == "" {
+			tokenType = "image"
+		}
+		var token string
+		var err error
+
+		switch tokenType {
+		case "file":
+			token, err = instance.FileToken(context.Background())
+		default:
+			token, err = instance.ImageToken(context.Background())
+		}
 		if err != nil {
 			err2.ErrorEncoder(nil, err, c.Writer)
 			return

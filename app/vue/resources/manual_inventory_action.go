@@ -79,6 +79,7 @@ func (m *InventoryAction) Fields(ctx *gin.Context, model interface{}) func() []i
 				return []contracts.Field{
 					fields.NewTextField("商品ID", "Id"),
 					fields.NewTextField("商品货号", "Code"),
+					fields.NewAvatar("图片","Avatar").Rounded(),
 					fields.NewTextField("品牌", "Product.Brand.Name"),
 					fields.NewTextField("类目", "Product.Category.Name"),
 					fields.NewTextField("数量", "Qty"),

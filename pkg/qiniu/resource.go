@@ -4,16 +4,6 @@ import (
 	"fmt"
 )
 
-type ImageInfo struct {
-	Format string `json:"format"`
-	Height int64  `json:"height"`
-	Width  int64  `json:"width"`
-	Size   int64  `json:"size"`
-}
-
-type ImageAve struct {
-	RGB string `json:"RGB"`
-}
 
 // 静态资源结构
 type Resource struct {
@@ -24,8 +14,6 @@ type Resource struct {
 	Drive     string     `json:"drive"`                        // 驱动
 	MimeType  string     `json:"mime_type" bson:"mime_type"`   // 文件类型
 	Ext       string     `json:"ext"`                          // 文件扩展名
-	ImageInfo *ImageInfo `json:"image_info" bson:"image_info"` // 图片信息
-	ImageAve  *ImageAve  `json:"image_ave" bson:"image_ave"`   // 图片主色调
 }
 
 func (this Resource) GetKey() string {

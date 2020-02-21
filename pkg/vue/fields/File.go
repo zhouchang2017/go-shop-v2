@@ -50,7 +50,16 @@ func NewFileField(name string, fieldName string, opts ...FieldOption) *File {
 // 在创建页、更新页响应JSON格式返还给前端时调用的一个钩子
 func (this *File) Call() {
 	// 目前就只有七牛、暂未抽象。写死了哈
-	token, err := qiniu.Token(context.Background())
+
+	var token string
+	var err error
+
+	switch this.Type {
+	case "file":
+		token, err = qiniu.GetQiniu().FileToken(context.Background())
+	default:
+		token, err = qiniu.GetQiniu().ImageToken(context.Background())
+	}
 	if err != nil {
 		log.Printf("get qiniu token error:%s\n", err)
 	}

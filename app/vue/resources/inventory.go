@@ -60,6 +60,7 @@ func (this *Inventory) Fields(ctx *gin.Context, model interface{}) func() []inte
 			fields.NewTextField("门店", "Shop.Name"),
 			fields.NewTextField("类目", "Item.Product.Category.Name"),
 			fields.NewTextField("品牌", "Item.Product.Brand.Name"),
+			fields.NewAvatar("图片", "Item.Avatar").Rounded(),
 			fields.NewTextField("货号", "Item.Code"),
 			fields.NewStatusField("状态", "Status").WithOptions([]*fields.StatusOption{
 				fields.NewStatusOption("良品", 0).Success(),
@@ -79,15 +80,12 @@ func (this *Inventory) Fields(ctx *gin.Context, model interface{}) func() []inte
 				fields.NewTextField("产品名称", "Item.Product.Name", fields.OnlyOnDetail()),
 			),
 
+
 			panels.NewPanel("商品信息",
 				fields.NewTextField("商品ID", "Item.Id", fields.OnlyOnDetail()),
 				fields.NewTextField("商品货号", "Item.Code", fields.OnlyOnDetail()),
-				fields.NewTable("销售属性", "Item.OptionValues", func() []contracts.Field {
-					return []contracts.Field{
-						fields.NewTextField("编码", "Code"),
-						fields.NewTextField("值", "Name"),
-					}
-				}),
+				fields.NewLabelsFields("属性值", "Item.OptionValues").Label("name"),
+
 			),
 
 			fields.NewHasManyField("日志", &InventoryLog{}),

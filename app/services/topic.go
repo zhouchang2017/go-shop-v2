@@ -4,6 +4,7 @@ import (
 	"context"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
+	"go-shop-v2/pkg/qiniu"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"go.mongodb.org/mongo-driver/bson"
@@ -55,7 +56,7 @@ func (this *TopicService) SimplePagination(ctx context.Context, page int64, perP
 type TopicOption struct {
 	Title      string   `json:"title"`
 	ShortTitle string   `json:"short_title" mapstructure:"short_title"`
-	Avatar     string   `json:"avatar"`
+	Avatar     qiniu.Image   `json:"avatar"`
 	Content    string   `json:"content"`
 	ProductIds []string `json:"product_ids" mapstructure:"product_ids"`
 	Sort       int64    `json:"sort"`

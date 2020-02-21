@@ -5,7 +5,6 @@ import (
 	"go-shop-v2/app/models"
 	"go-shop-v2/pkg/db/mongodb"
 	"go-shop-v2/pkg/repository"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type ItemRep struct {
@@ -16,12 +15,8 @@ func (this *ItemRep) FindByProductId(ctx context.Context, id string) <-chan repo
 	output := make(chan repository.QueryResult)
 	go func() {
 		defer close(output)
-		productId, err := primitive.ObjectIDFromHex(id)
-		if err != nil {
-			output <- repository.QueryResult{Error: err}
-			return
-		}
-		many := <-this.mongoRep.FindMany(ctx, map[string]interface{}{"product._id": productId})
+
+		many := <-this.mongoRep.FindMany(ctx, map[string]interface{}{"product.id": id})
 
 		output <- repository.QueryResult{
 			Result: many.Result,

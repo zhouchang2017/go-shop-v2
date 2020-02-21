@@ -3,23 +3,36 @@ package models
 import (
 	"bytes"
 	"go-shop-v2/pkg/db/model"
+	"go-shop-v2/pkg/qiniu"
 )
 
 type Item struct {
 	model.MongoModel `inline`
-	Code             string         `json:"code" bson:"code"`
-	Product          *Product       `json:"product,omitempty" bson:"product,omitempty"`
-	Price            int64          `json:"price,omitempty" bson:"price"`
-	OptionValues     []*OptionValue `json:"option_values" bson:"option_values" form"option_values" `
-	SalesQty         int64          `json:"sales_qty,omitempty" bson:"sales_qty" form"sales_qty" `
-	Qty              int64          `json:"qty" bson:"-"`
-	Inventories      []*Inventory   `json:"inventories,omitempty" bson:"-"`
+	Code             string             `json:"code" bson:"code"`
+	Product          *AssociatedProduct `json:"product,omitempty" bson:"product,omitempty"`
+	Price            int64              `json:"price,omitempty" bson:"price"`
+	OptionValues     []*OptionValue     `json:"option_values" bson:"option_values" form"option_values" `
+	SalesQty         int64              `json:"sales_qty,omitempty" bson:"sales_qty" form"sales_qty" `
+	Qty              int64              `json:"qty" bson:"-"`
+	Inventories      []*Inventory       `json:"inventories,omitempty" bson:"-"`
+}
+
+func (this Item) GetAvatar() *qiniu.Image {
+	var image *qiniu.Image
+	for _, value := range this.OptionValues {
+		if value.Image != nil && value.Image.Src() != "" {
+			image = value.Image
+			return image
+		}
+	}
+	return this.Product.Avatar
 }
 
 // 关联简单SKU结构
 type AssociatedItem struct {
 	Id           string             `json:"id"`
 	Code         string             `json:"code"`                               // sku码
+	Avatar       *qiniu.Image       `json:"avatar"`                             // 图
 	Product      *AssociatedProduct `json:"product"`                            // 冗余产品信息
 	OptionValues []*OptionValue     `json:"option_values" bson:"option_values"` // sku销售属性
 }
@@ -32,8 +45,9 @@ func (this Item) ToAssociated() *AssociatedItem {
 	return &AssociatedItem{
 		Id:           this.GetID(),
 		Code:         this.Code,
-		Product:      this.Product.ToAssociated(),
+		Product:      this.Product,
 		OptionValues: this.OptionValues,
+		Avatar:       this.GetAvatar(),
 	}
 }
 

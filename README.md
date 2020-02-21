@@ -22,7 +22,10 @@ docker-compose up -d rabbitmq
 ```
 
 
-changeLog 2020-02-16
+#### ChangeLog 
+- 2020-02-16
+    - Category 模型不在包含 `[]*OptionValue`,每个产品都管理自身的 `[]*OptionValue`
+    - `OptionValue`下的`Value`模型，新添加`Image string`字段
 
-- Category 模型不在包含 `[]*OptionValue`,每个产品都管理自身的 `[]*OptionValue`
-- `OptionValue`下的`Value`模型，新添加`Image string`字段
+- 2020-02-21
+    - 七牛(qiniu) pkg 添加 Image 类型

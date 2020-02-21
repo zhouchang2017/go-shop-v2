@@ -5,6 +5,7 @@ import (
 	"go-shop-v2/app/models"
 	"go-shop-v2/pkg/db/mongodb"
 	"go-shop-v2/pkg/repository"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"log"
 	"sync"
 )
@@ -62,11 +63,13 @@ func (this *ProductRep) Create(ctx context.Context, entity interface{}) <-chan r
 		}
 		product := res.Result.(*models.Product)
 		wg := sync.WaitGroup{}
-		var newItems []*models.Item
-		for _, item := range items {
+		//var newItems []*models.Item
+		newItems := make([]*models.Item, len(items))
+		for index, item := range items {
+			item.ID = primitive.NewObjectID()
 			wg.Add(1)
-			item.Product = product
-			go func(i *models.Item) {
+			item.Product = product.ToAssociated()
+			go func(ind int,i *models.Item) {
 				defer wg.Done()
 				itemRes := <-this.itemRep.Create(ctx, i)
 				if itemRes.Error != nil {
@@ -74,8 +77,8 @@ func (this *ProductRep) Create(ctx context.Context, entity interface{}) <-chan r
 					result <- repository.InsertResult{Error: res.Error}
 					return
 				}
-				newItems = append(newItems, itemRes.Result.(*models.Item))
-			}(item)
+				newItems[ind] = itemRes.Result.(*models.Item)
+			}(index,item)
 		}
 		wg.Wait()
 		product.Items = newItems
@@ -103,7 +106,7 @@ func (this *ProductRep) Save(ctx context.Context, entity interface{}) <-chan rep
 		var newItems []*models.Item
 		for _, item := range items {
 			wg.Add(1)
-			item.Product = product
+			item.Product = product.ToAssociated()
 			go func(i *models.Item) {
 				defer wg.Done()
 

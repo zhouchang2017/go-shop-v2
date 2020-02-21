@@ -5,7 +5,6 @@ import (
 	"go-shop-v2/pkg/qiniu"
 )
 
-
 // 产品
 type Product struct {
 	model.MongoModel `inline`
@@ -20,7 +19,7 @@ type Product struct {
 	Price            int64               `json:"price" bson:"price"`
 	TotalSalesQty    int64               `json:"total_sales_qty" bson:"total_sales_qty"`
 	FakeSalesQty     int64               `json:"fake_sales_qty" bson:"fake_sales_qty"`
-	Images           []*qiniu.Resource   `json:"images" bson:"images"`
+	Images           []qiniu.Image       `json:"images" bson:"images"`
 	OnSale           bool                `json:"on_sale" bson:"on_sale"`
 	Sort             int64               `json:"sort"`
 	Qty              int64               `json:"qty" bson:"-"`
@@ -37,6 +36,7 @@ type AssociatedProduct struct {
 	Code     string              `json:"code"`
 	Brand    *AssociatedBrand    `json:"brand"`
 	Category *AssociatedCategory `json:"category"`
+	Avatar   *qiniu.Image        `json:"avatar"`
 }
 
 func (this Product) GetSort() int64 {
@@ -48,12 +48,17 @@ func (this Product) GetType() string {
 }
 
 func (this Product) ToAssociated() *AssociatedProduct {
+	var avatar *qiniu.Image
+	if len(this.Images) > 0 {
+		avatar = &(this.Images[0])
+	}
 	return &AssociatedProduct{
 		Id:       this.GetID(),
 		Name:     this.Name,
 		Code:     this.Code,
 		Brand:    this.Brand,
 		Category: this.Category,
+		Avatar:   avatar,
 	}
 }
 

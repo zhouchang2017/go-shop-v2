@@ -86,6 +86,7 @@ func main() {
 	vue.RegisterCustomHttpHandler(newQiniu.HttpHandle)
 	// 注册全局前端配置
 	vue.WithConfig("qiniu_upload_action", newQiniu.FileUploadAction())
+	vue.WithConfig("qiniu_cdn_domain", newQiniu.Domain())
 	// vue相关启动项
 	vue2.Boot(vue)
 	// 启动vue后台组件框架
