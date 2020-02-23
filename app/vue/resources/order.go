@@ -67,7 +67,7 @@ func (order *Order) Fields(ctx *gin.Context, model interface{}) func() []interfa
 
 			panels.NewPanel("用户",
 				fields.NewTextField("用户", "Nickname"),
-				fields.NewTextField("头像", "Avatar", fields.SetShowOnIndex(false)),
+				fields.NewImageField("头像", "Avatar", fields.SetShowOnIndex(false)),
 				fields.NewStatusField("性别", "Gender", fields.SetShowOnIndex(false)).WithOptions([]*fields.StatusOption{
 					fields.NewStatusOption("未知", 0),
 					fields.NewStatusOption("男", 1),
