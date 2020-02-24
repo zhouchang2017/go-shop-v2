@@ -78,6 +78,7 @@ func (this *JWTGuard) Attempt(credentials map[string]string, login bool) (res in
 	authenticatable, err := this.provider.RetrieveByCredentials(credentials)
 	if err != nil {
 		log.Printf("jwt guard attempt err:%s\n", err)
+		return nil, false
 	}
 	if this.hasValidCredentials(authenticatable, credentials) {
 		if login {

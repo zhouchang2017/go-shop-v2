@@ -2,7 +2,6 @@ package http
 
 import (
 	"errors"
-	"fmt"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/gin-gonic/gin"
 	"go-shop-v2/app/services"
@@ -10,6 +9,7 @@ import (
 	"go-shop-v2/app/usecases"
 	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/request"
+	"go.mongodb.org/mongo-driver/bson"
 	"math"
 	"sort"
 )
@@ -52,6 +52,10 @@ func (this *IndexController) Index(ctx *gin.Context) {
 
 	var data dataSlice
 
+	// 不展现 description,attributes,options
+	form.Hidden = "description,attributes,options"
+	// 只搜索第一张图片
+	form.AppendProjection("images", bson.M{"$slice": 1})
 	// products
 	products, pagination, err := this.productSrv.Pagination(ctx, form)
 
@@ -62,6 +66,8 @@ func (this *IndexController) Index(ctx *gin.Context) {
 
 	for _, product := range products {
 		product.WithMeta("type", product.GetType())
+		product.TotalSalesQty += product.FakeSalesQty
+		product.FakeSalesQty = 0
 		data = append(data, product)
 	}
 
@@ -139,7 +145,6 @@ func (this *IndexController) Product(ctx *gin.Context) {
 	}
 
 	var items []map[string]interface{}
-	var images []string
 
 	for _, item := range product.Items {
 		items = append(items, map[string]interface{}{
@@ -149,10 +154,6 @@ func (this *IndexController) Product(ctx *gin.Context) {
 			"option_values": item.OptionValues,
 			"qty":           item.Qty,
 		})
-	}
-
-	for _, image := range product.Images {
-		images = append(images, fmt.Sprintf("%s/%s", image.Domain, image.Key))
 	}
 
 	productResponse := map[string]interface{}{
@@ -166,7 +167,7 @@ func (this *IndexController) Product(ctx *gin.Context) {
 		"items":           items,
 		"description":     product.Description,
 		"price":           product.Price,
-		"images":          images,
+		"images":          product.Images,
 		"total_sales_qty": product.TotalSalesQty + product.FakeSalesQty,
 		"on_sale":         product.OnSale,
 		"sort":            product.Sort,
@@ -177,7 +178,7 @@ func (this *IndexController) Product(ctx *gin.Context) {
 }
 
 // product 简约接口，获取 主图，标题，价格，等
-func (this *IndexController) Products(ctx *gin.Context)  {
+func (this *IndexController) Products(ctx *gin.Context) {
 	//id := ctx.Query("ids")
 
 }

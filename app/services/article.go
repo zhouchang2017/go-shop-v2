@@ -30,12 +30,17 @@ func (this *ArticleService) Pagination(ctx context.Context, req *request.IndexRe
 
 // 简单列表
 func (this *ArticleService) SimplePagination(ctx context.Context, page int64, perPage int64) (articles []*models.Article, pagination response.Pagination, err error) {
-	results := <-this.rep.Pagination(ctx, &request.IndexRequest{
+	req:=&request.IndexRequest{
 		Page:           page,
 		PerPage:        perPage,
 		OrderBy:        "sort",
 		OrderDirection: -1,
-	})
+	}
+	// 不展现 content,product_id
+	req.Hidden = "content,product_id"
+	// 只搜索第一张图片
+	req.AppendProjection("photos", bson.M{"$slice": 1})
+	results := <-this.rep.Pagination(ctx,req )
 	if results.Error != nil {
 		err = results.Error
 		return

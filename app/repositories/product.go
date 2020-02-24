@@ -32,7 +32,10 @@ func (this *ProductRep) FindItemById(ctx context.Context, id string) (item *mode
 		err = byId.Error
 		return
 	}
-	return byId.Result.(*models.Item), nil
+
+	item = byId.Result.(*models.Item)
+
+	return item, nil
 }
 
 func (this *ProductRep) WithItems(ctx context.Context, id string) (product *models.Product, err error) {

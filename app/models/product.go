@@ -12,13 +12,13 @@ type Product struct {
 	Code             string              `json:"code" bson:"code"`
 	Brand            *AssociatedBrand    `json:"brand" bson:"brand"`
 	Category         *AssociatedCategory `json:"category" bson:"category"`
-	Attributes       []*ProductAttribute `json:"attributes" bson:"attributes"`
-	Options          []*ProductOption    `json:"options" bson:"options"`
+	Attributes       []*ProductAttribute `json:"attributes,omitempty" bson:"attributes"`
+	Options          []*ProductOption    `json:"options,omitempty" bson:"options"`
 	Items            []*Item             `json:"items,omitempty" bson:"-"`
-	Description      string              `json:"description" bson:"description"`
+	Description      string              `json:"description,omitempty" bson:"description"`
 	Price            int64               `json:"price" bson:"price"`
 	TotalSalesQty    int64               `json:"total_sales_qty" bson:"total_sales_qty"`
-	FakeSalesQty     int64               `json:"fake_sales_qty" bson:"fake_sales_qty"`
+	FakeSalesQty     int64               `json:"fake_sales_qty,omitempty" bson:"fake_sales_qty"`
 	Images           []qiniu.Image       `json:"images" bson:"images"`
 	OnSale           bool                `json:"on_sale" bson:"on_sale"`
 	Sort             int64               `json:"sort"`

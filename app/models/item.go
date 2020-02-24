@@ -17,8 +17,7 @@ type Item struct {
 	Inventories      []*Inventory       `json:"inventories,omitempty" bson:"-"`
 }
 
-func (this Item) GetAvatar() *qiniu.Image {
-	var image *qiniu.Image
+func (this Item) GetAvatar() (image *qiniu.Image) {
 	for _, value := range this.OptionValues {
 		if value.Image != nil && value.Image.Src() != "" {
 			image = value.Image

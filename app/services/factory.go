@@ -55,3 +55,11 @@ func MakeArticleService() *ArticleService {
 func MakeTopicService() *TopicService {
 	return NewTopicService(repositories.NewTopicRep(mongodb.GetConFn()))
 }
+
+func MakeShopCartService() *ShopCartService {
+	return NewShopCartService(repositories.NewShopCartRep(mongodb.GetConFn()))
+}
+
+func MakeUserService() *UserService {
+	return NewUserService(repositories.NewUserRep(mongodb.GetConFn()))
+}

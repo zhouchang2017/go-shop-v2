@@ -15,6 +15,7 @@ import (
 	"go-shop-v2/pkg/qiniu"
 	"go-shop-v2/pkg/vue/core"
 	"go-shop-v2/pkg/vue/fields"
+	"go-shop-v2/pkg/wechat"
 	"log"
 	"os"
 	"os/signal"
@@ -51,6 +52,7 @@ func main() {
 	}
 
 	configs := config.NewConfig()
+
 	// 消息队列
 	mq := message.New(configs.RabbitMQUri())
 	defer mq.Close()
@@ -65,6 +67,12 @@ func main() {
 	// mysql
 	//mysql.Connect(configs.MysqlConfig())
 	//defer mysql.Close()
+
+
+	// 微信skd
+	wechat.NewSDK(configs.WeappConfig)
+
+
 	// auth service
 	authSrv := auth.NewAuth()
 	// 注册guard

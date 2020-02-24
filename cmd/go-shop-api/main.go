@@ -6,11 +6,14 @@ import (
 	"flag"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"go-shop-v2/app/repositories"
 	http2 "go-shop-v2/app/transport/http"
 	"go-shop-v2/config"
+	"go-shop-v2/pkg/auth"
 	"go-shop-v2/pkg/db/mongodb"
 	"go-shop-v2/pkg/message"
 	"go-shop-v2/pkg/qiniu"
+	"go-shop-v2/pkg/wechat"
 	"log"
 	"net/http"
 	"os"
@@ -22,7 +25,7 @@ var configPathFlag = flag.String("c", ".env", "get the file path for config to p
 
 const PORT = 8081
 
-func main()  {
+func main() {
 	// parse flag
 	flag.Parse()
 
@@ -57,13 +60,30 @@ func main()  {
 	qiniu.NewQiniu(configs.QiniuConfig())
 	// newQiniu := qiniu.NewQiniu(configs.QiniuConfig())
 	// mongodb
-	mongodb.Connect(configs.MongodbConfig())
+	mongoConnect := mongodb.Connect(configs.MongodbConfig())
 	defer mongodb.Close()
 
+	// 微信skd
+	wechat.NewSDK(configs.WeappConfig)
+
+
+	guard:="user"
+	// auth service
+	authSrv := auth.NewAuth()
+	// 注册guard
+	authSrv.Register(func() auth.StatefulGuard {
+		return auth.NewJwtGuard(
+			guard,
+			"user-secret-key",
+			repositories.NewUserRep(mongoConnect),
+		)
+	})
 
 	app := gin.New()
 	app.Use(gin.Logger())
 	app.Use(gin.Recovery())
+
+	http2.SetGuard(guard)
 
 	http2.Register(app)
 

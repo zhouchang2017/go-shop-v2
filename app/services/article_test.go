@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/davecgh/go-spew/spew"
 	"go-shop-v2/pkg/db/mongodb"
+	"go-shop-v2/pkg/qiniu"
 	"testing"
 )
 
@@ -16,7 +17,7 @@ func TestArticleService_Create(t *testing.T) {
 	article, err := service.Create(context.Background(), ArticleOption{
 		Title:      "不要“恐鄂”，要妥善安置在外的湖北人",
 		ShortTitle: "为包括武汉在内的湖北游客提供指定酒店，既能体现对同胞的温情，也能有力地防止疫情蔓延。",
-		Photos:     []string{"https://inews.gtimg.com/newsapp_bt/0/11258845869/1000"},
+		Photos:     []qiniu.Image{"https://inews.gtimg.com/newsapp_bt/0/11258845869/1000"},
 		Content: `1月27日，一张“@来西安的武汉人——请在西安入住指定酒店”的二维码图片在网络流传。
 
 在一些地方“谈鄂色变”、标签化、妖魔化武汉人，武汉返乡人员被避之不及的语境下，西安等地为赴当地的武汉人提供指定酒店的做法值得肯定。面对有可能存在的疫情传播，这些地方不是一味地“堵”、“赶”，而是积极为来自武汉的民众提供准确的住宿支持，这提振了滞留外地武汉人对抗疫情的信心。
@@ -46,10 +47,9 @@ func TestArticleService_Create(t *testing.T) {
 		ProductId: "5e268351001f5053d8b2b1e0",
 	})
 
-	if err!=nil {
+	if err != nil {
 		t.Fatal(err)
 	}
-
 
 	spew.Dump(article.GetID())
 }
