@@ -386,14 +386,24 @@ func (this *mongoRep) Update(ctx context.Context, id string, update interface{})
 			result <- repository.QueryResult{Error: err2.Err404}
 			return
 		}
+
+		updated := bson.M{}
+
+		of := reflect.ValueOf(update)
+		switch of.Kind() {
+		case reflect.Map:
+			for _, key := range of.MapKeys() {
+				updated[key.String()] = of.MapIndex(key).Interface()
+			}
+		}
+
+		updated["$currentDate"] = bson.M{
+			"updated_at": true,
+		}
+
 		update := this.Collection().FindOneAndUpdate(ctx,
 			bson.M{"_id": objid},
-			bson.M{
-				"$set": update,
-				"$currentDate": bson.M{
-					"updated_at": true,
-				},
-			}, options.FindOneAndUpdate().SetReturnDocument(options.After))
+			updated, options.FindOneAndUpdate().SetReturnDocument(options.After))
 
 		if update.Err() != nil {
 			result <- repository.QueryResult{Error: update.Err()}
@@ -467,6 +477,55 @@ func (this *mongoRep) Delete(ctx context.Context, id string) <-chan error {
 				result <- destroy
 				return
 			}
+			result <- nil
+			return
+		}
+	}()
+	return result
+}
+
+func (this *mongoRep) DeleteMany(ctx context.Context, ids ...string) <-chan error {
+	result := make(chan error)
+	go func() {
+		defer close(result)
+		var objIds []primitive.ObjectID
+		for _, id := range ids {
+			objId, err := primitive.ObjectIDFromHex(id)
+			if err == nil {
+				objIds = append(objIds, objId)
+
+			}
+		}
+
+		force := ctx2.GetForce(ctx)
+
+		if this.hasDeletedAtField(this.model) && !force {
+			// soft delete
+			now := time.Now()
+			//this.setValue(this.model, "DeletedAt", &now)
+			_, err := this.Collection().UpdateMany(ctx, bson.M{"_id": bson.M{"$in": objIds}}, bson.M{
+				"$set": bson.M{"deleted_at": now},
+				"$currentDate": bson.M{
+					"updated_at": true,
+				},
+			})
+			if err != nil {
+				result <- err
+				return
+			}
+			result <- nil
+			return
+		} else {
+			// 硬删除
+			_, err := this.Collection().DeleteMany(ctx, bson.M{
+				"_id": bson.M{"$in": objIds},
+			})
+
+			if err != nil {
+				result <- err
+				return
+			}
+
 			result <- nil
 			return
 		}
@@ -672,7 +731,7 @@ func (this *mongoRep) hasDeletedAtField(entity interface{}) bool {
 
 func (this *mongoRep) CreateIndexes(ctx context.Context, models []mongo.IndexModel) (err error) {
 	opts := options.CreateIndexes().SetMaxTime(10 * time.Second)
-	res, err := this.Collection().Indexes().CreateMany(ctx, models, opts);
+	res, err := this.Collection().Indexes().CreateMany(ctx, models, opts)
 	if err != nil {
 		log.Printf("model %s create indexs error:%s\n", this.table, err)
 		return err

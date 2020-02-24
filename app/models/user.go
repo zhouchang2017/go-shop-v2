@@ -8,7 +8,7 @@ import (
 
 type User struct {
 	model.MongoModel `inline`
-	WechatMiniId     string      `json:"wechat_mini_id" bson:"wechat_mini_id"`
+	WechatMiniId     string      `json:"wechat_mini_id" bson:"wechat_mini_id"`  // todo 数据库唯一
 	WechatUnionId    string      `json:"wechat_union_id" bson:"wechat_union_id"`
 	Nickname         string      `json:"nickname" bson:"nickname"`
 	Avatar           qiniu.Image `json:"avatar" bson:"avatar"`
@@ -17,6 +17,18 @@ type User struct {
 	Country          string      `json:"country" bson:"country"`
 	Province         string      `json:"province" bson:"province"`
 	City             string      `json:"city" bson:"city"`
+}
+
+func (user *User) GetAuthIdentifierName() string {
+	return "_id"
+}
+
+func (user *User) GetAuthIdentifier() string {
+	return user.GetID()
+}
+
+func (user *User) GetAuthPassword() string {
+	return ""
 }
 
 type AssociatedUser struct {

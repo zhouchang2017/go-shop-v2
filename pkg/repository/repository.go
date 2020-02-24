@@ -34,5 +34,6 @@ type IRepository interface {
 	Save(ctx context.Context, entity interface{}) <-chan QueryResult
 	Update(ctx context.Context, id string, update interface{}) <-chan QueryResult
 	Delete(ctx context.Context, id string) <-chan error
+	DeleteMany(ctx context.Context, ids ...string) <-chan error
 	Restore(ctx context.Context, id string) <-chan QueryResult
 }

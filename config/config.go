@@ -7,6 +7,7 @@ import (
 	"go-shop-v2/pkg/db/mysql"
 	"go-shop-v2/pkg/qiniu"
 	"go-shop-v2/pkg/vue/fields"
+	"go-shop-v2/pkg/wechat"
 )
 
 func init() {
@@ -19,9 +20,10 @@ func init() {
 var Config *config
 
 type config struct {
-	MongoCfg mongodb.Config `json:"mongo_config"`
-	MysqlCfg mysql.Config   `json:"mysql_config"`
-	QiniuCfg qiniu.Config   `json:"qiniu_config"`
+	WeappConfig wechat.Config  `json:"weapp_config"`
+	MongoCfg    mongodb.Config `json:"mongo_config"`
+	MysqlCfg    mysql.Config   `json:"mysql_config"`
+	QiniuCfg    qiniu.Config   `json:"qiniu_config"`
 }
 
 func NewConfig() *config {
