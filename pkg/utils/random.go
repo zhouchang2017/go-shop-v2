@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"fmt"
 	"math/rand"
 	"time"
 )
@@ -38,7 +39,7 @@ func RandomString(size int) string {
 	return string(b)
 }
 
-// todo: random order no - consider using snowflake algorithm
 func RandomOrderNo(prefix string) string {
-	return ""
+	snowflakeId := SnowflakeId()
+	return fmt.Sprintf("%s%s", prefix, snowflakeId.String())
 }
