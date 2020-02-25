@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+	"fmt"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
 	ctx2 "go-shop-v2/pkg/ctx"
@@ -11,6 +12,7 @@ import (
 	"go-shop-v2/pkg/utils"
 )
 
+// create struct
 type OrderCreateOption struct {
 	UserAddress  orderUserAddress    `json:"user_address" form:"products"`
 	OrderItems   []*models.OrderItem `json:"order_items" form:"order_items"`
@@ -58,6 +60,37 @@ func (opt *OrderCreateOption) IsValid() error {
 	}
 	return nil
 }
+
+// deliver struct
+type DeliverOption struct {
+	OrderNo      string `json:"order_no" form:"order_no"`
+	OperatorId   string `json:"operator_id" form:"operator_id"`
+	OperatorName string `json:"operator_name" form:"operator_name"`
+	models.Logistics
+}
+
+func (opt *DeliverOption) IsValid() error {
+	if opt.OrderNo == "" {
+		return errors.New("empty order no")
+	}
+	if opt.TrackNo == "" {
+		return errors.New("empty track no")
+	}
+	return nil
+}
+
+// deliver struct
+type ConfirmOption struct {
+	OrderNo      string `json:"order_no" form:"order_no"`
+}
+
+func (opt *ConfirmOption) IsValid() error {
+	if opt.OrderNo == "" {
+		return errors.New("empty order no")
+	}
+	return nil
+}
+
 
 type OrderService struct {
 	rep *repositories.OrderRep
@@ -144,5 +177,55 @@ func (srv *OrderService) generateOrder(user models.User, opt *OrderCreateOption)
 }
 
 // 发货
+func (srv *OrderService) Deliver(ctx context.Context, opt *DeliverOption) error {
+	if err := opt.IsValid(); err != nil {
+		return err
+	}
+	// 查询订单并校验状态
+	orderRes := <-srv.rep.FindOne(ctx, map[string]interface{}{
+		"order_no": opt.OrderNo,
+	})
+	if orderRes.Error != nil {
+		return orderRes.Error
+	}
+	order := orderRes.Result.(*models.Order)
+	if order.Status != models.OrderStatusPreSend {
+		return errors.New(fmt.Sprintf("order %s can not be delivered caused of not pre send status", opt.OrderNo))
+	}
+	// 更新
+	// todo
+	// return
+	return nil
+}
 
 // 确认收货
+func (srv *OrderService) Confirm(ctx context.Context, opt *ConfirmOption) error {
+	if err := opt.IsValid(); err != nil {
+		return err
+	}
+	// 获取用户
+	authUser := ctx2.GetUser(ctx)
+	userInfo, ok := authUser.(models.User)
+	if !ok {
+		return errors.New("invalid user who is unauthenticated")
+	}
+	// 查询订单并校验状态
+	orderRes := <-srv.rep.FindOne(ctx, map[string]interface{}{
+		"order_no": opt.OrderNo,
+	})
+	if orderRes.Error != nil {
+		return orderRes.Error
+	}
+	order := orderRes.Result.(*models.Order)
+	if order.Status != models.OrderStatusPreConfirm {
+		return errors.New(fmt.Sprintf("order %s can not be comfirm caused of not pre confirm status", opt.OrderNo))
+	}
+	// 校验是否为用户本人
+	if order.User.Id != userInfo.ID.String() {
+		return errors.New(fmt.Sprintf("order %s can not be comfirm caused of invalid user", opt.OrderNo))
+	}
+	// 更新
+	// todo
+	// return
+	return nil
+}
