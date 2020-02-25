@@ -10,6 +10,7 @@ import (
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"go-shop-v2/pkg/utils"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 // create struct
@@ -154,7 +155,7 @@ func (srv *OrderService) generateOrder(user models.User, opt *OrderCreateOption)
 		ActualAmount: opt.ActualAmount,
 		OrderItems:   opt.OrderItems, // consider to replace with `copy(a, b)`
 		User: &models.AssociatedUser{
-			Id:       user.ID.String(),
+			Id:       user.GetID(),
 			Nickname: user.Nickname,
 			Avatar:   user.Avatar,
 			Gender:   user.Gender,
@@ -193,7 +194,18 @@ func (srv *OrderService) Deliver(ctx context.Context, opt *DeliverOption) error 
 		return errors.New(fmt.Sprintf("order %s can not be delivered caused of not pre send status", opt.OrderNo))
 	}
 	// 更新
-	// todo
+	updated := <- srv.rep.Update(ctx, order.GetID(), bson.M{
+		"$set": bson.M{
+			"status": models.OrderStatusPreConfirm,
+			"logistics": &models.Logistics{
+				Enterprise: opt.Enterprise,
+				TrackNo:    opt.TrackNo,
+			},
+		},
+	})
+	if updated.Error != nil {
+		return updated.Error
+	}
 	// return
 	return nil
 }
@@ -221,11 +233,18 @@ func (srv *OrderService) Confirm(ctx context.Context, opt *ConfirmOption) error 
 		return errors.New(fmt.Sprintf("order %s can not be comfirm caused of not pre confirm status", opt.OrderNo))
 	}
 	// 校验是否为用户本人
-	if order.User.Id != userInfo.ID.String() {
+	if order.User.Id != userInfo.GetID() {
 		return errors.New(fmt.Sprintf("order %s can not be comfirm caused of invalid user", opt.OrderNo))
 	}
 	// 更新
-	// todo
+	updated := <- srv.rep.Update(ctx, order.GetID(), bson.M{
+		"$set": bson.M{
+			"status": models.OrderStatusPreEvaluate,
+		},
+	})
+	if updated.Error != nil {
+		return updated.Error
+	}
 	// return
 	return nil
 }
