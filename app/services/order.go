@@ -5,7 +5,6 @@ import (
 	"errors"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
-	"go-shop-v2/pkg/auth"
 	ctx2 "go-shop-v2/pkg/ctx"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
