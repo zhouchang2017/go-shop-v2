@@ -16,12 +16,15 @@ type AuthController struct {
 
 // 用户登陆
 func (this *AuthController) Login(ctx *gin.Context) {
-	code := ctx.PostForm("code")
-	if code == "" {
+	var form loginForm
+	if err := ctx.ShouldBind(&form); err != nil {
+		ResponseError(ctx, err)
+	}
+	if form.Code == "" {
 		ResponseError(ctx, err2.Error(401, "code无效"))
 		return
 	}
-	res, err := wechat.SDK.Login(code)
+	res, err := wechat.SDK.Login(form.Code)
 	if err != nil {
 		ResponseError(ctx, err)
 		return
@@ -38,6 +41,7 @@ func (this *AuthController) Login(ctx *gin.Context) {
 	}
 
 	if res, ok := jwtGuard.Attempt(credentials, true); ok {
+		// todo 更新用户数据
 		token := fmt.Sprintf("%s", res)
 		ctx.Header("token", token)
 		Response(ctx, gin.H{
@@ -46,39 +50,9 @@ func (this *AuthController) Login(ctx *gin.Context) {
 		}, http.StatusOK)
 		return
 	}
-	ResponseError(ctx, err2.New(10001, "新用户，需要先注册"))
-}
-
-type registerForm struct {
-	Code          string `json:"code"`
-	RawData       string `json:"rawData"`
-	Signature     string `json:"signature"`
-	Iv            string `json:"iv"`
-	EncryptedData string `json:"encryptedData"`
-}
-
-// 用户注册
-func (this *AuthController) Register(ctx *gin.Context) {
-	var form registerForm
-	if err := ctx.ShouldBind(&form); err != nil {
-		ResponseError(ctx, err2.New(200, "参数错误"))
-		return
-	}
-	if form.Code == "" {
-		ResponseError(ctx, err2.New(200, "code无效"))
-		return
-	}
-
-	res, err := wechat.SDK.Login(form.Code)
-
-	if err != nil {
-		ResponseError(ctx, err)
-		return
-	}
-
+	// 注册
 	info, err := wechat.SDK.DecryptUserInfo(res.SessionKey, form.RawData, form.EncryptedData, form.Signature, form.Iv)
-
-	if err != nil {
+	if err !=nil {
 		ResponseError(ctx, err)
 		return
 	}
@@ -90,11 +64,6 @@ func (this *AuthController) Register(ctx *gin.Context) {
 		return
 	}
 
-	jwtGuard, err := auth.Auth.Guard(guard)
-	if err != nil {
-		ResponseError(ctx, err)
-		return
-	}
 	data, err := jwtGuard.Login(user)
 	if err != nil {
 		ResponseError(ctx, err)
@@ -108,4 +77,12 @@ func (this *AuthController) Register(ctx *gin.Context) {
 		"token": token,
 	}, http.StatusOK)
 
+}
+
+type loginForm struct {
+	Code          string `json:"code"`
+	RawData       string `json:"rawData"`
+	Signature     string `json:"signature"`
+	Iv            string `json:"iv"`
+	EncryptedData string `json:"encryptedData"`
 }

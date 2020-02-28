@@ -295,6 +295,7 @@ func (this *mongoRep) Pagination(ctx context.Context, req *request.IndexRequest)
 			result <- repository.QueryPaginationResult{Error: err}
 			return
 		}
+
 		entities := this.newModels()
 		err = cursor.All(ctx, entities)
 		if err != nil {
@@ -309,6 +310,8 @@ func (this *mongoRep) Pagination(ctx context.Context, req *request.IndexRequest)
 			pagination.PerPage = req.PerPage
 			pagination.HasNextPage = page*req.PerPage < total
 		}
+
+		// todo 0值处理
 		i := reflect.ValueOf(entities).Elem().Interface()
 
 		result <- repository.QueryPaginationResult{Result: i, Pagination: pagination}
@@ -731,14 +734,14 @@ func (this *mongoRep) hasDeletedAtField(entity interface{}) bool {
 
 func (this *mongoRep) CreateIndexes(ctx context.Context, models []mongo.IndexModel) (err error) {
 	opts := options.CreateIndexes().SetMaxTime(10 * time.Second)
-	res, err := this.Collection().Indexes().CreateMany(ctx, models, opts)
+	_, err = this.Collection().Indexes().CreateMany(ctx, models, opts)
 	if err != nil {
 		log.Printf("model %s create indexs error:%s\n", this.table, err)
 		return err
 	}
-	for _, key := range res {
-		log.Printf("model %s create indexs %s\n", this.table, key)
-	}
+	//for _, key := range res {
+	//	log.Printf("model %s create indexs %s\n", this.table, key)
+	//}
 
 	return nil
 }

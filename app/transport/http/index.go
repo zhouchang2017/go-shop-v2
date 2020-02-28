@@ -153,6 +153,7 @@ func (this *IndexController) Product(ctx *gin.Context) {
 			"price":         item.Price,
 			"option_values": item.OptionValues,
 			"qty":           item.Qty,
+			"avatar":        item.GetAvatar(),
 		})
 	}
 

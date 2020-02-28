@@ -1,9 +1,9 @@
 package auth
 
 import (
-	"github.com/davecgh/go-spew/spew"
 	"github.com/gin-gonic/gin"
 	"go-shop-v2/pkg/ctx"
+	err2 "go-shop-v2/pkg/err"
 	"net/http"
 )
 
@@ -15,14 +15,14 @@ func AuthMiddleware(guard string) gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"message": http.StatusText(http.StatusUnauthorized)})
 			return
 		}
-		ctx.GinCtxWithGuard(c,statefulGuard)
+		ctx.GinCtxWithGuard(c, statefulGuard)
 		statefulGuard.SetContext(c)
 
 		user, err := statefulGuard.User()
-
-		spew.Dump(user)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"message": http.StatusText(http.StatusUnauthorized)})
+			err2.ErrorEncoder(nil, err, c.Writer)
+			//c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"message": http.StatusText(http.StatusUnauthorized)})
+			c.Abort()
 			return
 		}
 		ctx.GinCtxWithUser(c, user)

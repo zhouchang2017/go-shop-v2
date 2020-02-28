@@ -29,10 +29,7 @@ func Register(app *gin.Engine) {
 
 	// 授权
 	v1.POST("/login", authController.Login)
-	// 注册
-	v1.POST("/register", authController.Register)
 
-	v1.Use(auth.AuthMiddleware(guard))
 	// 首页列表
 	v1.GET("/index", indexController.Index)
 
@@ -47,6 +44,28 @@ func Register(app *gin.Engine) {
 
 	// 淘宝详情接口
 	v1.GET("/taobao/:id", indexController.TaobaoDetail)
+
+	// 需要授权路由
+	v1.Use(auth.AuthMiddleware(guard))
+
+	shopCartController := &ShopCartController{
+		srv:     services.MakeShopCartService(),
+		itemSrv: services.MakeItemService(),
+	}
+	// 购物车列表页
+	v1.GET("/shopping-cart", shopCartController.Index)
+
+	// 加入购物车
+	v1.POST("/shopping-cart", shopCartController.Add)
+
+	// 更新购物车
+	v1.PUT("/shopping-cart/:id", shopCartController.Update)
+
+	// 更新购物车选定状态
+	v1.PUT("/shopping-cart", shopCartController.UpdateChecked)
+
+	// 删除购物车
+	v1.DELETE("/shopping-cart", shopCartController.Delete)
 }
 
 //
@@ -65,4 +84,5 @@ func ResponseError(ctx *gin.Context, err error) {
 	}
 
 	ctx.JSON(http.StatusOK, errStatus)
+	ctx.Abort()
 }

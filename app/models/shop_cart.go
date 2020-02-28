@@ -10,8 +10,9 @@ type ShopCart struct {
 	UserId           string          `json:"user_id" bson:"user_id"`
 	Item             *AssociatedItem `json:"item" bson:"item"` // sku id
 	Qty              int64           `json:"qty"`              // 数量
-	Checked          bool            `json:"checked"`          // 用户是否选定
-	Enabled          bool            `json:"enabled"`          // 是否已失效
+	Price            int64           `json:"price"`
+	Checked          bool            `json:"checked"` // 用户是否选定
+	Enabled          bool            `json:"enabled"` // 是否已失效
 }
 
 func NewShopCart(userId string, item *Item, qty int64, check bool) *ShopCart {
@@ -19,6 +20,7 @@ func NewShopCart(userId string, item *Item, qty int64, check bool) *ShopCart {
 		UserId:  userId,
 		Item:    item.ToAssociated(),
 		Qty:     qty,
+		Price:   item.Price,
 		Checked: check,
 		Enabled: true,
 	}

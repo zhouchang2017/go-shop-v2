@@ -4,6 +4,7 @@ import (
 	"context"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
+	ctx2 "go-shop-v2/pkg/ctx"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"go.mongodb.org/mongo-driver/bson"
@@ -26,6 +27,7 @@ func (this *ShopCartService) Add(ctx context.Context, userId string, item *model
 			"$inc": bson.M{"qty": qty},
 			"$set": bson.M{
 				"checked": check,
+				"price":   item.Price,
 			},
 		})
 
@@ -42,17 +44,58 @@ func (this *ShopCartService) Add(ctx context.Context, userId string, item *model
 }
 
 // 更新购物车
-func (this *ShopCartService) Update(ctx context.Context, id string, qty int64, check bool) (shopCart *models.ShopCart, err error) {
-	updated := <-this.rep.Update(ctx, id, bson.M{
-		"$set": bson.M{
-			"qty":     qty,
-			"checked": check,
-		},
-	})
-	if updated.Error != nil {
-		return nil, updated.Error
+func (this *ShopCartService) Update(ctx context.Context, userId string, id string, item *models.Item, qty int64, check bool) (shopCart *models.ShopCart, err error) {
+	// 硬删除
+	ctx = ctx2.WithForce(ctx, true)
+
+	if item != nil {
+		// 查询是否有相同sku 购物车
+		one := <-this.rep.FindOne(ctx, bson.M{
+			"user_id": userId,
+			"item.id": item.GetID(),
+		})
+		if one.Error == nil {
+			// 存在相同sku，进行覆盖
+			// 删除当前id
+			if err := <-this.rep.Delete(ctx, id); err != nil {
+				return nil, err
+			}
+			//shopCart = &models.ShopCart{}
+			cart := one.Result.(*models.ShopCart)
+			cart.Qty = qty
+			cart.Checked = check
+			cart.Item = item.ToAssociated()
+			saved := <-this.rep.Save(ctx, cart)
+			if saved.Error != nil {
+				err = saved.Error
+				return
+			}
+			return saved.Result.(*models.ShopCart), nil
+		}
 	}
-	return updated.Result.(*models.ShopCart), nil
+
+	updated := bson.M{
+		"qty":     qty,
+		"checked": check,
+	}
+	if item != nil {
+		updated["item"] = item.ToAssociated()
+	}
+
+	// 不存在相同sku
+	// 直接更新
+	result := <-this.rep.Update(ctx, id, bson.M{
+		"$set": updated,
+	})
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return result.Result.(*models.ShopCart), nil
+}
+
+// 全选/取消全选
+func (this *ShopCartService) CheckedOrCancelAll(ctx context.Context, checked bool, ids ...string) (err error) {
+	return this.rep.CheckedOrCancelAll(ctx, checked, ids...)
 }
 
 // 删除购物车
@@ -69,10 +112,12 @@ func (this *ShopCartService) Pagination(ctx context.Context, req *request.IndexR
 		return
 	}
 	shopCarts = results.Result.([]*models.ShopCart)
+	if len(shopCarts) == 0 {
+		shopCarts = []*models.ShopCart{}
+	}
 	pagination = results.Pagination
 	return
 }
-
 
 func NewShopCartService(rep *repositories.ShopCartRep) *ShopCartService {
 	return &ShopCartService{rep: rep}

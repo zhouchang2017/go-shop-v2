@@ -5,6 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 	err2 "go-shop-v2/pkg/err"
 	"log"
+	"net/http"
 )
 
 type JWTGuard struct {
@@ -49,13 +50,19 @@ func (this *JWTGuard) User() (user Authenticatable, err error) {
 	}
 	token, err := this.jwt.SetContext(this.ctx).GetToken()
 	if err != nil && !this.jwt.Check() {
-		return nil, err
+		if validationError, ok := err.(*jwt.ValidationError); ok {
+			if validationError.Errors == jwt.ValidationErrorExpired {
+				// token过期
+				return nil, err2.New(http.StatusUnauthorized, validationError.Error())
+			}
+		}
+		return nil, err2.New(http.StatusUnauthorized, err.Error())
 	}
 	payload := token.Claims.(jwt.MapClaims)
 
 	authenticatable, err := this.provider.RetrieveById(payload["sub"])
 	if err != nil {
-		return nil, err
+		return nil, err2.New(http.StatusUnauthorized, err.Error())
 	}
 	this.setUser(authenticatable)
 	return this.user, nil
