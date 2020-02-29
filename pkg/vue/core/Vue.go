@@ -25,11 +25,10 @@ type Vue struct {
 	config           map[string]interface{}
 }
 
-func New(port int64) *Vue {
+func New() *Vue {
 	engine := gin.New()
 	return &Vue{
 		app:    engine,
-		port:   port,
 		prefix: "app",
 		warps:  map[string]*warp{},
 		cards:  map[string]contracts.Card{},
@@ -80,7 +79,14 @@ func (this *Vue) setWarps() {
 	}
 }
 
-func (this *Vue) Run() error {
+func (this *Vue) Handler() http.Handler {
+	this.init()
+	return this.app
+}
+
+// 独立运行
+func (this *Vue) Run(port int64) error {
+	this.port = port
 	this.init()
 	this.server = &http.Server{
 		Addr:           fmt.Sprintf(":%d", this.port),

@@ -10,10 +10,10 @@ require (
 	github.com/entropyx/tools v0.0.0-20190821201549-24af18665e91
 	github.com/gin-gonic/gin v1.5.0
 	github.com/go-playground/universal-translator v0.17.0 // indirect
+	github.com/go-redis/redis/v7 v7.2.0
 	github.com/jinzhu/gorm v1.9.11
 	github.com/jinzhu/inflection v1.0.0
 	github.com/json-iterator/go v1.1.8 // indirect
-	github.com/kr/pretty v0.1.0 // indirect
 	github.com/leodido/go-urn v1.2.0 // indirect
 	github.com/mattn/go-isatty v0.0.11 // indirect
 	github.com/medivhzhan/weapp/v2 v2.0.1
@@ -33,10 +33,8 @@ require (
 	github.com/xdg/stringprep v1.0.0 // indirect
 	go.mongodb.org/mongo-driver v1.2.0
 	golang.org/x/crypto v0.0.0-20191206172530-e9b2fee46413
-	golang.org/x/net v0.0.0-20190620200207-3b0461eec859 // indirect
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e // indirect
 	golang.org/x/sys v0.0.0-20191210023423-ac6580df4449 // indirect
-	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/go-playground/validator.v9 v9.30.2
 	gopkg.in/yaml.v2 v2.2.7 // indirect
 	qiniupkg.com/x v7.0.8+incompatible // indirect

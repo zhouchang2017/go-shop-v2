@@ -3,6 +3,7 @@ package config
 import (
 	"go-shop-v2/app/repositories"
 	"go-shop-v2/pkg/auth"
+	"go-shop-v2/pkg/cache/redis"
 	"go-shop-v2/pkg/db/mongodb"
 	"go-shop-v2/pkg/db/mysql"
 	"go-shop-v2/pkg/qiniu"
@@ -23,6 +24,7 @@ type config struct {
 	WeappConfig wechat.Config  `json:"weapp_config"`
 	MongoCfg    mongodb.Config `json:"mongo_config"`
 	MysqlCfg    mysql.Config   `json:"mysql_config"`
+	RedisCfg    redis.Config   `json:"redis_config"`
 	QiniuCfg    qiniu.Config   `json:"qiniu_config"`
 }
 
@@ -43,6 +45,11 @@ func (c *config) MongodbConfig() mongodb.Config {
 // mysql config
 func (c *config) MysqlConfig() mysql.Config {
 	return c.MysqlCfg
+}
+
+// redis config
+func (c *config) RedisConfig() redis.Config {
+	return c.RedisCfg
 }
 
 // auth config

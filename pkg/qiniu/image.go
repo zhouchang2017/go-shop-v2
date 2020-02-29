@@ -51,6 +51,9 @@ func (i Image) Src() string {
 	if isUrl.MatchString(string(i)) {
 		return string(i)
 	}
+	if GetQiniu() == nil {
+		return string(i)
+	}
 	return fmt.Sprintf("%s/%s", GetQiniu().domain, string(i))
 }
 

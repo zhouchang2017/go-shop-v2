@@ -26,7 +26,7 @@ type QueryPaginationResult struct {
 type IRepository interface {
 	FindById(ctx context.Context, id string) <-chan QueryResult
 	FindByIds(ctx context.Context, ids ...string) <-chan QueryResult
-	FindOne(ctx context.Context,credentials map[string]interface{}) <-chan QueryResult
+	FindOne(ctx context.Context, credentials map[string]interface{}) <-chan QueryResult
 	FindAll(ctx context.Context) <-chan QueryResult
 	Count(ctx context.Context, filter interface{}) <-chan QueryResult
 	Pagination(ctx context.Context, req *request.IndexRequest) <-chan QueryPaginationResult

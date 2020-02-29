@@ -22,12 +22,12 @@ func NewShopsInventoryBar() *shopsInventoryBar {
 			rep: repositories.NewInventoryRep(mongodb.GetConFn()),
 		}
 		ShopsInventoryBar.LabelMap(map[string]interface{}{
-			"shop_name": "门店名称",
-			"total":     "总计",
-			"qty":       "非锁定库存",
-			"locked_qty":"锁定库存",
-			"status_0":  "良品",
-			"status_1":  "不良品",
+			"shop_name":  "门店名称",
+			"total":      "总计",
+			"qty":        "非锁定库存",
+			"locked_qty": "锁定库存",
+			"status_0":   "良品",
+			"status_1":   "不良品",
 		})
 		ShopsInventoryBar.SetWidth50Percent()
 		ShopsInventoryBar.Stack([]string{"status_0", "status_1"})

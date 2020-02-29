@@ -25,14 +25,10 @@ func (this *ShopCartController) Index(ctx *gin.Context) {
 	user := ctx2.GetUser(ctx)
 	currentUser := user.(*models.User)
 
-	var req request.IndexRequest
-	err := ctx.ShouldBind(&req)
-	if err != nil {
-		ResponseError(ctx, err)
-		return
-	}
+	req := &request.IndexRequest{}
+
 	req.AppendFilter("user_id", currentUser.GetID())
-	carts, pagination, err := this.srv.Pagination(ctx, &req)
+	carts, pagination, err := this.srv.Pagination(ctx, req)
 	if err != nil {
 		ResponseError(ctx, err)
 		return
@@ -101,8 +97,8 @@ func (this *ShopCartController) Update(ctx *gin.Context) {
 			return
 		}
 	}
-
-	updated, err := this.srv.Update(ctx, currentUser.GetID(), id, item, form.Qty, form.Checked)
+	forceContext := ctx2.WithForce(ctx, true)
+	updated, err := this.srv.Update(forceContext, currentUser.GetID(), id, item, form.Qty, form.Checked)
 	if err != nil {
 		ResponseError(ctx, err)
 		return
@@ -141,7 +137,8 @@ func (this *ShopCartController) Delete(ctx *gin.Context) {
 		ResponseError(ctx, err)
 		return
 	}
-	if err := this.srv.Delete(ctx, form.Ids...); err != nil {
+	forceContext := ctx2.WithForce(ctx, true)
+	if err := this.srv.Delete(forceContext, form.Ids...); err != nil {
 		ResponseError(ctx, err)
 		return
 	}

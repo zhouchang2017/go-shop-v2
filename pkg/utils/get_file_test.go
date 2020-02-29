@@ -32,9 +32,9 @@ func TestGetFilePath(t *testing.T) {
 		{
 			"normal case",
 			func() (int, string) {
-				return 2, ".env.example"
+				return 2, ".config.example"
 			},
-			".env.example",
+			".config.example",
 			nil,
 		},
 	}

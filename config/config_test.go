@@ -8,7 +8,7 @@ import (
 
 func TestNewConfig(t *testing.T) {
 	//// get env file normal without test func
-	//envPath, pathErr := utils.GetFilePath(1, ".env")
+	//envPath, pathErr := utils.GetFilePath(1, ".config")
 	//assert.NoError(t, pathErr)
 	//// open file
 	//file, openErr := os.Open(envPath)

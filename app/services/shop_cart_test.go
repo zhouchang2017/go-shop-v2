@@ -41,26 +41,7 @@ func TestShopCartService_Add(t *testing.T) {
 }
 
 func TestShopCartService_Update(t *testing.T) {
-	mongodb.TestConnect()
-	defer mongodb.Close()
-
-	qiniu.NewQiniu(qiniu.Config{
-		Drive:            "",
-		QiniuDomain:      "http://q5q1efml2.bkt.clouddn.com",
-		QiniuAccessKey:   "",
-		QiniuSecretKey:   "",
-		Bucket:           "",
-		FileUploadAction: "",
-	})
-
-	shopCartService := MakeShopCartService()
-
-	update, err := shopCartService.Update(context.Background(), "5e521bec6dd2f323e7379ae8", 5, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	spew.Dump(update)
+	//
 }
 
 func TestShopCartService_Delete(t *testing.T) {

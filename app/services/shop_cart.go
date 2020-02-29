@@ -4,7 +4,6 @@ import (
 	"context"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
-	ctx2 "go-shop-v2/pkg/ctx"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"go.mongodb.org/mongo-driver/bson"
@@ -22,6 +21,7 @@ func (this *ShopCartService) Add(ctx context.Context, userId string, item *model
 		"item.id": item.GetID(),
 	})
 	if one.Error == nil {
+		// 已存在
 		cart := one.Result.(*models.ShopCart)
 		updated := <-this.rep.Update(ctx, cart.GetID(), bson.M{
 			"$inc": bson.M{"qty": qty},
@@ -36,18 +36,18 @@ func (this *ShopCartService) Add(ctx context.Context, userId string, item *model
 		}
 		return updated.Result.(*models.ShopCart), nil
 	}
+
+
 	created := <-this.rep.Create(ctx, model)
 	if created.Error != nil {
 		return nil, created.Error
 	}
+
 	return created.Result.(*models.ShopCart), nil
 }
 
 // 更新购物车
 func (this *ShopCartService) Update(ctx context.Context, userId string, id string, item *models.Item, qty int64, check bool) (shopCart *models.ShopCart, err error) {
-	// 硬删除
-	ctx = ctx2.WithForce(ctx, true)
-
 	if item != nil {
 		// 查询是否有相同sku 购物车
 		one := <-this.rep.FindOne(ctx, bson.M{
@@ -60,6 +60,7 @@ func (this *ShopCartService) Update(ctx context.Context, userId string, id strin
 			if err := <-this.rep.Delete(ctx, id); err != nil {
 				return nil, err
 			}
+
 			//shopCart = &models.ShopCart{}
 			cart := one.Result.(*models.ShopCart)
 			cart.Qty = qty
@@ -106,6 +107,8 @@ func (this *ShopCartService) Delete(ctx context.Context, ids ...string) (err err
 
 // 分页
 func (this *ShopCartService) Pagination(ctx context.Context, req *request.IndexRequest) (shopCarts []*models.ShopCart, pagination response.Pagination, err error) {
+	// 不进行分页
+	req.Page = -1
 	results := <-this.rep.Pagination(ctx, req)
 	if results.Error != nil {
 		err = results.Error

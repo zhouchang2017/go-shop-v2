@@ -10,6 +10,7 @@ import (
 	http2 "go-shop-v2/app/transport/http"
 	"go-shop-v2/config"
 	"go-shop-v2/pkg/auth"
+	"go-shop-v2/pkg/cache/redis"
 	"go-shop-v2/pkg/db/mongodb"
 	"go-shop-v2/pkg/message"
 	"go-shop-v2/pkg/qiniu"
@@ -21,7 +22,7 @@ import (
 	"time"
 )
 
-var configPathFlag = flag.String("c", ".env", "get the file path for config to parsed")
+var configPathFlag = flag.String("c", ".config", "get the file path for config to parsed")
 
 const PORT = 8081
 
@@ -62,6 +63,10 @@ func main() {
 	// mongodb
 	mongoConnect := mongodb.Connect(configs.MongodbConfig())
 	defer mongodb.Close()
+
+	// redis
+	redis.Connect(configs.RedisConfig())
+	defer redis.Close()
 
 	// 微信skd
 	wechat.NewSDK(configs.WeappConfig)

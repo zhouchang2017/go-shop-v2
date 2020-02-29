@@ -2,15 +2,23 @@ package repositories
 
 import (
 	"context"
+	"fmt"
 	"go-shop-v2/app/models"
 	"go-shop-v2/pkg/db/mongodb"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+const shopCartCacheKey = "shopCart"
+
+func getShopCartCacheKey(userId string) string {
+	return fmt.Sprintf("%s:%s", shopCartCacheKey, userId)
+}
+
 type ShopCartRep struct {
 	*mongoRep
 }
+
 
 // 全选/取消
 func (this *ShopCartRep) CheckedOrCancelAll(ctx context.Context, checked bool, ids ...string) (err error) {

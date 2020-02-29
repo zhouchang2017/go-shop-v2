@@ -15,6 +15,9 @@ import (
 	"sync"
 )
 
+var inventoryOnce sync.Once
+var inventoryRep *InventoryRep
+
 type InventoryRep struct {
 	lock sync.Mutex
 	*mongoRep
@@ -375,7 +378,7 @@ func (this *InventoryRep) Search(ctx context.Context, opt *QueryOption) <-chan I
 			delete(filter, "item.product.code")
 		}
 
-		if opt.Qty !=nil {
+		if opt.Qty != nil {
 			filter["qty"] = opt.Qty
 		}
 		// 位置搜索
@@ -404,6 +407,11 @@ func (this *InventoryRep) Search(ctx context.Context, opt *QueryOption) <-chan I
 	}()
 	return result
 }
+
+// 通过skuId查询库存数量
+//func (this *InventoryRep) SearchByItemId(ctx context.Context, id string) int64 {
+//
+//}
 
 //func (q *QueryOption) SetStatus(status int8) {
 //	q.Status = &status
@@ -494,12 +502,14 @@ func (this *InventoryRep) indexesModel() []mongo.IndexModel {
 }
 
 func NewInventoryRep(con *mongodb.Connection) *InventoryRep {
-	rep := &InventoryRep{
-		mongoRep: NewBasicMongoRepositoryByDefault(&models.Inventory{}, con),
-	}
+	inventoryOnce.Do(func() {
+		inventoryRep = &InventoryRep{
+			mongoRep: NewBasicMongoRepositoryByDefault(&models.Inventory{}, con),
+		}
+	})
+	return inventoryRep
 	//err := rep.CreateIndexes(context.Background(), rep.indexesModel())
 	//if err != nil {
 	//	log.Fatal(err)
 	//}
-	return rep
 }

@@ -11,6 +11,7 @@ import (
 
 // 列表页请求通用参数
 type IndexRequest struct {
+	LastId         string `json:"last_id" form:"last_id"` // by load more...
 	searchField    string
 	Search         string          `json:"search" form:"search"`                   // 搜索关键词
 	Trashed        bool            `json:"trashed" form:"trashed"`                 // 软删除
@@ -23,7 +24,7 @@ type IndexRequest struct {
 	only           []string
 	hidden         []string
 	Filters        Filters                `json:"filters" form:"filters"` // 筛选
-	Ids            *string                 `json:"ids" form:"ids"`         // filter by ids,Split ","
+	Ids            *string                `json:"ids" form:"ids"`         // filter by ids,Split ","
 	query          map[string]interface{} // 自定义搜索
 	projection     map[string]interface{} // 自定义projection
 }
@@ -48,14 +49,14 @@ func (this *IndexRequest) AppendFilter(key string, value interface{}) {
 }
 
 func (this *IndexRequest) GetPage() int64 {
-	if (this.Page == 0) {
+	if this.Page == 0 {
 		this.Page = 1
 	}
 	return this.Page
 }
 
 func (this *IndexRequest) GetPerPage() int64 {
-	if (this.PerPage == 0) {
+	if this.PerPage == 0 {
 		this.PerPage = 15
 	}
 	return this.PerPage

@@ -29,3 +29,13 @@ docker-compose up -d rabbitmq
 
 - 2020-02-21
     - 七牛(qiniu) pkg 添加 Image 类型
+    
+- 2020-02-29
+    - mongoRep 在基础方法中实现缓存,前提是需要先调用mongoRep下的`SetCache`方法
+        + `FindById`
+        + `Create`
+        + `Save`
+        + `Update`
+        + `Delete`
+        + `DeleteMany`
+        + `Restore`

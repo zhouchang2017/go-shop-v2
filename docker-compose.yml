@@ -34,3 +34,14 @@ services:
     restart: always
     volumes:
       - ./docker/rabbitmq:/var/lib/rabbitmq
+
+  redis:
+    image: redis
+    restart: always
+    ports:
+      - 63790:6379
+    environment:
+      TZ: "Asia/Shanghai"
+    volumes:
+      # - /etc/localtime:/etc/localtime:ro # 设置容器时区与宿主机保持一致
+      - ./docker/redis/data:/data

@@ -2,6 +2,7 @@ package services
 
 import (
 	"go-shop-v2/app/repositories"
+	"go-shop-v2/pkg/cache/redis"
 	"go-shop-v2/pkg/db/mongodb"
 )
 
@@ -24,11 +25,13 @@ func MakeAdminService() *AdminService {
 
 func MakeItemService() *ItemService {
 	rep := repositories.NewItemRep(mongodb.GetConFn())
+	rep.SetCache(redis.GetConFn())
 	return NewItemService(rep)
 }
 
 func MakeProductService() *ProductService {
 	rep := repositories.NewProductRep(mongodb.GetConFn())
+	rep.SetCache(redis.GetConFn())
 	return NewProductService(rep)
 }
 
@@ -57,9 +60,16 @@ func MakeTopicService() *TopicService {
 }
 
 func MakeShopCartService() *ShopCartService {
-	return NewShopCartService(repositories.NewShopCartRep(mongodb.GetConFn()))
+	shopCartRep := repositories.NewShopCartRep(mongodb.GetConFn())
+	// 加入缓存
+	shopCartRep.SetCache(redis.GetConFn())
+	return NewShopCartService(shopCartRep)
 }
 
 func MakeUserService() *UserService {
 	return NewUserService(repositories.NewUserRep(mongodb.GetConFn()))
+}
+
+func MakeBookmarkService() *BookmarkService {
+	return NewBookmarkService(repositories.NewBookmarkRep(mongodb.GetConFn()))
 }

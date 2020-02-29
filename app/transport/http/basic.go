@@ -15,10 +15,10 @@ func SetGuard(name string) {
 }
 
 func Register(app *gin.Engine) {
-
+	productSrv := services.MakeProductService()
 	v1 := app.Group("v1")
 	indexController := &IndexController{
-		productSrv:   services.MakeProductService(),
+		productSrv:   productSrv,
 		topicSrv:     services.MakeTopicService(),
 		articleSrv:   services.MakeArticleService(),
 		inventorySrv: services.MakeInventoryService(),
@@ -66,6 +66,21 @@ func Register(app *gin.Engine) {
 
 	// 删除购物车
 	v1.DELETE("/shopping-cart", shopCartController.Delete)
+
+	bookmarkSrv := services.MakeBookmarkService()
+	bookmarkController := &BookmarkController{
+		bookmarkSrv: bookmarkSrv,
+		productSrv:  productSrv,
+	}
+	// 收藏夹
+	// 收藏夹列表页
+	v1.GET("/bookmarks", bookmarkController.Index)
+
+	// 加入收藏夹
+	v1.POST("/bookmarks", bookmarkController.Add)
+
+	// 从收藏夹移除
+	v1.DELETE("/bookmarks", bookmarkController.Delete)
 }
 
 //

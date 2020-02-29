@@ -10,6 +10,7 @@ import (
 	vue2 "go-shop-v2/app/vue"
 	"go-shop-v2/config"
 	"go-shop-v2/pkg/auth"
+	"go-shop-v2/pkg/cache/redis"
 	"go-shop-v2/pkg/db/mongodb"
 	"go-shop-v2/pkg/message"
 	"go-shop-v2/pkg/qiniu"
@@ -22,7 +23,7 @@ import (
 	"time"
 )
 
-var configPathFlag = flag.String("c", ".env", "get the file path for config to parsed")
+var configPathFlag = flag.String("c", ".config", "get the file path for config to parsed")
 
 func main() {
 	// parse flag
@@ -67,18 +68,20 @@ func main() {
 	// mysql
 	//mysql.Connect(configs.MysqlConfig())
 	//defer mysql.Close()
-
+	// redis
+	redis.Connect(configs.RedisConfig())
+	defer redis.Close()
 
 	// 微信skd
 	wechat.NewSDK(configs.WeappConfig)
 
-
+	adminGuard:="admin"
 	// auth service
 	authSrv := auth.NewAuth()
 	// 注册guard
 	authSrv.Register(func() auth.StatefulGuard {
 		return auth.NewJwtGuard(
-			"admin",
+			adminGuard,
 			"admin-secret-key",
 			auth.NewRepositoryUserProvider(repositories.NewAdminRep(mongoConnect)),
 		)
@@ -87,9 +90,9 @@ func main() {
 	// 注册事件监听者
 	listeners.Boot(mq)
 	// 实例化vue后台组件
-	vue := core.New(8083)
+	vue := core.New()
 	// 设置授权守卫
-	vue.SetGuard("admin")
+	vue.SetGuard(adminGuard)
 	// 注册七牛api
 	vue.RegisterCustomHttpHandler(newQiniu.HttpHandle)
 	// 注册全局前端配置
@@ -98,7 +101,7 @@ func main() {
 	// vue相关启动项
 	vue2.Boot(vue)
 	// 启动vue后台组件框架
-	vue.Run()
+	vue.Run(8083)
 
 	ctx2, cancelFunc := context.WithCancel(context.Background())
 	mq.Run(ctx2)
