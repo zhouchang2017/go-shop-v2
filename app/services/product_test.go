@@ -63,7 +63,6 @@ func TestProductService_FindById(t *testing.T) {
 	defer redis.Close()
 
 	service := MakeProductService()
-	service.rep.SetCache(redis.GetConFn())
 
 	id, err := service.FindById(context.Background(), "5e577e370d3f4744961cfcfd")
 	if err!=nil {

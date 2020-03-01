@@ -17,8 +17,7 @@ type BookmarkController struct {
 
 // 个人收藏夹列表
 func (this *BookmarkController) Index(ctx *gin.Context) {
-	user := ctx2.GetUser(ctx)
-	currentUser := user.(*models.User)
+	user := ctx2.GetUser(ctx).(*models.User)
 
 	var req request.IndexRequest
 	err := ctx.ShouldBind(&req)
@@ -26,14 +25,20 @@ func (this *BookmarkController) Index(ctx *gin.Context) {
 		ResponseError(ctx, err)
 		return
 	}
-	req.AppendFilter("user_id", currentUser.GetID())
-	bookmarks, pagination, err := this.bookmarkSrv.Pagination(ctx, &req)
+	bookmarks, pagination, err := this.bookmarkSrv.Index(ctx, user.GetID(), req.Page, req.PerPage)
 	if err != nil {
 		ResponseError(ctx, err)
 		return
 	}
+
+	ids, err := this.productSrv.FindByIds(ctx, bookmarks)
+	if err != nil {
+		ResponseError(ctx, err)
+		return
+	}
+
 	Response(ctx, gin.H{
-		"data":       bookmarks,
+		"data":       ids,
 		"pagination": pagination,
 	}, http.StatusOK)
 }
@@ -44,47 +49,56 @@ type bookmarkForm struct {
 
 // 添加到收藏夹
 func (this *BookmarkController) Add(ctx *gin.Context) {
-	var form bookmarkForm
-	if err := ctx.ShouldBind(&form); err != nil {
-		ResponseError(ctx, err)
-		return
-	}
-	if form.ProductId == "" {
+	productId := ctx.Param("id")
+
+	if productId == "" {
 		ResponseError(ctx, err2.New(http.StatusUnprocessableEntity, "product_id参数缺少"))
 		return
 	}
 
-	product, err := this.productSrv.FindById(ctx, form.ProductId)
-	if err != nil {
-		// 产品不存在
-		ResponseError(ctx, err)
-		return
-	}
-	user := ctx2.GetUser(ctx)
-	currentUser := user.(*models.User)
-	add, err := this.bookmarkSrv.Add(ctx, product, currentUser.GetID())
+	user := ctx2.GetUser(ctx).(*models.User)
+
+	err := this.bookmarkSrv.Add(ctx, user.GetID(), productId)
 	if err != nil {
 		ResponseError(ctx, err)
 		return
 	}
-	Response(ctx, add, http.StatusOK)
+	Response(ctx, nil, http.StatusNoContent)
 }
 
 type deleteBookmarkForm struct {
 	Ids []string `json:"ids"`
 }
 
-// 从购物车移除
+// 从收藏夹移除
 func (this *BookmarkController) Delete(ctx *gin.Context) {
-	var form deleteBookmarkForm
-	if err := ctx.ShouldBind(&form); err != nil {
-		ResponseError(ctx, err)
-		return
-	}
+	productId := ctx.Param("id")
 
-	if err := this.bookmarkSrv.Delete(ctx, form.Ids...); err != nil {
+	if productId == "" {
+		ResponseError(ctx, err2.New(http.StatusUnprocessableEntity, "product_id参数缺少"))
+		return
+	}
+	user := ctx2.GetUser(ctx).(*models.User)
+
+	if err := this.bookmarkSrv.Remove(ctx, user.GetID(), productId); err != nil {
 		ResponseError(ctx, err)
 		return
 	}
-	Response(ctx, form.Ids, 200)
+	Response(ctx, nil, http.StatusNoContent)
+}
+
+// 当前产品收藏夹状态
+func (this *BookmarkController) Show(ctx *gin.Context) {
+	user := ctx2.GetUser(ctx).(*models.User)
+	productId := ctx.Param("id")
+	if productId == "" {
+		ResponseError(ctx, err2.New(422, "缺少product_id"))
+		return
+	}
+	bookmark := this.bookmarkSrv.FindByProductId(ctx, user.GetID(), productId)
+	isCollect:= true
+	if bookmark == nil {
+		isCollect = false
+	}
+	Response(ctx, isCollect, http.StatusOK)
 }

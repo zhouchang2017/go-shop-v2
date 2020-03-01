@@ -23,6 +23,8 @@ type Product struct {
 	OnSale           bool                `json:"on_sale" bson:"on_sale"`
 	Sort             int64               `json:"sort"`
 	Qty              int64               `json:"qty" bson:"-"`
+	CollectCount     int64               `json:"collect_count" bson:"collect_count"` // 累计收藏
+	ShareCount       int64               `json:"share_count" bson:"share_count"`     // 累计分享
 }
 
 func NewProduct() *Product {
@@ -37,6 +39,7 @@ type AssociatedProduct struct {
 	Brand    *AssociatedBrand    `json:"brand"`
 	Category *AssociatedCategory `json:"category"`
 	Avatar   *qiniu.Image        `json:"avatar"`
+	Price    int64               `json:"price"`
 }
 
 func (this Product) GetSort() int64 {
@@ -59,6 +62,7 @@ func (this Product) ToAssociated() *AssociatedProduct {
 		Brand:    this.Brand,
 		Category: this.Category,
 		Avatar:   avatar,
+		Price:    this.Price,
 	}
 }
 

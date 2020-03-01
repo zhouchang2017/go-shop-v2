@@ -76,11 +76,14 @@ func Register(app *gin.Engine) {
 	// 收藏夹列表页
 	v1.GET("/bookmarks", bookmarkController.Index)
 
+	// 当前产品是否被收藏
+	v1.GET("/products/:id/bookmarks", bookmarkController.Show)
+
 	// 加入收藏夹
-	v1.POST("/bookmarks", bookmarkController.Add)
+	v1.POST("/products/:id/bookmarks", bookmarkController.Add)
 
 	// 从收藏夹移除
-	v1.DELETE("/bookmarks", bookmarkController.Delete)
+	v1.DELETE("/products/:id/bookmarks", bookmarkController.Delete)
 }
 
 //

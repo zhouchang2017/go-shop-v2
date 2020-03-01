@@ -4,11 +4,8 @@ import (
 	"context"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
-	ctx2 "go-shop-v2/pkg/ctx"
-	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
-	"go.mongodb.org/mongo-driver/bson"
 )
 
 type BookmarkService struct {
@@ -29,35 +26,28 @@ func (this *BookmarkService) Pagination(ctx context.Context, req *request.IndexR
 	return
 }
 
+// 收藏夹产品列表
+func (this *BookmarkService) Index(ctx context.Context, userId string, page int64, perPage int64) (ids []string, pagination response.Pagination, err error) {
+	return this.rep.Index(ctx, userId, page, perPage)
+}
+
 // 添加到收藏夹
-func (this *BookmarkService) Add(ctx context.Context, product *models.Product, userId string) (bookmark *models.Bookmark, err error) {
-	// 检测是否已在购物车
-	hasOne := <-this.rep.FindOne(ctx, bson.M{
-		"user_id":    userId,
-		"product.id": product.GetID(),
-	})
-	if hasOne.Error != nil {
-		// 不存在，创建
-		model := &models.Bookmark{
-			UserId:  userId,
-			Product: product.ToAssociated(),
-			Enabled: true,
-		}
-		created := <-this.rep.Create(ctx, model)
-		if created.Error != nil {
-			// 创建失败
-			return nil, created.Error
-		}
-		return created.Result.(*models.Bookmark), nil
-	}
-	return nil, err2.New(1002, "已存在")
+func (this *BookmarkService) Add(ctx context.Context, userId string, productId string) (err error) {
+	return this.rep.Add(ctx, userId, productId)
 }
 
 // 从收藏夹移除
-func (this *BookmarkService) Delete(ctx context.Context, ids ...string) error {
-	ctx = ctx2.WithForce(ctx, true)
-	err := <-this.rep.DeleteMany(ctx, ids...)
-	return err
+func (this *BookmarkService) Remove(ctx context.Context, userId string, ids ...string) error {
+	return this.rep.Remove(ctx, userId, ids...)
+}
+
+// 收藏夹总数
+func (this *BookmarkService) Count(ctx context.Context, userId string) (count int64) {
+	return this.rep.Count(ctx, userId)
+}
+
+func (this *BookmarkService) FindByProductId(ctx context.Context, userId string, productId string) (bookmark *models.Bookmark) {
+	return this.rep.FindByProductId(ctx, userId, productId)
 }
 
 func NewBookmarkService(rep *repositories.BookmarkRep) *BookmarkService {
