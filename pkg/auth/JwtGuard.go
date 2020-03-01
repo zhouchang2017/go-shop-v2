@@ -140,15 +140,13 @@ func (this *JWTGuard) hasValidCredentials(user Authenticatable, credentials map[
 }
 
 func NewJwtGuard(name string, secretKey string, exp int64, provider UserProvider) *JWTGuard {
-	if exp == 0 {
-		exp = 2
-	}
+	expired := time.Minute * time.Duration(exp)
 	return &JWTGuard{
 		name:      name,
 		secretKey: secretKey,
 		exp:       exp,
 		provider:  provider,
-		jwt:       &JWT{secretKey: secretKey, exp: time.Minute},
+		jwt:       &JWT{secretKey: secretKey, exp: expired},
 	}
 }
 

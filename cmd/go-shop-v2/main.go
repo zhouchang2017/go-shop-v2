@@ -70,8 +70,11 @@ func main() {
 	//mysql.Connect(configs.MysqlConfig())
 	//defer mysql.Close()
 	// redis
-	redis.Connect(configs.RedisConfig())
+	connect := redis.Connect(configs.RedisConfig())
 	defer redis.Close()
+
+	// 刷新缓存
+	connect.FlushDB()
 
 	// 微信skd
 	wechat.NewSDK(configs.WeappConfig)

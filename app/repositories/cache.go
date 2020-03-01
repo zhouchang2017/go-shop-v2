@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/davecgh/go-spew/spew"
 	"go-shop-v2/pkg/cache/redis"
 	ctx2 "go-shop-v2/pkg/ctx"
 	err2 "go-shop-v2/pkg/err"
@@ -117,8 +118,13 @@ func (this RedisCache) FindById(ctx context.Context, id string) <-chan repositor
 			}
 		}
 		results := <-this.rep.FindById(ctx, id)
-		if results.Error != nil {
-			this.HMSet(this.GetCacheKey(id), "detail", results.Result)
+		if results.Error == nil {
+			if marshal, err := json.Marshal(results.Result); err == nil {
+				if _, err := this.HMSet(this.GetCacheKey(id), "detail", marshal).Result(); err != nil {
+					spew.Dump(err)
+				}
+			}
+
 		}
 		output <- repository.QueryResult{
 			Result: results.Result,
@@ -153,10 +159,14 @@ func (this RedisCache) Create(ctx context.Context, entity interface{}) <-chan re
 	go func() {
 		defer close(result)
 		results := <-this.rep.Create(ctx, entity)
-		if results.Error != nil {
-			this.HMSet(this.GetCacheKey(results.Id), "detail", results.Result)
-		}
+		if results.Error == nil {
+			if marshal, err := json.Marshal(results.Result); err == nil {
+				if _, err := this.HMSet(this.GetCacheKey(results.Id), "detail", marshal).Result(); err != nil {
+					spew.Dump(err)
+				}
+			}
 
+		}
 		result <- repository.InsertResult{
 			Id:     results.Id,
 			Result: results.Result,
@@ -172,9 +182,13 @@ func (this RedisCache) Save(ctx context.Context, entity interface{}) <-chan repo
 	go func() {
 		defer close(result)
 		results := <-this.rep.Save(ctx, entity)
-		if results.Error != nil {
+		if results.Error == nil {
 			if id, err := this.getId(results.Result); err == nil {
-				this.HMSet(this.GetCacheKey(id.Hex()), "detail", results.Result)
+				if marshal, err := json.Marshal(results.Result); err == nil {
+					if _, err := this.HMSet(this.GetCacheKey(id.Hex()), "detail", marshal).Result(); err != nil {
+						spew.Dump(err)
+					}
+				}
 			}
 		}
 		result <- repository.QueryResult{
@@ -190,8 +204,12 @@ func (this RedisCache) Update(ctx context.Context, id string, update interface{}
 	go func() {
 		defer close(result)
 		results := <-this.rep.Update(ctx, id, update)
-		if results.Error != nil {
-			this.HMSet(this.GetCacheKey(id), "detail", results.Result)
+		if results.Error == nil {
+			if marshal, err := json.Marshal(results.Result); err == nil {
+				if _, err := this.HMSet(this.GetCacheKey(id), "detail", marshal).Result(); err != nil {
+					spew.Dump(err)
+				}
+			}
 		}
 		result <- repository.QueryResult{
 			Result: results.Result,
@@ -234,8 +252,12 @@ func (this RedisCache) Restore(ctx context.Context, id string) <-chan repository
 	go func() {
 		defer close(result)
 		results := <-this.rep.Restore(ctx, id)
-		if results.Error != nil {
-			this.HMSet(this.GetCacheKey(id), "detail", results.Result)
+		if results.Error == nil {
+			if marshal, err := json.Marshal(results.Result); err == nil {
+				if _, err := this.HMSet(this.GetCacheKey(id), "detail", marshal).Result(); err != nil {
+					spew.Dump(err)
+				}
+			}
 		}
 		result <- repository.QueryResult{
 			Result: results.Result,
