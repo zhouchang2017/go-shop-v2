@@ -1,75 +1,101 @@
 package services
 
 import (
+	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
 	"go-shop-v2/pkg/cache/redis"
 	"go-shop-v2/pkg/db/mongodb"
 )
 
 func MakeBrandService() *BrandService {
-	con := mongodb.GetConFn()
-	rep := repositories.NewBrandRep(con)
+	mongoRep := repositories.NewBasicMongoRepositoryByDefault(&models.Brand{}, mongodb.GetConFn())
+	brandCacheRep := repositories.NewRedisCache(&models.Brand{}, redis.GetConFn(), mongoRep)
+	rep := repositories.NewBrandRep(brandCacheRep)
 	return NewBrandService(rep)
 }
 
 func MakeShopService() *ShopService {
-	con := mongodb.GetConFn()
-	return NewShopService(repositories.NewShopRep(con))
+	mongoRep := repositories.NewBasicMongoRepositoryByDefault(&models.Shop{}, mongodb.GetConFn())
+	return NewShopService(repositories.NewShopRep(mongoRep))
 }
 
 func MakeAdminService() *AdminService {
-	con := mongodb.GetConFn()
-	rep := repositories.NewAdminRep(con)
+	mongoRep := repositories.NewBasicMongoRepositoryByDefault(&models.Admin{}, mongodb.GetConFn())
+	rep := repositories.NewAdminRep(mongoRep)
 	return NewAdminService(rep)
 }
 
+func newItemRep() *repositories.ItemRep {
+	mongoRep := repositories.NewBasicMongoRepositoryByDefault(&models.Item{}, mongodb.GetConFn())
+	itemCacheRep := repositories.NewRedisCache(&models.Item{}, redis.GetConFn(), mongoRep)
+	rep := repositories.NewItemRep(itemCacheRep)
+	return rep
+}
+
 func MakeItemService() *ItemService {
-	rep := repositories.NewItemRep(mongodb.GetConFn())
-	rep.SetCache(redis.GetConFn())
-	return NewItemService(rep)
+	return NewItemService(newItemRep())
 }
 
 func MakeProductService() *ProductService {
-	rep := repositories.NewProductRep(mongodb.GetConFn())
-	rep.SetCache(redis.GetConFn())
+	mongoRep := repositories.NewBasicMongoRepositoryByDefault(&models.Product{}, mongodb.GetConFn())
+	productCacheRep := repositories.NewRedisCache(&models.Product{}, redis.GetConFn(), mongoRep)
+	rep := repositories.NewProductRep(productCacheRep, newItemRep())
 	return NewProductService(rep)
 }
 
 func MakeInventoryService() *InventoryService {
-	con := mongodb.GetConFn()
-	rep := repositories.NewInventoryRep(con)
-	historyRep := repositories.NewInventoryLogRep(con)
+	mongoRep := repositories.NewBasicMongoRepositoryByDefault(&models.Inventory{}, mongodb.GetConFn())
+	rep := repositories.NewInventoryRep(mongoRep)
+
+	historyRep := repositories.NewInventoryLogRep(repositories.NewBasicMongoRepositoryByDefault(&models.InventoryLog{}, mongodb.GetConFn()))
+
 	return NewInventoryService(rep, historyRep, MakeShopService(), MakeProductService())
 }
 
 func MakeManualInventoryActionService() *ManualInventoryActionService {
-	rep := repositories.NewManualInventoryActionRep(mongodb.GetConFn())
+	mongoRep := repositories.NewBasicMongoRepositoryByDefault(&models.ManualInventoryAction{}, mongodb.GetConFn())
+	rep := repositories.NewManualInventoryActionRep(mongoRep)
 	return NewManualInventoryActionService(rep, MakeInventoryService(), MakeShopService(), MakeProductService())
 }
 
 func MakeCategoryService() *CategoryService {
-	return NewCategoryService(repositories.NewCategoryRep(mongodb.GetConFn()))
+	mongoRep := repositories.NewBasicMongoRepositoryByDefault(&models.Category{}, mongodb.GetConFn())
+	rep := repositories.NewCategoryRep(mongoRep)
+	return NewCategoryService(rep)
 }
 
 func MakeArticleService() *ArticleService {
-	return NewArticleService(repositories.NewArticleRep(mongodb.GetConFn()))
+	mongoRep := repositories.NewBasicMongoRepositoryByDefault(&models.Article{}, mongodb.GetConFn())
+	rep := repositories.NewArticleRep(mongoRep)
+	return NewArticleService(rep)
 }
 
 func MakeTopicService() *TopicService {
-	return NewTopicService(repositories.NewTopicRep(mongodb.GetConFn()))
+	mongoRep := repositories.NewBasicMongoRepositoryByDefault(&models.Topic{}, mongodb.GetConFn())
+	rep := repositories.NewTopicRep(mongoRep)
+	return NewTopicService(rep)
 }
 
 func MakeShopCartService() *ShopCartService {
-	shopCartRep := repositories.NewShopCartRep(mongodb.GetConFn())
-	// 加入缓存
-	shopCartRep.SetCache(redis.GetConFn())
-	return NewShopCartService(shopCartRep)
+	mongoRep := repositories.NewBasicMongoRepositoryByDefault(&models.ShopCart{}, mongodb.GetConFn())
+	rep := repositories.NewShopCartRep(mongoRep)
+	return NewShopCartService(rep)
 }
 
 func MakeUserService() *UserService {
-	return NewUserService(repositories.NewUserRep(mongodb.GetConFn()))
+	mongoRep := repositories.NewBasicMongoRepositoryByDefault(&models.User{}, mongodb.GetConFn())
+	rep := repositories.NewUserRep(mongoRep)
+	return NewUserService(rep)
 }
 
 func MakeBookmarkService() *BookmarkService {
-	return NewBookmarkService(repositories.NewBookmarkRep(mongodb.GetConFn()))
+	mongoRep := repositories.NewBasicMongoRepositoryByDefault(&models.Bookmark{}, mongodb.GetConFn())
+	rep := repositories.NewBookmarkRep(mongoRep)
+	return NewBookmarkService(rep)
+}
+
+func MakeOrderService() *OrderService {
+	mongoRep := repositories.NewBasicMongoRepositoryByDefault(&models.Order{}, mongodb.GetConFn())
+	rep := repositories.NewOrderRep(mongoRep)
+	return NewOrderService(rep)
 }

@@ -3,8 +3,7 @@ package repositories
 import (
 	"context"
 	"fmt"
-	"go-shop-v2/app/models"
-	"go-shop-v2/pkg/db/mongodb"
+	"go-shop-v2/pkg/repository"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -16,7 +15,7 @@ func getShopCartCacheKey(userId string) string {
 }
 
 type ShopCartRep struct {
-	*mongoRep
+	repository.IRepository
 }
 
 
@@ -39,8 +38,6 @@ func (this *ShopCartRep) CheckedOrCancelAll(ctx context.Context, checked bool, i
 	return nil
 }
 
-func NewShopCartRep(con *mongodb.Connection) *ShopCartRep {
-	return &ShopCartRep{
-		mongoRep: NewBasicMongoRepositoryByDefault(&models.ShopCart{}, con),
-	}
+func NewShopCartRep(rep repository.IRepository) *ShopCartRep {
+	return &ShopCartRep{rep}
 }

@@ -60,6 +60,10 @@ func (this *ShopService) AllAssociatedShops(ctx context.Context) (shops []*model
 	return shops, nil
 }
 
+func (this *ShopService) GetAllAssociatedShops(ctx context.Context) (res []*models.AssociatedShop) {
+	return this.rep.GetAllAssociatedShops(ctx)
+}
+
 type ShopCreateOption struct {
 	Name     string              `json:"name" form:"name" binding:"required"`
 	Address  *models.ShopAddress `json:"address"`           // 地址

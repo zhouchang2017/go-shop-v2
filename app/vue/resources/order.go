@@ -2,8 +2,8 @@ package resources
 
 import (
 	"github.com/gin-gonic/gin"
-	"go-shop-v2/app/repositories"
-	"go-shop-v2/pkg/db/mongodb"
+	"go-shop-v2/app/models"
+	"go-shop-v2/app/services"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"go-shop-v2/pkg/vue/contracts"
@@ -14,18 +14,16 @@ import (
 
 type Order struct {
 	core.AbstractResource
-	rep *repositories.OrderRep
+	srv   *services.OrderService
 	model interface{}
 }
 
 func (order *Order) Show(ctx *gin.Context, id string) (res interface{}, err error) {
-	result := <-order.rep.FindById(ctx, id)
-	return result.Result, result.Error
+	return order.srv.FindById(ctx, id)
 }
 
 func (order *Order) Pagination(ctx *gin.Context, req *request.IndexRequest) (res interface{}, pagination response.Pagination, err error) {
-	results := <-order.rep.Pagination(ctx, req)
-	return results.Result, results.Pagination, results.Error
+	return order.srv.Pagination(ctx, req)
 }
 
 func (order *Order) Title() string {
@@ -99,7 +97,7 @@ func (order *Order) Model() interface{} {
 
 func (order *Order) Make(mode interface{}) contracts.Resource {
 	return &Order{
-		rep: order.rep,
+		srv: order.srv,
 	}
 }
 
@@ -108,5 +106,5 @@ func (order *Order) SetModel(model interface{}) {
 }
 
 func NewOrderResource() *Order {
-	return &Order{rep: repositories.NewOrderRep(mongodb.GetConFn())}
+	return &Order{srv: services.MakeOrderService(), model: &models.Order{}}
 }

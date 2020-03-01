@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"go-shop-v2/app/listeners"
+	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
 	vue2 "go-shop-v2/app/vue"
 	"go-shop-v2/config"
@@ -75,7 +76,7 @@ func main() {
 	// 微信skd
 	wechat.NewSDK(configs.WeappConfig)
 
-	adminGuard:="admin"
+	adminGuard := "admin"
 	// auth service
 	authSrv := auth.NewAuth()
 	// 注册guard
@@ -83,7 +84,10 @@ func main() {
 		return auth.NewJwtGuard(
 			adminGuard,
 			"admin-secret-key",
-			auth.NewRepositoryUserProvider(repositories.NewAdminRep(mongoConnect)),
+			60*24,
+			auth.NewRepositoryUserProvider(
+				repositories.NewAdminRep(repositories.NewBasicMongoRepositoryByDefault(&models.Admin{}, mongoConnect)),
+			),
 		)
 	})
 

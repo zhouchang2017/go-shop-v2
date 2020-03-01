@@ -11,6 +11,7 @@ import (
 
 type JWT struct {
 	secretKey string
+	exp       time.Duration
 	ctx       *gin.Context
 	token     *jwt.Token
 }
@@ -51,7 +52,7 @@ func (this *JWT) FromUser(user Authenticatable) (string, error) {
 
 // Generate a token for a given subject.
 func (this *JWT) FromSubject(user Authenticatable) (string, error) {
-	payload := this.MakePayload(user, time.Now().Add(time.Hour*2))
+	payload := this.MakePayload(user, time.Now().Add(this.exp))
 	return this.encode(payload)
 }
 

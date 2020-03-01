@@ -3,14 +3,17 @@ package http
 import (
 	"encoding/json"
 	"github.com/davecgh/go-spew/spew"
+	"go-shop-v2/app/models"
 	"go-shop-v2/pkg/utils"
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"reflect"
 	"regexp"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 func TestTaobao_Api(t *testing.T) {
@@ -63,17 +66,16 @@ func TestIndexController_TaobaoDetail(t *testing.T) {
 
 	images := sync.Map{}
 
-
 	for _, match := range submatch {
 		if len(match) >= 2 {
-			images.Store(match[1],utils.RandomString(32))
+			images.Store(match[1], utils.RandomString(32))
 		}
 	}
 
 	images.Range(func(key, value interface{}) bool {
 		spew.Dump(key)
 		spew.Dump(value)
-		desc = strings.ReplaceAll(desc,key.(string),value.(string))
+		desc = strings.ReplaceAll(desc, key.(string), value.(string))
 		return true
 	})
 	//for k,v:=range images {
@@ -84,17 +86,19 @@ func TestIndexController_TaobaoDetail(t *testing.T) {
 
 }
 
-func TestTaobaoShortUrl(t *testing.T)  {
-	uri:= "https://m.tb.cn/h.VX7dGft?sm=3d0625"
-	resp, err := http.Get(uri)
-	if err!=nil {
-		t.Fatal(err)
-	}
+func TestTaobaoShortUrl(t *testing.T) {
 
-	bytes, err := ioutil.ReadAll(resp.Body)
-	if err!=nil {
-		t.Fatal(err)
+	entity := &models.Article{}
+	now := time.Now()
+	entity.DeletedAt = &now
+	if reflect.ValueOf(entity).Kind() == reflect.Ptr {
+		elem := reflect.ValueOf(entity).Elem()
+		f := elem.FieldByName("DeletedAt")
+		if f.IsValid() {
+			if f.Type() == reflect.ValueOf(&time.Time{}).Type() {
+				spew.Dump(f.IsNil())
+			}
+		}
 	}
-	spew.Dump(string(bytes))
 
 }

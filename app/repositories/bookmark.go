@@ -1,16 +1,13 @@
 package repositories
 
 import (
-	"go-shop-v2/app/models"
-	"go-shop-v2/pkg/db/mongodb"
+	"go-shop-v2/pkg/repository"
 )
 
 type BookmarkRep struct {
-	*mongoRep
+	repository.IRepository
 }
 
-func NewBookmarkRep(con *mongodb.Connection) *BookmarkRep {
-	return &BookmarkRep{
-		mongoRep: NewBasicMongoRepositoryByDefault(&models.Bookmark{}, con),
-	}
+func NewBookmarkRep(rep repository.IRepository) *BookmarkRep {
+	return &BookmarkRep{rep}
 }

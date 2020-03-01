@@ -5,16 +5,17 @@ import (
 	"errors"
 	"go-shop-v2/app/models"
 	"go-shop-v2/pkg/auth"
-	"go-shop-v2/pkg/db/mongodb"
+	"go-shop-v2/pkg/repository"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/x/bsonx"
 	"log"
+	"time"
 )
 
 type UserRep struct {
-	*mongoRep
+	repository.IRepository
 }
 
 func (this *UserRep) RetrieveById(identifier interface{}) (auth.Authenticatable, error) {
@@ -52,7 +53,7 @@ func (this *UserRep) FindByOpenId(ctx context.Context, openId string) (user *mod
 	return
 }
 
-func (this *UserRep)index() []mongo.IndexModel {
+func (this *UserRep) index() []mongo.IndexModel {
 	return []mongo.IndexModel{
 		{
 			Keys:    bsonx.Doc{{Key: "wechat_mini_id", Value: bsonx.Int64(-1)}},
@@ -61,11 +62,14 @@ func (this *UserRep)index() []mongo.IndexModel {
 	}
 }
 
-func NewUserRep(con *mongodb.Connection) *UserRep {
-	rep:= &UserRep{NewBasicMongoRepositoryByDefault(&models.User{}, con)}
-	err := rep.CreateIndexes(context.Background(), rep.index())
+func NewUserRep(rep repository.IRepository) *UserRep {
+	repository := &UserRep{rep}
+
+	opts := options.CreateIndexes().SetMaxTime(10 * time.Second)
+	_, err := repository.Collection().Indexes().CreateMany(context.Background(), repository.index(), opts)
 	if err != nil {
-		log.Fatal(err)
+		log.Printf("model [%s] create indexs error:%s\n", repository.TableName(), err)
+		panic(err)
 	}
-	return rep
+	return repository
 }

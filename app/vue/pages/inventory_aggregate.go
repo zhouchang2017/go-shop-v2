@@ -4,11 +4,9 @@ import (
 	"context"
 	"github.com/gin-gonic/gin"
 	"go-shop-v2/app/models"
-	"go-shop-v2/app/repositories"
 	"go-shop-v2/app/services"
 	"go-shop-v2/pkg/auth"
 	"go-shop-v2/pkg/ctx"
-	"go-shop-v2/pkg/db/mongodb"
 	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/vue/contracts"
@@ -22,16 +20,15 @@ var InventoryAggratePage *inventoryAggregate
 // 自定义聚合页
 type inventoryAggregate struct {
 	service *services.InventoryService
-	shopRep *repositories.ShopRep
+	shopSrv *services.ShopService
 	router  contracts.Router
 }
 
 func NewInventoryAggregatePage() *inventoryAggregate {
 	if InventoryAggratePage == nil {
-		con := mongodb.GetConFn()
 		InventoryAggratePage = &inventoryAggregate{
 			service: services.MakeInventoryService(),
-			shopRep: repositories.NewShopRep(con),
+			shopSrv: services.MakeShopService(),
 		}
 	}
 	return InventoryAggratePage
@@ -42,7 +39,7 @@ func (this *inventoryAggregate) AuthorizedTo(ctx *gin.Context, user auth.Authent
 }
 
 func (this *inventoryAggregate) getShops() []*models.AssociatedShop {
-	return this.shopRep.GetAllAssociatedShops(context.Background())
+	return this.shopSrv.GetAllAssociatedShops(context.Background())
 }
 
 func (this *inventoryAggregate) VueRouter() contracts.Router {

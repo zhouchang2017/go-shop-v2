@@ -3,7 +3,6 @@ package repositories
 import (
 	"context"
 	"go-shop-v2/app/models"
-	"go-shop-v2/pkg/db/mongodb"
 	"go-shop-v2/pkg/repository"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"log"
@@ -11,14 +10,14 @@ import (
 )
 
 type ProductRep struct {
-	*mongoRep
+	repository.IRepository
 	itemRep *ItemRep
 }
 
-func NewProductRep(con *mongodb.Connection) *ProductRep {
+func NewProductRep(rep repository.IRepository, itemRep *ItemRep) *ProductRep {
 	return &ProductRep{
-		mongoRep: NewBasicMongoRepositoryByDefault(&models.Product{}, con),
-		itemRep:  NewItemRep(con),
+		IRepository: rep,
+		itemRep:     itemRep,
 	}
 }
 
@@ -59,7 +58,7 @@ func (this *ProductRep) Create(ctx context.Context, entity interface{}) <-chan r
 		defer close(result)
 		p := entity.(*models.Product)
 		items := p.Items
-		res := <-this.mongoRep.Create(ctx, entity)
+		res := <-this.IRepository.Create(ctx, entity)
 		if res.Error != nil {
 			result <- repository.InsertResult{Error: res.Error}
 			return
@@ -72,7 +71,7 @@ func (this *ProductRep) Create(ctx context.Context, entity interface{}) <-chan r
 			item.ID = primitive.NewObjectID()
 			wg.Add(1)
 			item.Product = product.ToAssociated()
-			go func(ind int,i *models.Item) {
+			go func(ind int, i *models.Item) {
 				defer wg.Done()
 				itemRes := <-this.itemRep.Create(ctx, i)
 				if itemRes.Error != nil {
@@ -81,7 +80,7 @@ func (this *ProductRep) Create(ctx context.Context, entity interface{}) <-chan r
 					return
 				}
 				newItems[ind] = itemRes.Result.(*models.Item)
-			}(index,item)
+			}(index, item)
 		}
 		wg.Wait()
 		product.Items = newItems
@@ -98,7 +97,7 @@ func (this *ProductRep) Save(ctx context.Context, entity interface{}) <-chan rep
 		p := entity.(*models.Product)
 		items := p.Items
 		// 储存product
-		productSaved := <-this.mongoRep.Save(ctx, entity)
+		productSaved := <-this.IRepository.Save(ctx, entity)
 		if productSaved.Error != nil {
 			result <- repository.QueryResult{Error: productSaved.Error}
 			return

@@ -3,15 +3,15 @@ package repositories
 import (
 	"context"
 	"go-shop-v2/app/models"
-	"go-shop-v2/pkg/db/mongodb"
 	err2 "go-shop-v2/pkg/err"
+	"go-shop-v2/pkg/repository"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"log"
 )
 
 type CategoryRep struct {
-	*mongoRep
+	repository.IRepository
 }
 
 // 添加销售属性
@@ -76,8 +76,6 @@ func (this *CategoryRep) DeleteOption(ctx context.Context, id string, optId stri
 	return err
 }
 
-func NewCategoryRep(con *mongodb.Connection) *CategoryRep {
-	return &CategoryRep{
-		mongoRep: NewBasicMongoRepositoryByDefault(&models.Category{}, con),
-	}
+func NewCategoryRep(rep repository.IRepository) *CategoryRep {
+	return &CategoryRep{rep}
 }

@@ -1,17 +1,14 @@
 package repositories
 
 import (
-	"go-shop-v2/app/models"
-	"go-shop-v2/pkg/db/mongodb"
+	"go-shop-v2/pkg/repository"
 )
 
 type OrderRep struct {
-	*mongoRep
+	repository.IRepository
 }
 
-func NewOrderRep(con *mongodb.Connection) *OrderRep {
-	return &OrderRep{
-		mongoRep: NewBasicMongoRepositoryByDefault(&models.Order{}, con),
-	}
+func NewOrderRep(rep repository.IRepository) *OrderRep {
+	return &OrderRep{rep}
 }
 

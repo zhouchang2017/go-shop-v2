@@ -5,13 +5,12 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"go-shop-v2/app/models"
-	"go-shop-v2/app/repositories"
 	"go-shop-v2/app/services"
 	"go-shop-v2/pkg/auth"
 	"go-shop-v2/pkg/ctx"
-	"go-shop-v2/pkg/db/mongodb"
 	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/qiniu"
+	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/vue/contracts"
 	"go-shop-v2/pkg/vue/core"
 	"net/http"
@@ -20,18 +19,17 @@ import (
 var ProductCreatePage *productCreatePage
 
 type productCreatePage struct {
-	brandRep    *repositories.BrandRep
-	categoryRep *repositories.CategoryRep
-	productService  *services.ProductService
+	brandSrv       *services.BrandService
+	categorySrv    *services.CategoryService
+	productService *services.ProductService
 }
 
 func NewProductCreatePage() *productCreatePage {
 	if ProductCreatePage == nil {
-		con := mongodb.GetConFn()
 		ProductCreatePage = &productCreatePage{
-			brandRep:    repositories.NewBrandRep(con),
-			categoryRep: repositories.NewCategoryRep(con),
-			productService:  services.MakeProductService(),
+			brandSrv:       services.MakeBrandService(),
+			categorySrv:    services.MakeCategoryService(),
+			productService: services.MakeProductService(),
 		}
 	}
 	return ProductCreatePage
@@ -53,19 +51,23 @@ func (this *productCreatePage) VueRouter() contracts.Router {
 }
 
 func (this *productCreatePage) getBrands(ctx context.Context) ([]*models.Brand, error) {
-	all := <-this.brandRep.FindAll(ctx)
-	if all.Error != nil {
-		return nil, all.Error
+	req := &request.IndexRequest{}
+	req.Page = -1
+	brands, _, err := this.brandSrv.Pagination(ctx, req)
+	if err != nil {
+		return nil, err
 	}
-	return all.Result.([]*models.Brand), nil
+	return brands, nil
 }
 
 func (this *productCreatePage) getCategories(ctx context.Context) ([]*models.Category, error) {
-	all := <-this.categoryRep.FindAll(ctx)
-	if all.Error != nil {
-		return nil, all.Error
+	req := &request.IndexRequest{}
+	req.Page = -1
+	categories, _, err := this.categorySrv.Pagination(ctx, req)
+	if err != nil {
+		return nil, err
 	}
-	return all.Result.([]*models.Category), nil
+	return categories, nil
 }
 
 func (this *productCreatePage) HttpHandles(router gin.IRouter) {

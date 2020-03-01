@@ -5,12 +5,25 @@ import (
 	"github.com/medivhzhan/weapp/v2"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
+	"go-shop-v2/pkg/auth"
 	"go-shop-v2/pkg/qiniu"
 	"time"
 )
 
 type UserService struct {
 	rep *repositories.UserRep
+}
+
+func (this *UserService) RetrieveById(identifier interface{}) (auth.Authenticatable, error) {
+	return this.rep.RetrieveById(identifier)
+}
+
+func (this *UserService) RetrieveByCredentials(credentials map[string]string) (auth.Authenticatable, error) {
+	return this.rep.RetrieveByCredentials(credentials)
+}
+
+func (this *UserService) ValidateCredentials(user auth.Authenticatable, credentials map[string]string) bool {
+	return this.rep.ValidateCredentials(user, credentials)
 }
 
 func NewUserService(rep *repositories.UserRep) *UserService {
@@ -33,5 +46,5 @@ func (this *UserService) RegisterByWechat(ctx context.Context, info *weapp.UserI
 	if created.Error != nil {
 		return nil, created.Error
 	}
-	return created.Result.(*models.User),nil
+	return created.Result.(*models.User), nil
 }

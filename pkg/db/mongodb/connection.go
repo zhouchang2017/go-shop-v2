@@ -53,7 +53,7 @@ func (c Config) URI() string {
 	if c.Username != "" && c.Password != "" {
 		uri.User = url.UserPassword(c.Username, c.Password)
 		authSource := "admin"
-		if c.AuthSource !=""{
+		if c.AuthSource != "" {
 			authSource = c.AuthSource
 		}
 		query.Add("authSource", authSource)
@@ -132,4 +132,14 @@ func Close() {
 		panic(err)
 	}
 	log.Printf("Close Mongodb...\n")
+}
+
+func CreateIndexes(ctx context.Context, collection *mongo.Collection, models []mongo.IndexModel) (err error) {
+	opts := options.CreateIndexes().SetMaxTime(10 * time.Second)
+	_, err = collection.Indexes().CreateMany(ctx, models, opts)
+	if err != nil {
+		log.Printf("create indexs error:%s\n", err)
+		return err
+	}
+	return nil
 }

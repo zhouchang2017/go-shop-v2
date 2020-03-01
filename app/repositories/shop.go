@@ -4,13 +4,13 @@ import (
 	"context"
 	"go-shop-v2/app/models"
 	ctx2 "go-shop-v2/pkg/ctx"
-	"go-shop-v2/pkg/db/mongodb"
+	"go-shop-v2/pkg/repository"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type ShopRep struct {
-	*mongoRep
+	repository.IRepository
 }
 
 func (s *ShopRep) GetAllAssociatedShops(ctx context.Context) (res []*models.AssociatedShop) {
@@ -36,8 +36,6 @@ func (s *ShopRep) GetAllAssociatedShops(ctx context.Context) (res []*models.Asso
 	return res
 }
 
-func NewShopRep(con *mongodb.Connection) *ShopRep {
-	return &ShopRep{
-		mongoRep: NewBasicMongoRepositoryByDefault(&models.Shop{}, con),
-	}
+func NewShopRep(rep repository.IRepository) *ShopRep {
+	return &ShopRep{rep}
 }

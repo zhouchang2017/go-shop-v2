@@ -1,17 +1,14 @@
 package repositories
 
 import (
-	"go-shop-v2/app/models"
-	"go-shop-v2/pkg/db/mongodb"
+	"go-shop-v2/pkg/repository"
 )
 
 
 type BrandRep struct {
-	*mongoRep
+	repository.IRepository
 }
 
-func NewBrandRep(con *mongodb.Connection) *BrandRep {
-	return &BrandRep{
-		mongoRep: NewBasicMongoRepositoryByDefault(&models.Brand{}, con),
-	}
+func NewBrandRep(rep repository.IRepository) *BrandRep {
+	return &BrandRep{rep}
 }

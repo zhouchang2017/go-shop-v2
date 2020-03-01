@@ -2,10 +2,7 @@ package repositories
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
-	"go-shop-v2/pkg/cache/redis"
 	ctx2 "go-shop-v2/pkg/ctx"
 	"go-shop-v2/pkg/db/mongodb"
 	err2 "go-shop-v2/pkg/err"
@@ -28,7 +25,6 @@ type mongoRep struct {
 	table string
 	model interface{}
 	con   *mongodb.Connection
-	cache *redis.Connection
 }
 
 func NewBasicMongoRepositoryByDefault(model interface{}, con *mongodb.Connection) *mongoRep {
@@ -36,12 +32,8 @@ func NewBasicMongoRepositoryByDefault(model interface{}, con *mongodb.Connection
 	return &mongoRep{table: plural, model: model, con: con}
 }
 
-func (this *mongoRep) SetCache(cache *redis.Connection) {
-	this.cache = cache
-}
-
-func (this *mongoRep) GetCacheKey(id string) string {
-	return fmt.Sprintf("%s:%s", this.table, id)
+func (this mongoRep) TableName() string {
+	return this.table
 }
 
 func (this *mongoRep) newModel() interface{} {
@@ -127,25 +119,7 @@ func (this *mongoRep) FindById(ctx context.Context, id string) <-chan repository
 	trashed := ctx2.GetTrashed(ctx)
 	go func() {
 		defer close(output)
-		// get for cache
-		if this.cache != nil {
-			result := this.cache.HMGet(this.GetCacheKey(id), "detail").Val()
-			if len(result) > 0 {
-				if result[0] != nil {
-					jsonValue := result[0].(string)
-					// Unmarshal
-					entity := this.newModel()
-					if err := json.Unmarshal([]byte(jsonValue), entity); err != nil {
-						log.Printf("%s [%s] FindById form cache,error:%s\n", this.table, id, err)
-						// 从缓存中移除
-						this.cache.HDel(this.GetCacheKey(id), "detail")
-					}
-					// 命中缓存
-					output <- repository.QueryResult{Result: entity}
-					return
-				}
-			}
-		}
+
 		objId, err := primitive.ObjectIDFromHex(id)
 		if err != nil {
 			output <- repository.QueryResult{Error: err2.Err404}
@@ -171,12 +145,7 @@ func (this *mongoRep) FindById(ctx context.Context, id string) <-chan repository
 			output <- repository.QueryResult{Error: err}
 			return
 		}
-		if this.cache != nil {
-			// 写入缓存
-			if marshal, err := json.Marshal(entity); err == nil {
-				this.cache.HMSet(this.GetCacheKey(id), "detail", marshal)
-			}
-		}
+
 		output <- repository.QueryResult{Result: entity}
 	}()
 	return output
@@ -217,21 +186,6 @@ func (this *mongoRep) FindByIds(ctx context.Context, ids ...string) <-chan repos
 			return
 		}
 		i := reflect.ValueOf(models).Elem().Interface()
-
-		if this.cache != nil {
-			// 写入缓存
-			go func() {
-				length := reflect.ValueOf(models).Elem().Len()
-				for i := 0; i < length; i++ {
-					model := reflect.ValueOf(models).Elem().Index(i).Interface()
-					if id, err := this.getId(model); err == nil {
-						if marshal, err := json.Marshal(model); err == nil {
-							this.cache.HMSet(this.GetCacheKey(id.Hex()), "detail", marshal)
-						}
-					}
-				}
-			}()
-		}
 
 		output <- repository.QueryResult{Result: i}
 	}()
@@ -403,14 +357,6 @@ func (this *mongoRep) Create(ctx context.Context, entity interface{}) <-chan rep
 			}
 			insertResult.Result = findResult.Result
 		}
-
-		if this.cache != nil {
-			// 写入缓存
-			if marshal, err := json.Marshal(insertResult.Result); err == nil {
-				this.cache.HMSet(this.GetCacheKey(insertResult.Id), "detail", marshal)
-			}
-		}
-
 		result <- insertResult
 	}()
 	return result
@@ -441,17 +387,6 @@ func (this *mongoRep) Save(ctx context.Context, entity interface{}) <-chan repos
 		if err != nil {
 			result <- repository.QueryResult{Error: err}
 			return
-		}
-
-		if this.cache != nil {
-			// 更新缓存
-			marshal, err := json.Marshal(model)
-			if err != nil {
-				// 清除缓存
-				this.cache.HDel(this.GetCacheKey(ids.Hex()), "detail")
-			} else {
-				this.cache.HMSet(this.GetCacheKey(ids.Hex()), "detail", marshal)
-			}
 		}
 
 		result <- repository.QueryResult{Result: model}
@@ -498,17 +433,6 @@ func (this *mongoRep) Update(ctx context.Context, id string, update interface{})
 			return
 		}
 
-		if this.cache != nil {
-			// 更新缓存
-			marshal, err := json.Marshal(model)
-			if err != nil {
-				// 清除缓存
-				this.cache.HDel(this.GetCacheKey(id), "detail")
-			} else {
-				this.cache.HMSet(this.GetCacheKey(id), "detail", marshal)
-			}
-		}
-
 		result <- repository.QueryResult{Result: model}
 	}()
 	return result
@@ -547,12 +471,6 @@ func (this *mongoRep) Delete(ctx context.Context, id string) <-chan error {
 				result <- destroy
 				return
 			}
-			if this.cache != nil {
-				// 从缓存中移除
-				go func() {
-					this.cache.HDel(this.GetCacheKey(id), "detail")
-				}()
-			}
 			result <- nil
 			return
 		}
@@ -570,12 +488,6 @@ func (this *mongoRep) Delete(ctx context.Context, id string) <-chan error {
 				result <- err
 				return
 			}
-			if this.cache != nil {
-				// 从缓存中移除
-				go func() {
-					this.cache.HDel(this.GetCacheKey(id), "detail")
-				}()
-			}
 			result <- nil
 			return
 		} else {
@@ -583,12 +495,6 @@ func (this *mongoRep) Delete(ctx context.Context, id string) <-chan error {
 			if destroy != nil {
 				result <- destroy
 				return
-			}
-			if this.cache != nil {
-				// 从缓存中移除
-				go func() {
-					this.cache.HDel(this.GetCacheKey(id), "detail")
-				}()
 			}
 			result <- nil
 			return
@@ -627,15 +533,7 @@ func (this *mongoRep) DeleteMany(ctx context.Context, ids ...string) <-chan erro
 				result <- err
 				return
 			}
-			if this.cache != nil {
-				// 从cache中移除
-				go func() {
-					for _, id := range objIds {
-						this.cache.HDel(this.GetCacheKey(id.Hex()), "detail")
-					}
-				}()
 
-			}
 			result <- nil
 			return
 		} else {
@@ -647,15 +545,6 @@ func (this *mongoRep) DeleteMany(ctx context.Context, ids ...string) <-chan erro
 			if err != nil {
 				result <- err
 				return
-			}
-			if this.cache != nil {
-				// 从cache中移除
-				go func() {
-					for _, id := range objIds {
-						this.cache.HDel(this.GetCacheKey(id.Hex()), "detail")
-					}
-				}()
-
 			}
 
 			result <- nil
@@ -686,16 +575,6 @@ func (this *mongoRep) Restore(ctx context.Context, id string) <-chan repository.
 		}
 		model := this.newModel()
 		err = update.Decode(model)
-		if err != nil {
-			if this.cache != nil {
-				go func() {
-					// 写入缓存
-					if marshal, err := json.Marshal(model); err != nil {
-						this.cache.HMSet(this.GetCacheKey(id), marshal)
-					}
-				}()
-			}
-		}
 		result <- repository.QueryResult{Error: err, Result: model}
 	}()
 	return result
