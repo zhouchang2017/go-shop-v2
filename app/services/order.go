@@ -127,7 +127,7 @@ func (srv *OrderService) Create(ctx context.Context, opt *OrderCreateOption) (or
 	if !ok {
 		return nil, errors.New("invalid user who is unauthenticated")
 	}
-	// 校验数据: 数据有效 - 产品有效 - 库存充足 - 金额匹配
+	// 校验数据: 数据有效 -> 产品有效 -> 库存充足 -> 金额匹配
 	// 数据有效
 	if err = opt.IsValid(); err != nil {
 		return nil, err
@@ -146,7 +146,7 @@ func (srv *OrderService) Create(ctx context.Context, opt *OrderCreateOption) (or
 	// 生成订单
 	order = srv.generateOrder(userInfo, opt)
 	// save order into db
-	created := <-srv.rep.Create(ctx, &order)
+	created := <-srv.rep.Create(ctx, &order)	// todo: rewrite this function in repositories which should use transaction
 	if created.Error != nil {
 		return nil, created.Error
 	}
