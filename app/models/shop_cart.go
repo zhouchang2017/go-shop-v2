@@ -8,20 +8,12 @@ import (
 type ShopCart struct {
 	model.MongoModel `inline`
 	UserId           string          `json:"user_id" bson:"user_id"`
-	Item             *AssociatedItem `json:"item" bson:"item"` // sku id
-	Qty              int64           `json:"qty"`              // 数量
-	Price            int64           `json:"price"`
-	Checked          bool            `json:"checked"` // 用户是否选定
-	Enabled          bool            `json:"enabled"` // 是否已失效
+	Items            []*ShopCartItem `json:"items"`
 }
 
-func NewShopCart(userId string, item *Item, qty int64, check bool) *ShopCart {
-	return &ShopCart{
-		UserId:  userId,
-		Item:    item.ToAssociated(),
-		Qty:     qty,
-		Price:   item.Price,
-		Checked: check,
-		Enabled: true,
-	}
+type ShopCartItem struct {
+	ItemId  string `json:"item_id" bson:"item_id"`
+	Item    *Item  `json:"item" bson:"-"`
+	Qty     int64  `json:"qty"`
+	Checked bool   `json:"checked"`
 }

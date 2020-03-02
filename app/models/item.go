@@ -15,6 +15,7 @@ type Item struct {
 	SalesQty         int64              `json:"sales_qty,omitempty" bson:"sales_qty" form"sales_qty" `
 	Qty              int64              `json:"qty" bson:"-"`
 	Inventories      []*Inventory       `json:"inventories,omitempty" bson:"-"`
+	Avatar           *qiniu.Image       `json:"avatar,omitempty" bson:"-"`
 }
 
 func (this Item) GetAvatar() (image *qiniu.Image) {

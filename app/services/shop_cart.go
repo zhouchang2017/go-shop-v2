@@ -6,7 +6,6 @@ import (
 	"go-shop-v2/app/repositories"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
-	"go.mongodb.org/mongo-driver/bson"
 )
 
 type ShopCartService struct {
@@ -14,95 +13,40 @@ type ShopCartService struct {
 }
 
 // 加入到购物车
-func (this *ShopCartService) Add(ctx context.Context, userId string, item *models.Item, qty int64, check bool) (shopCart *models.ShopCart, err error) {
-	model := models.NewShopCart(userId, item, qty, check)
-	one := <-this.rep.FindOne(ctx, map[string]interface{}{
-		"user_id": userId,
-		"item.id": item.GetID(),
-	})
-	if one.Error == nil {
-		// 已存在
-		cart := one.Result.(*models.ShopCart)
-		updated := <-this.rep.Update(ctx, cart.GetID(), bson.M{
-			"$inc": bson.M{"qty": qty},
-			"$set": bson.M{
-				"checked": check,
-				"price":   item.Price,
-			},
-		})
-
-		if updated.Error != nil {
-			return nil, updated.Error
-		}
-		return updated.Result.(*models.ShopCart), nil
-	}
-
-
-	created := <-this.rep.Create(ctx, model)
-	if created.Error != nil {
-		return nil, created.Error
-	}
-
-	return created.Result.(*models.ShopCart), nil
+func (this *ShopCartService) Add(ctx context.Context, userId string, itemId string, qty int64) (err error) {
+	return this.rep.Add(ctx, userId, itemId, qty)
 }
 
-// 更新购物车
-func (this *ShopCartService) Update(ctx context.Context, userId string, id string, item *models.Item, qty int64, check bool) (shopCart *models.ShopCart, err error) {
-	if item != nil {
-		// 查询是否有相同sku 购物车
-		one := <-this.rep.FindOne(ctx, bson.M{
-			"user_id": userId,
-			"item.id": item.GetID(),
-		})
-		if one.Error == nil {
-			// 存在相同sku，进行覆盖
-			// 删除当前id
-			if err := <-this.rep.Delete(ctx, id); err != nil {
-				return nil, err
-			}
+// 更新购物车商品itemId
+// status = 1，直接更新
+// status = 2, 购物车存在重复商品，进行覆盖，之前的被删除
+func (this *ShopCartService) Update(ctx context.Context, userId string, beforeItemId string, afterItemId string, qty int64) (status int64, err error) {
+	return this.rep.Update(ctx, userId, beforeItemId, afterItemId, qty)
+}
 
-			//shopCart = &models.ShopCart{}
-			cart := one.Result.(*models.ShopCart)
-			cart.Qty = qty
-			cart.Checked = check
-			cart.Item = item.ToAssociated()
-			saved := <-this.rep.Save(ctx, cart)
-			if saved.Error != nil {
-				err = saved.Error
-				return
-			}
-			return saved.Result.(*models.ShopCart), nil
-		}
-	}
-
-	updated := bson.M{
-		"qty":     qty,
-		"checked": check,
-	}
-	if item != nil {
-		updated["item"] = item.ToAssociated()
-	}
-
-	// 不存在相同sku
-	// 直接更新
-	result := <-this.rep.Update(ctx, id, bson.M{
-		"$set": updated,
-	})
-	if result.Error != nil {
-		return nil, result.Error
-	}
-	return result.Result.(*models.ShopCart), nil
+// 购物车中物品数量增加
+func (this *ShopCartService) UpdateQty(ctx context.Context, userId string, ItemId string, qty int64) (err error) {
+	return this.rep.UpdateQty(ctx, userId, ItemId, qty)
 }
 
 // 全选/取消全选
-func (this *ShopCartService) CheckedOrCancelAll(ctx context.Context, checked bool, ids ...string) (err error) {
-	return this.rep.CheckedOrCancelAll(ctx, checked, ids...)
+func (this *ShopCartService) Toggle(ctx context.Context, userId string, checked bool, itemIds ...string) (err error) {
+	return this.rep.Toggle(ctx, userId, checked, itemIds...)
 }
 
 // 删除购物车
-func (this *ShopCartService) Delete(ctx context.Context, ids ...string) (err error) {
-	err = <-this.rep.DeleteMany(ctx, ids...)
-	return err
+func (this *ShopCartService) Delete(ctx context.Context, userId string, itemIds ...string) (err error) {
+	return this.rep.Remove(ctx, userId, itemIds...)
+}
+
+// 前台小程序列表
+func (this *ShopCartService) Index(ctx context.Context, userId string, page int64, perPage int64) (items []*models.ShopCartItem, pagination response.Pagination, err error) {
+	return this.rep.Index(ctx, userId, page, perPage)
+}
+
+// 个人购物车总数
+func (this *ShopCartService) Count(ctx context.Context, userId string) (count int64) {
+	return this.rep.Count(ctx, userId)
 }
 
 // 分页

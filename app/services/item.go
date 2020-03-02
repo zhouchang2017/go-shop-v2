@@ -6,6 +6,8 @@ import (
 	"go-shop-v2/app/repositories"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
+	"golang.org/x/sync/errgroup"
+	"sync"
 )
 
 type ItemService struct {
@@ -50,6 +52,29 @@ func (this *ItemService) Save(ctx context.Context, model *models.Item) (item *mo
 	return saved.Result.(*models.Item), nil
 }
 
+func (this *ItemService) Items(ctx context.Context, ids ...string) (items []*models.Item, err error) {
+	var g errgroup.Group
+	var mu sync.Mutex
+	items = make([]*models.Item, len(ids))
+	sem := make(chan struct{}, 10)
+	for index, id := range ids {
+		index, id := index, id
+		sem <- struct{}{}
+		g.Go(func() error {
+			item, err := this.FindById(ctx, id)
+			mu.Lock()
+			items[index] = item
+			mu.Unlock()
+			<-sem
+			return err
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 // 详情
 func (this *ItemService) FindById(ctx context.Context, id string) (item *models.Item, err error) {
 	byId := <-this.rep.FindById(ctx, id)
@@ -57,7 +82,9 @@ func (this *ItemService) FindById(ctx context.Context, id string) (item *models.
 		err = byId.Error
 		return
 	}
-	return byId.Result.(*models.Item), nil
+	item = byId.Result.(*models.Item)
+	item.Avatar = item.GetAvatar()
+	return item, nil
 }
 
 // 删除

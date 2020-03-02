@@ -56,8 +56,11 @@ func (this *BookmarkRep) Index(ctx context.Context, userId string, page int64, p
 // 添加
 func (this *BookmarkRep) Add(ctx context.Context, userId string, productId string) (err error) {
 	_, err = this.Collection().UpdateOne(ctx, bson.M{"user_id": userId}, bson.M{
-		"$addToSet": bson.M{
-			"product_ids": productId,
+		"$push": bson.M{
+			"items": bson.M{
+				"$each":     bson.A{productId},
+				"$position": 0,
+			},
 		},
 		"$currentDate": bson.M{
 			"updated_at": true,

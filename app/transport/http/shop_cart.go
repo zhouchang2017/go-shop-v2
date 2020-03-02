@@ -22,19 +22,45 @@ type shopCartForm struct {
 
 // 个人购物车列表
 func (this *ShopCartController) Index(ctx *gin.Context) {
-	user := ctx2.GetUser(ctx)
-	currentUser := user.(*models.User)
-
+	user := ctx2.GetUser(ctx).(*models.User)
 	req := &request.IndexRequest{}
 
-	req.AppendFilter("user_id", currentUser.GetID())
-	carts, pagination, err := this.srv.Pagination(ctx, req)
+	shopCartItems, pagination, err := this.srv.Index(ctx, user.GetID(), req.GetPage(), req.GetPerPage())
 	if err != nil {
 		ResponseError(ctx, err)
 		return
 	}
+
+	var ids []string
+
+	for _, item := range shopCartItems {
+		ids = append(ids, item.ItemId)
+	}
+
+	items, err := this.itemSrv.Items(ctx, ids...)
+	if err != nil {
+		ResponseError(ctx, err)
+		return
+	}
+
+	resolveItem := func(id string) *models.Item {
+		for _, item := range items {
+			if item.GetID() == id {
+				return item
+			}
+		}
+		return nil
+	}
+
+	for _, cartItem := range shopCartItems {
+		item := resolveItem(cartItem.ItemId)
+		if item != nil {
+			cartItem.Item = item
+		}
+	}
+
 	Response(ctx, gin.H{
-		"data":       carts,
+		"data":       shopCartItems,
 		"pagination": pagination,
 	}, http.StatusOK)
 }
@@ -46,32 +72,41 @@ func (this *ShopCartController) Add(ctx *gin.Context) {
 		ResponseError(ctx, err)
 		return
 	}
-	user := ctx2.GetUser(ctx)
-	currentUser := user.(*models.User)
+	user := ctx2.GetUser(ctx).(*models.User)
+
+	if form.Qty == 0 {
+		form.Qty = 1
+	}
+
+	if err := this.srv.Add(ctx, user.GetID(), form.ItemId, form.Qty); err != nil {
+		ResponseError(ctx, err)
+		return
+	}
+
 	item, err := this.itemSrv.FindById(ctx, form.ItemId)
 	if err != nil {
 		// 产品不存在
 		ResponseError(ctx, err)
 		return
 	}
-	if form.Qty == 0 {
-		form.Qty = 1
+
+	res := &models.ShopCartItem{
+		ItemId:  form.ItemId,
+		Item:    item,
+		Qty:     form.Qty,
+		Checked: true,
 	}
-	cart, err := this.srv.Add(ctx, currentUser.GetID(), item, form.Qty, true)
-	if err != nil {
-		ResponseError(ctx, err)
-		return
-	}
-	Response(ctx, cart, 200)
+	Response(ctx, res, 200)
 }
 
 type updateShopCartForm struct {
-	ItemId  *string `json:"item_id" form:"item_id"`
-	Qty     int64   `json:"qty"`
-	Checked bool    `json:"checked"`
+	ItemId *string `json:"item_id" form:"item_id"`
+	Qty    int64   `json:"qty"`
 }
 
 // 更新购物车
+// 若传入ItemId，则是在购物车页面点击option值，进行更新
+// 否则只是对购物车商品数量进行增减
 func (this *ShopCartController) Update(ctx *gin.Context) {
 	id := ctx.Param("id")
 	if id == "" {
@@ -84,27 +119,29 @@ func (this *ShopCartController) Update(ctx *gin.Context) {
 		ResponseError(ctx, err)
 		return
 	}
-	user := ctx2.GetUser(ctx)
-	currentUser := user.(*models.User)
+	user := ctx2.GetUser(ctx).(*models.User)
 
-	var item *models.Item
-
+	// itemId != nil 在购物车点击更新
 	if form.ItemId != nil {
-		item, err = this.itemSrv.FindById(ctx, *form.ItemId)
+		updated, err := this.srv.Update(ctx, user.GetID(), id, *form.ItemId, form.Qty)
 		if err != nil {
-			// 产品不存在
 			ResponseError(ctx, err)
 			return
 		}
+		Response(ctx, gin.H{
+			"status": updated,
+		}, http.StatusOK)
+		return
 	}
-	forceContext := ctx2.WithForce(ctx, true)
-	updated, err := this.srv.Update(forceContext, currentUser.GetID(), id, item, form.Qty, form.Checked)
-	if err != nil {
+
+	if err := this.srv.UpdateQty(ctx, user.GetID(), id, form.Qty); err != nil {
 		ResponseError(ctx, err)
 		return
 	}
 
-	Response(ctx, updated, 200)
+	Response(ctx, gin.H{
+		"status": 3,
+	}, 200)
 }
 
 type updateShopCartCheckedForm struct {
@@ -119,7 +156,8 @@ func (this *ShopCartController) UpdateChecked(ctx *gin.Context) {
 		ResponseError(ctx, err)
 		return
 	}
-	if err := this.srv.CheckedOrCancelAll(ctx, form.Checked, form.Ids...); err != nil {
+	user := ctx2.GetUser(ctx).(*models.User)
+	if err := this.srv.Toggle(ctx, user.GetID(), form.Checked, form.Ids...); err != nil {
 		ResponseError(ctx, err)
 		return
 	}
@@ -137,8 +175,8 @@ func (this *ShopCartController) Delete(ctx *gin.Context) {
 		ResponseError(ctx, err)
 		return
 	}
-	forceContext := ctx2.WithForce(ctx, true)
-	if err := this.srv.Delete(forceContext, form.Ids...); err != nil {
+	user := ctx2.GetUser(ctx).(*models.User)
+	if err := this.srv.Delete(ctx, user.GetID(), form.Ids...); err != nil {
 		ResponseError(ctx, err)
 		return
 	}
