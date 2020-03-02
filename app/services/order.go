@@ -134,7 +134,7 @@ func (srv *OrderService) Create(ctx context.Context, opt *OrderCreateOption) (or
 	}
 	// 校验产品有效且库存充足
 	var calcAmount uint64 = 0
-	// todo
+	// todo: search inventory by item id
 	// 金额匹配
 	if calcAmount != opt.OrderAmount {
 		return nil, errors.New("order amount not equal")
@@ -205,14 +205,16 @@ func (srv *OrderService) Deliver(ctx context.Context, opt *DeliverOption) error 
 	if order.Status != models.OrderStatusPreSend {
 		return errors.New(fmt.Sprintf("order %s can not be delivered caused of not pre send status", opt.OrderNo))
 	}
+	// 处理物流
+	newLogistics := append(order.Logistics, &models.Logistics{
+		Enterprise: opt.Enterprise,
+		TrackNo:    opt.TrackNo,
+	})
 	// 更新
 	updated := <-srv.rep.Update(ctx, order.GetID(), bson.M{
 		"$set": bson.M{
 			"status": models.OrderStatusPreConfirm,
-			"logistics": &models.Logistics{
-				Enterprise: opt.Enterprise,
-				TrackNo:    opt.TrackNo,
-			},
+			"logistics": newLogistics,
 		},
 	})
 	if updated.Error != nil {
