@@ -57,7 +57,7 @@ func (this *BookmarkRep) Index(ctx context.Context, userId string, page int64, p
 func (this *BookmarkRep) Add(ctx context.Context, userId string, productId string) (err error) {
 	_, err = this.Collection().UpdateOne(ctx, bson.M{"user_id": userId}, bson.M{
 		"$push": bson.M{
-			"items": bson.M{
+			"product_ids": bson.M{
 				"$each":     bson.A{productId},
 				"$position": 0,
 			},
