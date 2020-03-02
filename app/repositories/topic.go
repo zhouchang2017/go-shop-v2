@@ -1,14 +1,13 @@
 package repositories
 
 import (
-	"go-shop-v2/app/models"
-	"go-shop-v2/pkg/db/mongodb"
+	"go-shop-v2/pkg/repository"
 )
 
 type TopicRep struct {
-	*mongoRep
+	repository.IRepository
 }
 
-func NewTopicRep(con *mongodb.Connection) *TopicRep {
-	return &TopicRep{NewBasicMongoRepositoryByDefault(&models.Topic{}, con)}
+func NewTopicRep(rep repository.IRepository) *TopicRep {
+	return &TopicRep{rep}
 }

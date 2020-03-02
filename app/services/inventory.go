@@ -65,6 +65,11 @@ func (this *InventoryService) Aggregate(ctx context.Context, req *request.IndexR
 	return data, aggregateRes.Pagination, nil
 }
 
+// 库存统计聚合
+func (this *InventoryService) AggregateStockByShops(ctx context.Context, shopIds ...string) (data []*models.AggregateShopCountStockInventory, err error) {
+	return this.rep.AggregateStockByShops(ctx, shopIds...)
+}
+
 // 入库
 func (this *InventoryService) Put(ctx context.Context, shopId string, itemId string, qty int64, status int8, changer models.InventoryChanger) (inventory *models.Inventory, err error) {
 	// 检查当前是否存在对应规格产品库存

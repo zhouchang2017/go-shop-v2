@@ -6,7 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"go-shop-v2/app/repositories"
+	"go-shop-v2/app/services"
 	http2 "go-shop-v2/app/transport/http"
 	"go-shop-v2/config"
 	"go-shop-v2/pkg/auth"
@@ -61,7 +61,7 @@ func main() {
 	qiniu.NewQiniu(configs.QiniuConfig())
 	// newQiniu := qiniu.NewQiniu(configs.QiniuConfig())
 	// mongodb
-	mongoConnect := mongodb.Connect(configs.MongodbConfig())
+	mongodb.Connect(configs.MongodbConfig())
 	defer mongodb.Close()
 
 	// redis
@@ -71,8 +71,7 @@ func main() {
 	// 微信skd
 	wechat.NewSDK(configs.WeappConfig)
 
-
-	guard:="user"
+	guard := "user"
 	// auth service
 	authSrv := auth.NewAuth()
 	// 注册guard
@@ -80,7 +79,8 @@ func main() {
 		return auth.NewJwtGuard(
 			guard,
 			"user-secret-key",
-			repositories.NewUserRep(mongoConnect),
+			60*24*7,
+			services.MakeUserService(),
 		)
 	})
 

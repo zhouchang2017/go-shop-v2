@@ -2,6 +2,7 @@ package resources
 
 import (
 	"github.com/gin-gonic/gin"
+	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
 	"go-shop-v2/pkg/db/mongodb"
 	"go-shop-v2/pkg/request"
@@ -17,7 +18,8 @@ type InventoryLog struct {
 
 func NewInventoryLogResource() *InventoryLog {
 	return &InventoryLog{
-		rep: repositories.NewInventoryLogRep(mongodb.GetConFn()),
+		rep: repositories.NewInventoryLogRep(repositories.NewBasicMongoRepositoryByDefault(&models.InventoryLog{},mongodb.GetConFn())),
+		model:&models.InventoryLog{},
 	}
 }
 

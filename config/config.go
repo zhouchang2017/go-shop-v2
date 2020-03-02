@@ -1,8 +1,6 @@
 package config
 
 import (
-	"go-shop-v2/app/repositories"
-	"go-shop-v2/pkg/auth"
 	"go-shop-v2/pkg/cache/redis"
 	"go-shop-v2/pkg/db/mongodb"
 	"go-shop-v2/pkg/db/mysql"
@@ -52,16 +50,16 @@ func (c *config) RedisConfig() redis.Config {
 	return c.RedisCfg
 }
 
-// auth config
-func (c *config) authGuard(adminRep *repositories.AdminRep) func() auth.StatefulGuard {
-	return func() auth.StatefulGuard {
-		return auth.NewJwtGuard(
-			"admin",
-			"admin-secret-key",
-			auth.NewRepositoryUserProvider(adminRep),
-		)
-	}
-}
+//// auth config
+//func (c *config) authGuard(adminRep *repositories.AdminRep) func() auth.StatefulGuard {
+//	return func() auth.StatefulGuard {
+//		return auth.NewJwtGuard(
+//			"admin",
+//			"admin-secret-key",
+//			auth.NewRepositoryUserProvider(adminRep),
+//		)
+//	}
+//}
 
 // qiniu config
 func (c *config) QiniuConfig() qiniu.Config {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/mitchellh/mapstructure"
 	"go-shop-v2/app/models"
-	"go-shop-v2/pkg/db/mongodb"
 	"go-shop-v2/pkg/repository"
 	"go-shop-v2/pkg/request"
 	"go.mongodb.org/mongo-driver/bson"
@@ -20,7 +19,7 @@ var inventoryRep *InventoryRep
 
 type InventoryRep struct {
 	lock sync.Mutex
-	*mongoRep
+	repository.IRepository
 }
 
 // 锁定库存
@@ -294,7 +293,7 @@ func (this *InventoryRep) AggregatePagination(ctx context.Context, req *request.
 							"inventories": "$inventories",
 						}}}}}}}},
 		}
-		aggregateRes := <-this.mongoRep.AggregatePagination(ctx, &es, req, pipelines...)
+		aggregateRes := <-this.IRepository.AggregatePagination(ctx, &es, req, pipelines...)
 		if aggregateRes.Error != nil {
 			result <- repository.QueryPaginationResult{Error: aggregateRes.Error}
 			return
@@ -322,7 +321,7 @@ func (this *InventoryRep) IncQty(ctx context.Context, filter interface{}, qty in
 			result <- repository.QueryResult{Error: update.Err()}
 			return
 		}
-		model := this.newModel()
+		model := &models.Inventory{}
 		err := update.Decode(model)
 		result <- repository.QueryResult{Error: err, Result: model}
 	}()
@@ -439,7 +438,7 @@ func (this *InventoryRep) Pagination(ctx context.Context, req *request.IndexRequ
 		req.AppendFilter("qty", options.Qty)
 	}
 
-	return this.mongoRep.Pagination(ctx, req)
+	return this.IRepository.Pagination(ctx, req)
 
 	//if opt.ItemCode != "" {
 	//	filter["item.code"] = opt.ItemCode
@@ -501,10 +500,10 @@ func (this *InventoryRep) indexesModel() []mongo.IndexModel {
 	}
 }
 
-func NewInventoryRep(con *mongodb.Connection) *InventoryRep {
+func NewInventoryRep(rep repository.IRepository) *InventoryRep {
 	inventoryOnce.Do(func() {
 		inventoryRep = &InventoryRep{
-			mongoRep: NewBasicMongoRepositoryByDefault(&models.Inventory{}, con),
+			IRepository: rep,
 		}
 	})
 	return inventoryRep

@@ -2,13 +2,11 @@ package repositories
 
 import (
 	"context"
-	"go-shop-v2/app/models"
-	"go-shop-v2/pkg/db/mongodb"
 	"go-shop-v2/pkg/repository"
 )
 
 type ItemRep struct {
-	*mongoRep
+	repository.IRepository
 }
 
 func (this *ItemRep) FindByProductId(ctx context.Context, id string) <-chan repository.QueryResult {
@@ -16,7 +14,7 @@ func (this *ItemRep) FindByProductId(ctx context.Context, id string) <-chan repo
 	go func() {
 		defer close(output)
 
-		many := <-this.mongoRep.FindMany(ctx, map[string]interface{}{"product.id": id})
+		many := <-this.FindMany(ctx, map[string]interface{}{"product.id": id})
 
 		output <- repository.QueryResult{
 			Result: many.Result,
@@ -26,8 +24,6 @@ func (this *ItemRep) FindByProductId(ctx context.Context, id string) <-chan repo
 	return output
 }
 
-func NewItemRep(con *mongodb.Connection) *ItemRep {
-	return &ItemRep{
-		mongoRep: NewBasicMongoRepositoryByDefault(&models.Item{}, con),
-	}
+func NewItemRep(rep repository.IRepository) *ItemRep {
+	return &ItemRep{rep}
 }

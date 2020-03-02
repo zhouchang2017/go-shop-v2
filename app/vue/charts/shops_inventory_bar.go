@@ -3,8 +3,7 @@ package charts
 import (
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"go-shop-v2/app/repositories"
-	"go-shop-v2/pkg/db/mongodb"
+	"go-shop-v2/app/services"
 	"go-shop-v2/pkg/vue/charts"
 )
 
@@ -12,14 +11,14 @@ var ShopsInventoryBar *shopsInventoryBar
 
 type shopsInventoryBar struct {
 	*charts.Bar
-	rep *repositories.InventoryRep
+	srv *services.InventoryService
 }
 
 func NewShopsInventoryBar() *shopsInventoryBar {
 	if ShopsInventoryBar == nil {
 		ShopsInventoryBar = &shopsInventoryBar{
 			Bar: charts.NewBar(),
-			rep: repositories.NewInventoryRep(mongodb.GetConFn()),
+			srv: services.MakeInventoryService(),
 		}
 		ShopsInventoryBar.LabelMap(map[string]interface{}{
 			"shop_name":  "门店名称",
@@ -46,7 +45,7 @@ func (shopsInventoryBar) Columns() []string {
 
 func (this shopsInventoryBar) HttpHandle(ctx *gin.Context) (rows interface{}, err error) {
 	//shopId := ctx.Param("resourceId")
-	data, err := this.rep.AggregateStockByShops(ctx)
+	data, err := this.srv.AggregateStockByShops(ctx)
 	if err != nil {
 		return
 	}

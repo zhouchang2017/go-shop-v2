@@ -1,17 +1,14 @@
 package repositories
 
 import (
-	"go-shop-v2/app/models"
-	"go-shop-v2/pkg/db/mongodb"
+	"go-shop-v2/pkg/repository"
 )
 
 
 type ManualInventoryActionRep struct {
-	*mongoRep
+	repository.IRepository
 }
 
-func NewManualInventoryActionRep(con *mongodb.Connection) *ManualInventoryActionRep {
-	return &ManualInventoryActionRep{
-		mongoRep: NewBasicMongoRepositoryByDefault(&models.ManualInventoryAction{}, con),
-	}
+func NewManualInventoryActionRep(rep repository.IRepository) *ManualInventoryActionRep {
+	return &ManualInventoryActionRep{rep}
 }

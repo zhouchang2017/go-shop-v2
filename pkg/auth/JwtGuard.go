@@ -6,11 +6,13 @@ import (
 	err2 "go-shop-v2/pkg/err"
 	"log"
 	"net/http"
+	"time"
 )
 
 type JWTGuard struct {
 	name      string
 	secretKey string
+	exp       int64        // 过期时间,单位分钟
 	provider  UserProvider // The user provider implementation.
 	jwt       *JWT
 	ctx       *gin.Context
@@ -137,12 +139,14 @@ func (this *JWTGuard) hasValidCredentials(user Authenticatable, credentials map[
 	return this.provider.ValidateCredentials(user, credentials)
 }
 
-func NewJwtGuard(name string, secretKey string, provider UserProvider) *JWTGuard {
+func NewJwtGuard(name string, secretKey string, exp int64, provider UserProvider) *JWTGuard {
+	expired := time.Minute * time.Duration(exp)
 	return &JWTGuard{
 		name:      name,
 		secretKey: secretKey,
+		exp:       exp,
 		provider:  provider,
-		jwt:       &JWT{secretKey: secretKey},
+		jwt:       &JWT{secretKey: secretKey, exp: expired},
 	}
 }
 

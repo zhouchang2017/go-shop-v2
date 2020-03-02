@@ -1,13 +1,11 @@
 package repositories
 
 import (
-	"go-shop-v2/app/models"
-	"go-shop-v2/pkg/db/mongodb"
+	"go-shop-v2/pkg/repository"
 )
 
-
 type AdminRep struct {
-	*mongoRep
+	repository.IRepository
 }
 
 //func (this *AdminRep) FindById(ctx context.Context, id string) (admin *models.Admin, err error) {
@@ -96,8 +94,6 @@ type AdminRep struct {
 //	return restore.Result.(*models.Admin), nil
 //}
 
-func NewAdminRep(con *mongodb.Connection) *AdminRep {
-	return &AdminRep{
-		mongoRep: NewBasicMongoRepositoryByDefault(&models.Admin{}, con),
-	}
+func NewAdminRep(rep repository.IRepository) *AdminRep {
+	return &AdminRep{rep}
 }

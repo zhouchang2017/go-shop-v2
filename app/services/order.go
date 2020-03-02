@@ -82,7 +82,7 @@ func (opt *DeliverOption) IsValid() error {
 
 // deliver struct
 type ConfirmOption struct {
-	OrderNo      string `json:"order_no" form:"order_no"`
+	OrderNo string `json:"order_no" form:"order_no"`
 }
 
 func (opt *ConfirmOption) IsValid() error {
@@ -92,9 +92,12 @@ func (opt *ConfirmOption) IsValid() error {
 	return nil
 }
 
-
 type OrderService struct {
 	rep *repositories.OrderRep
+}
+
+func NewOrderService(rep *repositories.OrderRep) *OrderService {
+	return &OrderService{rep: rep}
 }
 
 // 列表
@@ -105,6 +108,15 @@ func (srv *OrderService) Pagination(ctx context.Context, req *request.IndexReque
 		return
 	}
 	return results.Result.([]*models.Order), results.Pagination, nil
+}
+
+// 详情
+func (srv *OrderService) FindById(ctx context.Context, id string) (order *models.Order, err error) {
+	results := <-srv.rep.FindById(ctx, id)
+	if results.Error != nil {
+		return nil, results.Error
+	}
+	return results.Result.(*models.Order), nil
 }
 
 // 创建订单
@@ -194,7 +206,7 @@ func (srv *OrderService) Deliver(ctx context.Context, opt *DeliverOption) error 
 		return errors.New(fmt.Sprintf("order %s can not be delivered caused of not pre send status", opt.OrderNo))
 	}
 	// 更新
-	updated := <- srv.rep.Update(ctx, order.GetID(), bson.M{
+	updated := <-srv.rep.Update(ctx, order.GetID(), bson.M{
 		"$set": bson.M{
 			"status": models.OrderStatusPreConfirm,
 			"logistics": &models.Logistics{
@@ -237,7 +249,7 @@ func (srv *OrderService) Confirm(ctx context.Context, opt *ConfirmOption) error 
 		return errors.New(fmt.Sprintf("order %s can not be comfirm caused of invalid user", opt.OrderNo))
 	}
 	// 更新
-	updated := <- srv.rep.Update(ctx, order.GetID(), bson.M{
+	updated := <-srv.rep.Update(ctx, order.GetID(), bson.M{
 		"$set": bson.M{
 			"status": models.OrderStatusPreEvaluate,
 		},

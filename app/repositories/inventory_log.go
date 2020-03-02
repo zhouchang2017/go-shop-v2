@@ -1,16 +1,13 @@
 package repositories
 
 import (
-	"go-shop-v2/app/models"
-	"go-shop-v2/pkg/db/mongodb"
+	"go-shop-v2/pkg/repository"
 )
 
 type InventoryLogRep struct {
-	*mongoRep
+	repository.IRepository
 }
 
-func NewInventoryLogRep(con *mongodb.Connection) *InventoryLogRep {
-	return &InventoryLogRep{
-		mongoRep: NewBasicMongoRepositoryByDefault(&models.InventoryLog{}, con),
-	}
+func NewInventoryLogRep(rep repository.IRepository) *InventoryLogRep {
+	return &InventoryLogRep{rep}
 }
