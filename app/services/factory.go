@@ -99,3 +99,9 @@ func MakeOrderService() *OrderService {
 	rep := repositories.NewOrderRep(mongoRep)
 	return NewOrderService(rep)
 }
+
+func MakeAddressService() *AddressService {
+	mongoRep := repositories.NewBasicMongoRepositoryByDefault(&models.UserAddress{}, mongodb.GetConFn())
+	rep := repositories.NewAddressRep(mongoRep)
+	return NewAddressService(rep)
+}

@@ -84,6 +84,20 @@ func Register(app *gin.Engine) {
 
 	// 从收藏夹移除
 	v1.DELETE("/products/:id/bookmarks", bookmarkController.Delete)
+
+	addressController := &AddressController{addressSrv: services.MakeAddressService()}
+	// 用户地址
+	// 用户地址列表
+	v1.GET("/addresses", addressController.Index)
+
+	// 新增地址
+	v1.POST("/addresses", addressController.Add)
+
+	// 更新地址
+	v1.PUT("/addresses/:id", addressController.Update)
+
+	// 删除地址
+	v1.DELETE("/addresses/:id", addressController.Delete)
 }
 
 //
