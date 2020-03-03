@@ -64,7 +64,7 @@ type UserAddressCreateOption struct {
 	City         *string `json:"city"`
 	Areas        *string `json:"areas"`
 	Addr         *string `json:"addr"`
-	IsDefault    int     `json:"is_default" form:"is_default"`
+	IsDefault    bool    `json:"is_default" form:"is_default"`
 }
 
 // 地址总数
@@ -84,13 +84,13 @@ func (this *AddressService) Create(ctx context.Context, opt *UserAddressCreateOp
 
 	count := this.Count(ctx, opt.UserId)
 
-	if opt.IsDefault == 1 && count > 0 {
+	if opt.IsDefault && count > 0 {
 		// 其他地址设为 0
 		this.rep.SetIsDefaultByUserId(ctx, opt.UserId, false)
 	}
 	// 如果用户地址不存在的情况下，创建则为默认地址
 	if count == 0 {
-		opt.IsDefault = 1
+		opt.IsDefault = true
 	}
 	model := &models.UserAddress{
 		UserId:       opt.UserId,
@@ -111,7 +111,7 @@ func (this *AddressService) Create(ctx context.Context, opt *UserAddressCreateOp
 
 // 更新地址
 func (this *AddressService) Update(ctx context.Context, model *models.UserAddress) (address *models.UserAddress, err error) {
-	if model.IsDefault == 1 {
+	if model.IsDefault {
 		// 其他设置为 0
 		this.rep.SetIsDefaultByUserId(ctx, model.UserId, false)
 	}

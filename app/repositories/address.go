@@ -12,13 +12,9 @@ type AddressRep struct {
 }
 
 func (this *AddressRep) SetIsDefault(ctx context.Context, filter interface{}, isDefault bool) (err error) {
-	isDefaultValue := 0
-	if isDefault {
-		isDefaultValue = 1
-	}
 	_, err = this.Collection().UpdateMany(ctx, filter, bson.M{
 		"$set": bson.M{
-			"is_default": isDefaultValue,
+			"is_default": isDefault,
 		},
 		"$currentDate": bson.M{
 			"updated_at": true,
