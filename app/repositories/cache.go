@@ -146,7 +146,7 @@ func (this RedisCache) FindAll(ctx context.Context) <-chan repository.QueryResul
 	return this.rep.FindAll(ctx)
 }
 
-func (this RedisCache) Count(ctx context.Context, filter interface{}) <-chan repository.QueryResult {
+func (this RedisCache) Count(ctx context.Context, filter interface{}) <-chan repository.CountResult {
 	return this.rep.Count(ctx, filter)
 }
 

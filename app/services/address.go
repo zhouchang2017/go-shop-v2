@@ -44,26 +44,27 @@ func (this *AddressService) Pagination(ctx context.Context, req *request.IndexRe
 func (this *AddressService) Index(ctx context.Context, userId string) (addresses []*models.UserAddress, err error) {
 	req := &request.IndexRequest{OrderBy: "is_default", OrderDirection: request.Filter_DESC, Page: -1}
 	req.AppendFilter("user_id", userId)
-	addresses = []*models.UserAddress{}
 	result := <-this.rep.Pagination(ctx, req)
 	if result.Error != nil {
 		return addresses, result.Error
 	}
-	if result.Result != nil {
-		addresses = result.Result.([]*models.UserAddress)
+	addresses = result.Result.([]*models.UserAddress)
+
+	if len(addresses) == 0 {
+		addresses = []*models.UserAddress{}
 	}
 	return addresses, nil
 }
 
 type UserAddressCreateOption struct {
-	UserId       string `json:"user_id" form:"-"`
+	UserId       string  `json:"user_id" form:"-"`
 	ContactName  *string `json:"contact_name" form:"contact_name"`
 	ContactPhone *string `json:"contact_phone" form:"contact_phone"`
 	Province     *string `json:"province"`
 	City         *string `json:"city"`
 	Areas        *string `json:"areas"`
 	Addr         *string `json:"addr"`
-	IsDefault    int    `json:"is_default" form:"is_default"`
+	IsDefault    int     `json:"is_default" form:"is_default"`
 }
 
 // 地址总数
