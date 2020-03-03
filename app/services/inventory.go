@@ -11,7 +11,9 @@ import (
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"go.mongodb.org/mongo-driver/bson"
+	"golang.org/x/sync/errgroup"
 	"log"
+	"sync"
 )
 
 type InventoryService struct {
@@ -211,4 +213,26 @@ func (this *InventoryService) FindById(ctx context.Context, id string) (inventor
 func (this *InventoryService) Search(ctx context.Context, opt *repositories.QueryOption) (inventories []*models.Inventory, err error) {
 	search := <-this.rep.Search(ctx, opt)
 	return search.Result, search.Error
+}
+
+// 通过sku id获取库存
+func (this *InventoryService) SearchItemsQty(ctx context.Context, ids ...string) (results map[string]int64) {
+	var g errgroup.Group
+	var mu sync.Mutex
+	results = map[string]int64{}
+	sem := make(chan struct{}, 10)
+	for _, id := range ids {
+		id := id
+		sem <- struct{}{}
+		g.Go(func() error {
+			count, _ := this.rep.SearchByItemId(ctx, id)
+			mu.Lock()
+			results[id] = count
+			mu.Unlock()
+			<-sem
+			return nil
+		})
+	}
+	g.Wait()
+	return results
 }

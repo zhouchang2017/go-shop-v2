@@ -112,3 +112,13 @@ func TestInventoryService_Search(t *testing.T) {
 
 	spew.Dump(inventories)
 }
+
+func TestInventoryService_SearchItemsQty(t *testing.T) {
+	mongodb.TestConnect()
+	defer mongodb.Close()
+
+	service := MakeInventoryService()
+
+	qty := service.SearchItemsQty(context.Background(), "5e51e253ecbe820cbd5f6d7f","5e51e253ecbe820cbd5f6d74","5e577e370d3f4744961cfd0f")
+	spew.Dump(qty)
+}

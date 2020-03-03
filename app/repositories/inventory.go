@@ -408,9 +408,20 @@ func (this *InventoryRep) Search(ctx context.Context, opt *QueryOption) <-chan I
 }
 
 // 通过skuId查询库存数量
-//func (this *InventoryRep) SearchByItemId(ctx context.Context, id string) int64 {
-//
-//}
+func (this *InventoryRep) SearchByItemId(ctx context.Context, id string) (count int64, locked int64) {
+	opt := &QueryOption{
+		ItemId: id,
+	}
+	result := <-this.Search(ctx, opt)
+	if result.Error != nil {
+		return 0, 0
+	}
+	for _, inventory := range result.Result {
+		count += inventory.Qty
+		locked += inventory.LockedQty
+	}
+	return count, locked
+}
 
 //func (q *QueryOption) SetStatus(status int8) {
 //	q.Status = &status
