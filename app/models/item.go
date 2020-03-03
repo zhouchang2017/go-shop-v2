@@ -31,9 +31,10 @@ func (this Item) GetAvatar() (image *qiniu.Image) {
 // 关联简单SKU结构
 type AssociatedItem struct {
 	Id           string             `json:"id"`
-	Code         string             `json:"code"`                               // sku码
-	Avatar       *qiniu.Image       `json:"avatar"`                             // 图
-	Product      *AssociatedProduct `json:"product"`                            // 冗余产品信息
+	Code         string             `json:"code"`    // sku码
+	Avatar       *qiniu.Image       `json:"avatar"`  // 图
+	Product      *AssociatedProduct `json:"product"` // 冗余产品信息
+	Price        int64              `json:"price"`	// 价格
 	OptionValues []*OptionValue     `json:"option_values" bson:"option_values"` // sku销售属性
 }
 

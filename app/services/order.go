@@ -7,15 +7,18 @@ import (
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
 	ctx2 "go-shop-v2/pkg/ctx"
+	"go-shop-v2/pkg/db/mongodb"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"go-shop-v2/pkg/utils"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 // create struct
 type OrderCreateOption struct {
 	UserAddress  orderUserAddress    `json:"user_address" form:"products"`
+	TakeGoodType int                 `json:"take_good_type" form:"take_good_type"`
 	OrderItems   []*models.OrderItem `json:"order_items" form:"order_items"`
 	OrderAmount  uint64              `json:"order_amount" form:"order_amount"`
 	ActualAmount uint64              `json:"actual_amount" form:"actual_amount"`
@@ -93,16 +96,18 @@ func (opt *ConfirmOption) IsValid() error {
 }
 
 type OrderService struct {
-	rep *repositories.OrderRep
+	orderRep     *repositories.OrderRep
+	itemRep      *repositories.ItemRep
+	inventoryRep *repositories.InventoryRep
 }
 
-func NewOrderService(rep *repositories.OrderRep) *OrderService {
-	return &OrderService{rep: rep}
+func NewOrderService(orderRep *repositories.OrderRep, itemRep *repositories.ItemRep, inventoryRep *repositories.InventoryRep) *OrderService {
+	return &OrderService{orderRep: orderRep, itemRep: itemRep, inventoryRep: inventoryRep}
 }
 
 // 列表
 func (srv *OrderService) Pagination(ctx context.Context, req *request.IndexRequest) (orders []*models.Order, pagination response.Pagination, err error) {
-	results := <-srv.rep.Pagination(ctx, req)
+	results := <-srv.orderRep.Pagination(ctx, req)
 	if results.Error != nil {
 		err = results.Error
 		return
@@ -112,7 +117,7 @@ func (srv *OrderService) Pagination(ctx context.Context, req *request.IndexReque
 
 // 详情
 func (srv *OrderService) FindById(ctx context.Context, id string) (order *models.Order, err error) {
-	results := <-srv.rep.FindById(ctx, id)
+	results := <-srv.orderRep.FindById(ctx, id)
 	if results.Error != nil {
 		return nil, results.Error
 	}
@@ -132,9 +137,28 @@ func (srv *OrderService) Create(ctx context.Context, opt *OrderCreateOption) (or
 	if err = opt.IsValid(); err != nil {
 		return nil, err
 	}
-	// 校验产品有效且库存充足
+	// 校验产品有效且价格合法且库存充足
 	var calcAmount uint64 = 0
-	// todo: search inventory by item id
+	for _, orderItem := range opt.OrderItems {
+		// todo: here should be optimized
+		// 价格合法
+		dbItemQuery := <-srv.itemRep.FindById(ctx, orderItem.Item.Id)
+		if dbItemQuery.Error != nil {
+			return nil, dbItemQuery.Error
+		}
+		dbItem := dbItemQuery.Result.(*models.Item)
+		// valid price
+		if dbItem.Price != orderItem.Item.Price {
+			return nil, errors.New(fmt.Sprintf("invalid item price with %s-%d", orderItem.Item.Code, orderItem.Item.Price))
+		}
+		// calculate all amount
+		calcAmount += uint64(dbItem.Price * orderItem.Count)
+		// 库存充足
+		dbItemCount, _ := srv.inventoryRep.SearchByItemId(ctx, orderItem.Item.Id)
+		if dbItemCount < orderItem.Count {
+			return nil, errors.New(fmt.Sprintf("item %s inventory not enough which remain %d", orderItem.Item.Code, dbItemCount))
+		}
+	}
 	// 金额匹配
 	if calcAmount != opt.OrderAmount {
 		return nil, errors.New("order amount not equal")
@@ -146,12 +170,42 @@ func (srv *OrderService) Create(ctx context.Context, opt *OrderCreateOption) (or
 	// 生成订单
 	order = srv.generateOrder(userInfo, opt)
 	// save order into db
-	created := <-srv.rep.Create(ctx, &order)	// todo: rewrite this function in repositories which should use transaction
-	if created.Error != nil {
-		return nil, created.Error
+	// transaction of mongo
+	var session mongo.Session
+	if session, err = mongodb.GetConFn().Client().StartSession(); err != nil {
+		return nil, err
 	}
+	if err = session.StartTransaction(); err != nil {
+		return nil, err
+	}
+	// create order and deduct/lock inventory
+	var orderRes *models.Order
+	err = mongo.WithSession(ctx, session, func(sessionContext mongo.SessionContext) error {
+		// create order
+		created := <-srv.orderRep.Create(sessionContext, &order)
+		if created.Error != nil {
+			session.AbortTransaction(sessionContext)
+			return created.Error
+		}
+		orderRes = created.Result.(*models.Order)
+		// deduct / lock inventory
+		for _, orderItem := range order.OrderItems {
+			lockErr := srv.inventoryRep.LockById(sessionContext, orderItem.Item.Id, orderItem.Count)
+			if lockErr != nil {
+				session.AbortTransaction(sessionContext)
+				return lockErr
+			}
+		}
+		// return
+		session.CommitTransaction(sessionContext)
+		return nil
+	})
+	session.EndSession(ctx)
 	// return
-	return created.Result.(*models.Order), nil
+	if err != nil {
+		return nil, err
+	}
+	return orderRes, nil
 }
 
 func (srv *OrderService) getDiscounts(opt *OrderCreateOption) uint64 {
@@ -181,9 +235,10 @@ func (srv *OrderService) generateOrder(user models.User, opt *OrderCreateOption)
 			Areas:        opt.UserAddress.Areas,
 			Addr:         opt.UserAddress.Addr,
 		},
-		Logistics: nil, // todo: confirm how different between using nil and &models.Logistics
-		Payment:   nil, // todo: same with above
-		Status:    models.OrderStatusPrePay,
+		TakeGoodType: opt.TakeGoodType,
+		Logistics:    nil, // todo: confirm how different between using nil and &models.Logistics
+		Payment:      nil, // todo: same with above
+		Status:       models.OrderStatusPrePay,
 	}
 	// return
 	return resOrder
@@ -195,7 +250,7 @@ func (srv *OrderService) Deliver(ctx context.Context, opt *DeliverOption) error 
 		return err
 	}
 	// 查询订单并校验状态
-	orderRes := <-srv.rep.FindOne(ctx, map[string]interface{}{
+	orderRes := <-srv.orderRep.FindOne(ctx, map[string]interface{}{
 		"order_no": opt.OrderNo,
 	})
 	if orderRes.Error != nil {
@@ -211,9 +266,9 @@ func (srv *OrderService) Deliver(ctx context.Context, opt *DeliverOption) error 
 		TrackNo:    opt.TrackNo,
 	})
 	// 更新
-	updated := <-srv.rep.Update(ctx, order.GetID(), bson.M{
+	updated := <-srv.orderRep.Update(ctx, order.GetID(), bson.M{
 		"$set": bson.M{
-			"status": models.OrderStatusPreConfirm,
+			"status":    models.OrderStatusPreConfirm,
 			"logistics": newLogistics,
 		},
 	})
@@ -236,7 +291,7 @@ func (srv *OrderService) Confirm(ctx context.Context, opt *ConfirmOption) error 
 		return errors.New("invalid user who is unauthenticated")
 	}
 	// 查询订单并校验状态
-	orderRes := <-srv.rep.FindOne(ctx, map[string]interface{}{
+	orderRes := <-srv.orderRep.FindOne(ctx, map[string]interface{}{
 		"order_no": opt.OrderNo,
 	})
 	if orderRes.Error != nil {
@@ -251,7 +306,7 @@ func (srv *OrderService) Confirm(ctx context.Context, opt *ConfirmOption) error 
 		return errors.New(fmt.Sprintf("order %s can not be comfirm caused of invalid user", opt.OrderNo))
 	}
 	// 更新
-	updated := <-srv.rep.Update(ctx, order.GetID(), bson.M{
+	updated := <-srv.orderRep.Update(ctx, order.GetID(), bson.M{
 		"$set": bson.M{
 			"status": models.OrderStatusPreEvaluate,
 		},

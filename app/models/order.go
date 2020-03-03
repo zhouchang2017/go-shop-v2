@@ -13,6 +13,9 @@ const (
 	OrderStatusPreConfirm  = 4
 	OrderStatusPreEvaluate = 5
 	OrderStatusDone        = 6
+
+	OrderTakeGoodTypeOnline  = 1
+	OrderTakeGoodTypeOffline = 2
 )
 
 type Order struct {
@@ -22,8 +25,9 @@ type Order struct {
 	OrderAmount  uint64                 `json:"order_amount" bson:"order_amount" name:"订单金额,单位分"`
 	ActualAmount uint64                 `json:"actual_amount" bson:"actual_amount" name:"实付金额,单位分"`
 	OrderItems   []*OrderItem           `json:"order_items" bson:"order_items" name:"订单详情"`
-	User         *AssociatedUser        `json:"user" name:"用户"`
+	User         *AssociatedUser        `json:"user" bson:"user" name:"用户"`
 	UserAddress  *AssociatedUserAddress `json:"user_address" bson:"user_address" name:"收货信息"`
+	TakeGoodType int                    `json:"take_good_type" bson:"take_good_type" name:"物流类型"`
 	Logistics    []*Logistics           `json:"logistics" name:"物流信息"`
 	Payment      *AssociatedPayment     `json:"payment" name:"支付信息"`
 	Status       int                    `json:"status" name:"订单状态"`
@@ -47,7 +51,7 @@ func (this *Order) OriginId() string {
 
 type OrderItem struct {
 	Item  *AssociatedItem `json:"item"`
-	Count int             `json:"count"`
+	Count int64           `json:"count"`
 }
 
 type Logistics struct {

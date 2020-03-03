@@ -54,18 +54,24 @@ func Register(app *gin.Engine) {
 	}
 	// 购物车列表页
 	v1.GET("/shopping-cart", shopCartController.Index)
-
 	// 加入购物车
 	v1.POST("/shopping-cart", shopCartController.Add)
-
 	// 更新购物车
 	v1.PUT("/shopping-cart/:id", shopCartController.Update)
-
 	// 更新购物车选定状态
 	v1.PUT("/shopping-cart", shopCartController.UpdateChecked)
-
 	// 删除购物车
 	v1.DELETE("/shopping-cart", shopCartController.Delete)
+
+	orderController := &OrderController{
+		orderSrv: services.MakeOrderService(),
+	}
+	// 订单列表
+	v1.GET("/orders", orderController.Index)
+	// 查询订单
+	v1.GET("/orders/:id", orderController.Show)
+	// 下单
+	v1.POST("/orders", orderController.CreateOrder)
 
 	bookmarkSrv := services.MakeBookmarkService()
 	bookmarkController := &BookmarkController{
@@ -75,13 +81,10 @@ func Register(app *gin.Engine) {
 	// 收藏夹
 	// 收藏夹列表页
 	v1.GET("/bookmarks", bookmarkController.Index)
-
 	// 当前产品是否被收藏
 	v1.GET("/products/:id/bookmarks", bookmarkController.Show)
-
 	// 加入收藏夹
 	v1.POST("/products/:id/bookmarks", bookmarkController.Add)
-
 	// 从收藏夹移除
 	v1.DELETE("/products/:id/bookmarks", bookmarkController.Delete)
 }
