@@ -8,6 +8,21 @@
 docker-compose up -d rabbitmq
 ```
 
+MongoDB 
+
+本地host设置
+```
+$ sudo vim /etc/hosts
++127.0.0.1 mongodb-primary
++127.0.0.1 mognodb-secondary
++127.0.0.1 mongodb-arbiter
+
+```
+
+副本集初始化
+```bash
+docker-compose exec mongodb-primary mongo --port 30000 -uroot -p12345678 /root/000_init_replSet.js
+```
 
 
 - 列表页 index

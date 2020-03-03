@@ -45,3 +45,59 @@ services:
     volumes:
       # - /etc/localtime:/etc/localtime:ro # 设置容器时区与宿主机保持一致
       - ./docker/redis/data:/data
+
+
+  # MongoDB ReplicaSet
+  mongodb-primary:
+    image: mongo:latest
+    container_name: mongodb-primary
+    hostname: mongodb-primary
+    command: --port 30000 --bind_ip_all --replSet rs0 --auth --keyFile /etc/mongod-keyfile
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: 12345678
+      TZ: "Asia/Shanghai"
+    volumes:
+      - ./docker_init/mongodb/cmd:/root:ro # Initialize script
+      - ./docker_init/mongodb/etc/mongod-keyfile:/etc/mongod-keyfile:ro # Permission: 600
+      - ./docker/mongodb-primary/data:/data/db
+    ports:
+      - 30000:30000
+    depends_on:
+      - mongodb-secondary
+      - mongodb-arbiter
+    restart: on-failure
+
+  mongodb-secondary:
+    image: mongo:latest
+    container_name: mongodb-secondary
+    hostname: mongodb-secondary
+    command: --port 30001 --bind_ip_all --replSet rs0 --auth --keyFile /etc/mongod-keyfile
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: 12345678
+      TZ: "Asia/Shanghai"
+    volumes:
+      - ./docker_init/mongodb/etc/mongod-keyfile:/etc/mongod-keyfile:ro # Permission: 600
+      - ./docker/mongodb-secondary/data:/data/db
+    ports:
+      - 30001:30001
+    depends_on:
+      - mongodb-arbiter
+    restart: on-failure
+
+  mongodb-arbiter:
+    image: mongo:latest
+    container_name: mongodb-arbiter
+    hostname: mongodb-arbiter
+    command: --port 30002 --bind_ip_all --replSet rs0 --auth --keyFile /etc/mongod-keyfile
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: 12345678
+      TZ: "Asia/Shanghai"
+    volumes:
+      - ./docker_init/mongodb/etc/mongod-keyfile:/etc/mongod-keyfile:ro # Permission: 600
+      - ./docker/mongodb-arbiter/data:/data/db
+    ports:
+      - 30002:30002
+    restart: on-failure

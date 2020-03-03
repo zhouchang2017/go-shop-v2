@@ -32,6 +32,7 @@ func TestConnect() {
 
 type Config struct {
 	Host       string          `json:"host"`
+	Port       string          `json:"port"`
 	Database   string          `json:"database"`
 	Username   string          `json:"username"`
 	Password   string          `json:"password"`
@@ -48,6 +49,9 @@ func (c Config) URI() string {
 		uri.Host = "localhost"
 	} else {
 		uri.Host = c.Host
+		if c.Port != "" {
+			uri.Host = fmt.Sprintf("%s:%s", c.Host, c.Port)
+		}
 	}
 
 	if c.Username != "" && c.Password != "" {
