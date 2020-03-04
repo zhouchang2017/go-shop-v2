@@ -69,6 +69,7 @@ func main() {
 	redis.Connect(configs.RedisConfig())
 	defer redis.Close()
 
+
 	// 微信skd
 	wechat.NewSDK(configs.WeappConfig)
 

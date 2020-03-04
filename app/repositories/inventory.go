@@ -27,13 +27,43 @@ type InventoryRep struct {
 }
 
 func InventoryCacheKey(itemId string) string {
-	return fmt.Sprintf("total-stock:%s", itemId)
+	return fmt.Sprintf("stock:%s", itemId)
 }
 
 func (this *InventoryRep) InitCache() {
 	if redis.GetConFn() != nil {
+		ctx := context.TODO()
 		// 扫描所有库存
+		var page int64 = 1
+		var hasNext bool = true
 
+		for hasNext {
+			req := &request.IndexRequest{
+				Page: page,
+			}
+			req.AppendFilter("status", models.ITEM_OK)
+
+			results := <-this.AggregatePagination(ctx, req)
+			if results.Error != nil {
+				log.Println("初始化缓存失败")
+				panic(results.Error)
+			}
+			hasNext = results.Pagination.HasNextPage
+			page++
+			items := results.Result.([]*models.AggregateInventory)
+
+			for _, item := range items {
+				var count int64 = 0
+				for _, inventory := range item.Inventories {
+					count += inventory.Qty
+				}
+				_, err := redis.GetConFn().HMSet(InventoryCacheKey(item.Id), "count", count).Result()
+				if err != nil {
+					panic(err)
+				}
+			}
+
+		}
 	}
 }
 
