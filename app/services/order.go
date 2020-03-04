@@ -17,11 +17,11 @@ import (
 
 // create struct
 type OrderCreateOption struct {
-	UserAddress  orderUserAddress    `json:"user_address" form:"products"`
-	TakeGoodType int                 `json:"take_good_type" form:"take_good_type"`
-	OrderItems   []*models.OrderItem `json:"order_items" form:"order_items"`
-	OrderAmount  uint64              `json:"order_amount" form:"order_amount"`
-	ActualAmount uint64              `json:"actual_amount" form:"actual_amount"`
+	UserAddress  orderUserAddress `json:"user_address" form:"user_address"`
+	TakeGoodType int              `json:"take_good_type" form:"take_good_type"`
+	OrderItems   []*orderItem     `json:"order_items" form:"order_items"`
+	OrderAmount  uint64           `json:"order_amount" form:"order_amount"`
+	ActualAmount uint64           `json:"actual_amount" form:"actual_amount"`
 }
 
 type orderUserAddress struct {
@@ -32,6 +32,12 @@ type orderUserAddress struct {
 	City         string `json:"city" form:"city"`
 	Areas        string `json:"areas" form:"areas"`
 	Addr         string `json:"addr" form:"addr"`
+}
+
+type orderItem struct {
+	ItemId string `json:"item_id" form:"item_id"`
+	Count  int64  `json:"count" form:"count"`
+	Price  int64  `json:"price" form:"price"`
 }
 
 func (opt *OrderCreateOption) IsValid() error {
@@ -57,6 +63,14 @@ func (opt *OrderCreateOption) IsValid() error {
 	// items
 	if len(opt.OrderItems) == 0 {
 		return errors.New("empty order items")
+	}
+	for _, item := range opt.OrderItems {
+		if item.ItemId == "" {
+			return errors.New("empty item id")
+		}
+		if item.Count == 0 {
+			return errors.New("invalid item count")
+		}
 	}
 	// amount
 	if opt.OrderAmount == 0 {
@@ -125,13 +139,7 @@ func (srv *OrderService) FindById(ctx context.Context, id string) (order *models
 }
 
 // 创建订单
-func (srv *OrderService) Create(ctx context.Context, opt *OrderCreateOption) (order *models.Order, err error) {
-	// 获取用户
-	authUser := ctx2.GetUser(ctx)
-	userInfo, ok := authUser.(models.User)
-	if !ok {
-		return nil, errors.New("invalid user who is unauthenticated")
-	}
+func (srv *OrderService) Create(ctx context.Context, userInfo *models.User, opt *OrderCreateOption) (order *models.Order, err error) {
 	// 校验数据: 数据有效 -> 产品有效 -> 库存充足 -> 金额匹配
 	// 数据有效
 	if err = opt.IsValid(); err != nil {
@@ -139,25 +147,31 @@ func (srv *OrderService) Create(ctx context.Context, opt *OrderCreateOption) (or
 	}
 	// 校验产品有效且价格合法且库存充足
 	var calcAmount uint64 = 0
+	detailItem := make([]*models.OrderItem, 0)
 	for _, orderItem := range opt.OrderItems {
 		// todo: here should be optimized
 		// 价格合法
-		dbItemQuery := <-srv.itemRep.FindById(ctx, orderItem.Item.Id)
+		dbItemQuery := <-srv.itemRep.FindById(ctx, orderItem.ItemId)
 		if dbItemQuery.Error != nil {
 			return nil, dbItemQuery.Error
 		}
 		dbItem := dbItemQuery.Result.(*models.Item)
 		// valid price
-		if dbItem.Price != orderItem.Item.Price {
-			return nil, errors.New(fmt.Sprintf("invalid item price with %s-%d", orderItem.Item.Code, orderItem.Item.Price))
+		if dbItem.Price != orderItem.Price {
+			return nil, errors.New(fmt.Sprintf("invalid item price with %s-%d", orderItem.ItemId, orderItem.Price))
+		}
+		// 库存充足
+		dbItemCount, _ := srv.inventoryRep.SearchByItemId(ctx, orderItem.ItemId)
+		if dbItemCount < orderItem.Count {
+			return nil, errors.New(fmt.Sprintf("item %s inventory not enough which remain %d", orderItem.ItemId, dbItemCount))
 		}
 		// calculate all amount
 		calcAmount += uint64(dbItem.Price * orderItem.Count)
-		// 库存充足
-		dbItemCount, _ := srv.inventoryRep.SearchByItemId(ctx, orderItem.Item.Id)
-		if dbItemCount < orderItem.Count {
-			return nil, errors.New(fmt.Sprintf("item %s inventory not enough which remain %d", orderItem.Item.Code, dbItemCount))
-		}
+		// store item with detail
+		detailItem = append(detailItem, &models.OrderItem{
+			Item:  dbItem.ToAssociated(),
+			Count: orderItem.Count,
+		})
 	}
 	// 金额匹配
 	if calcAmount != opt.OrderAmount {
@@ -168,7 +182,7 @@ func (srv *OrderService) Create(ctx context.Context, opt *OrderCreateOption) (or
 		return nil, errors.New("invalid order actual amount")
 	}
 	// 生成订单
-	order = srv.generateOrder(userInfo, opt)
+	order = srv.generateOrder(userInfo, opt, detailItem)
 	// save order into db
 	// transaction of mongo
 	var session mongo.Session
@@ -182,7 +196,7 @@ func (srv *OrderService) Create(ctx context.Context, opt *OrderCreateOption) (or
 	var orderRes *models.Order
 	err = mongo.WithSession(ctx, session, func(sessionContext mongo.SessionContext) error {
 		// create order
-		created := <-srv.orderRep.Create(sessionContext, &order)
+		created := <-srv.orderRep.Create(sessionContext, order)
 		if created.Error != nil {
 			session.AbortTransaction(sessionContext)
 			return created.Error
@@ -212,14 +226,14 @@ func (srv *OrderService) getDiscounts(opt *OrderCreateOption) uint64 {
 	return 0
 }
 
-func (srv *OrderService) generateOrder(user models.User, opt *OrderCreateOption) *models.Order {
+func (srv *OrderService) generateOrder(user *models.User, opt *OrderCreateOption, orderItems []*models.OrderItem) *models.Order {
 	// build model of order
 	resOrder := &models.Order{
 		OrderNo:      utils.RandomOrderNo(""),
 		ItemCount:    len(opt.OrderItems),
 		OrderAmount:  opt.OrderAmount,
 		ActualAmount: opt.ActualAmount,
-		OrderItems:   opt.OrderItems, // consider to replace with `copy(a, b)`
+		OrderItems:   orderItems,
 		User: &models.AssociatedUser{
 			Id:       user.GetID(),
 			Nickname: user.Nickname,
@@ -286,7 +300,7 @@ func (srv *OrderService) Confirm(ctx context.Context, opt *ConfirmOption) error 
 	}
 	// 获取用户
 	authUser := ctx2.GetUser(ctx)
-	userInfo, ok := authUser.(models.User)
+	userInfo, ok := authUser.(*models.User)
 	if !ok {
 		return errors.New("invalid user who is unauthenticated")
 	}

@@ -23,11 +23,12 @@ var GetConFn func() *Connection = func() *Connection {
 
 func TestConnect() {
 	Connect(Config{
-		Host:       "mongodb-primary",
+		Host:       "106.54.17.169",
 		Port:       "30000",
 		Database:   "go-shop",
 		Username:   "root",
 		Password:   "12345678",
+		AuthSource: "admin",
 		ReplicaSet: "rs0",
 	})
 }
