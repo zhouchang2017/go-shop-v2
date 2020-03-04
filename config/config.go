@@ -19,12 +19,13 @@ func init() {
 var Config *config
 
 type config struct {
-	LbsKey      string         `json:"lbs_key"`
-	WeappConfig wechat.Config  `json:"weapp_config"`
-	MongoCfg    mongodb.Config `json:"mongo_config"`
-	MysqlCfg    mysql.Config   `json:"mysql_config"`
-	RedisCfg    redis.Config   `json:"redis_config"`
-	QiniuCfg    qiniu.Config   `json:"qiniu_config"`
+	LbsKey       string         `json:"lbs_key"`
+	WeappConfig  wechat.Config  `json:"weapp_config"`
+	MongoTestCfg mongodb.Config `json:"mongo_config_test"`
+	MongoCfg     mongodb.Config `json:"mongo_config"`
+	MysqlCfg     mysql.Config   `json:"mysql_config"`
+	RedisCfg     redis.Config   `json:"redis_config"`
+	QiniuCfg     qiniu.Config   `json:"qiniu_config"`
 }
 
 func NewConfig() *config {

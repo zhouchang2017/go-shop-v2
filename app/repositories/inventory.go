@@ -42,15 +42,20 @@ func (this *InventoryRep) InitCache() {
 func (this *InventoryRep) LockByItemId(ctx context.Context, itemId string, qty int64, status int8, loc *models.Location) (inventory *models.Inventory, err error) {
 	// 搜索库存
 	inventory = &models.Inventory{}
-	updated := this.Collection().FindOneAndUpdate(ctx, bson.M{
-		"shop.location": bson.M{
-			"$near":        loc.GeoJSON(),
-			"$maxDistance": 1000,
-		},
+
+	filter := bson.M{
 		"item.id": itemId,
 		"qty":     bson.M{"$gte": qty},
 		"status":  status,
-	}, bson.M{
+	}
+
+	if loc != nil {
+		filter["shop.location"] = bson.M{
+			"$near":        loc.GeoJSON(),
+			"$maxDistance": 1000,
+		}
+	}
+	updated := this.Collection().FindOneAndUpdate(ctx, filter, bson.M{
 		"$inc": bson.M{"qty": -qty, "locked_qty": qty},
 		"$currentDate": bson.M{
 			"updated_at": true,
