@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"go-shop-v2/app/lbs"
 	"go-shop-v2/app/listeners"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
@@ -78,6 +79,9 @@ func main() {
 
 	// 微信skd
 	wechat.NewSDK(configs.WeappConfig)
+
+	// 地址解析
+	lbs.NewSDK(configs.LbsKey)
 
 	adminGuard := "admin"
 	// auth service

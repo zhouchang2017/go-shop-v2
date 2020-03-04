@@ -2,8 +2,10 @@ package repositories
 
 import (
 	"context"
+	"fmt"
 	"github.com/mitchellh/mapstructure"
 	"go-shop-v2/app/models"
+	"go-shop-v2/pkg/cache/redis"
 	"go-shop-v2/pkg/repository"
 	"go-shop-v2/pkg/request"
 	"go.mongodb.org/mongo-driver/bson"
@@ -11,7 +13,9 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/x/bsonx"
+	"log"
 	"sync"
+	"time"
 )
 
 var inventoryOnce sync.Once
@@ -20,6 +24,46 @@ var inventoryRep *InventoryRep
 type InventoryRep struct {
 	lock sync.Mutex
 	repository.IRepository
+}
+
+func InventoryCacheKey(itemId string) string {
+	return fmt.Sprintf("total-stock:%s", itemId)
+}
+
+func (this *InventoryRep) InitCache() {
+	if redis.GetConFn() != nil {
+		// 扫描所有库存
+
+	}
+}
+
+// 通过ItemId,以及位置 锁定库存
+// models.UserAddress.Location() // 可以获取位置
+func (this *InventoryRep) LockByItemId(ctx context.Context, itemId string, qty int64, status int8, loc *models.Location) (inventory *models.Inventory, err error) {
+	// 搜索库存
+	inventory = &models.Inventory{}
+	updated := this.Collection().FindOneAndUpdate(ctx, bson.M{
+		"shop.location": bson.M{
+			"$near":        loc.GeoJSON(),
+			"$maxDistance": 1000,
+		},
+		"item.id": itemId,
+		"qty":     bson.M{"$gte": qty},
+		"status":  status,
+	}, bson.M{
+		"$inc": bson.M{"qty": -qty, "locked_qty": qty},
+		"$currentDate": bson.M{
+			"updated_at": true,
+		},
+	}, options.FindOneAndUpdate().SetReturnDocument(options.After))
+
+	if updated.Err() != nil {
+		return nil, fmt.Errorf("itemId[%s] lock qty = %d,status = %d, 库存不足！", itemId, qty, status)
+	}
+	if err := updated.Decode(inventory); err != nil {
+		return nil, err
+	}
+	return inventory, nil
 }
 
 // 锁定库存
@@ -482,28 +526,8 @@ func (this *InventoryRep) Pagination(ctx context.Context, req *request.IndexRequ
 }
 
 // 索引
-func (this *InventoryRep) indexesModel() []mongo.IndexModel {
+func (this *InventoryRep) index() []mongo.IndexModel {
 	return []mongo.IndexModel{
-		{
-			Keys: bson.M{
-				"product.code":        "text",
-				"product.name":        "text",
-				"item.code":           "text",
-				"shop.name":           "text",
-				"option_values.value": "text",
-			},
-			Options: options.Index().SetWeights(bson.M{
-				"product.code":        8,
-				"product.name":        5,
-				"item.code":           10,
-				"shop.name":           5,
-				"option_values.value": 3,
-			}).SetBackground(true),
-		},
-		{
-			Keys:    bsonx.Doc{{Key: "qty", Value: bsonx.Int64(-1)}},
-			Options: options.Index().SetBackground(true),
-		},
 		{
 			Keys:    bsonx.Doc{{Key: "shop.location", Value: bsonx.String("2d")}},
 			Options: options.Index().SetBackground(true),
@@ -516,10 +540,15 @@ func NewInventoryRep(rep repository.IRepository) *InventoryRep {
 		inventoryRep = &InventoryRep{
 			IRepository: rep,
 		}
+
+		opts := options.CreateIndexes().SetMaxTime(10 * time.Second)
+		_, err := inventoryRep.Collection().Indexes().CreateMany(context.Background(), inventoryRep.index(), opts)
+		if err != nil {
+			log.Printf("model [%s] create indexs error:%s\n", inventoryRep.TableName(), err)
+			panic(err)
+		}
 	})
+
 	return inventoryRep
-	//err := rep.CreateIndexes(context.Background(), rep.indexesModel())
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
+
 }

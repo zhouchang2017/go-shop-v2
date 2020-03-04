@@ -3,14 +3,13 @@ package services
 import (
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
-	"go-shop-v2/pkg/cache/redis"
 	"go-shop-v2/pkg/db/mongodb"
 )
 
 func MakeBrandService() *BrandService {
 	mongoRep := repositories.NewBasicMongoRepositoryByDefault(&models.Brand{}, mongodb.GetConFn())
-	brandCacheRep := repositories.NewRedisCache(&models.Brand{}, redis.GetConFn(), mongoRep)
-	rep := repositories.NewBrandRep(brandCacheRep)
+	//brandCacheRep := repositories.NewRedisCache(&models.Brand{}, redis.GetConFn(), mongoRep)
+	rep := repositories.NewBrandRep(mongoRep)
 	return NewBrandService(rep)
 }
 
@@ -27,8 +26,8 @@ func MakeAdminService() *AdminService {
 
 func newItemRep() *repositories.ItemRep {
 	mongoRep := repositories.NewBasicMongoRepositoryByDefault(&models.Item{}, mongodb.GetConFn())
-	itemCacheRep := repositories.NewRedisCache(&models.Item{}, redis.GetConFn(), mongoRep)
-	rep := repositories.NewItemRep(itemCacheRep)
+	//itemCacheRep := repositories.NewRedisCache(&models.Item{}, redis.GetConFn(), mongoRep)
+	rep := repositories.NewItemRep(mongoRep)
 	return rep
 }
 
@@ -38,8 +37,8 @@ func MakeItemService() *ItemService {
 
 func MakeProductService() *ProductService {
 	mongoRep := repositories.NewBasicMongoRepositoryByDefault(&models.Product{}, mongodb.GetConFn())
-	productCacheRep := repositories.NewRedisCache(&models.Product{}, redis.GetConFn(), mongoRep)
-	rep := repositories.NewProductRep(productCacheRep, newItemRep())
+	//productCacheRep := repositories.NewRedisCache(&models.Product{}, redis.GetConFn(), mongoRep)
+	rep := repositories.NewProductRep(mongoRep, newItemRep())
 	return NewProductService(rep)
 }
 

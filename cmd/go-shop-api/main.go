@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"go-shop-v2/app/lbs"
 	"go-shop-v2/app/services"
 	http2 "go-shop-v2/app/transport/http"
 	"go-shop-v2/config"
@@ -70,6 +71,9 @@ func main() {
 
 	// 微信skd
 	wechat.NewSDK(configs.WeappConfig)
+
+	// 地址解析
+	lbs.NewSDK(configs.LbsKey)
 
 	guard := "user"
 	// auth service
