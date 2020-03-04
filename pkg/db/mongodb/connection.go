@@ -28,6 +28,7 @@ func TestConnect() {
 		Database:   "go-shop",
 		Username:   "root",
 		Password:   "12345678",
+		AuthSource: "admin",
 		ReplicaSet: "rs0",
 	})
 }

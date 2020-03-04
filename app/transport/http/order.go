@@ -47,13 +47,16 @@ func (ctrl *OrderController) Show(ctx *gin.Context) {
 }
 
 func (ctrl *OrderController) CreateOrder(ctx *gin.Context) {
+	// get user information with auth
+	userInfo := ctx2.GetUser(ctx).(*models.User)
+	// check form data
 	var form *services.OrderCreateOption
 	if err := ctx.ShouldBind(form); err != nil {
 		ResponseError(ctx, err)
 		return
 	}
 	// create order
-	order, err := ctrl.orderSrv.Create(ctx, form)
+	order, err := ctrl.orderSrv.Create(ctx, userInfo, form)
 	if err != nil {
 		ResponseError(ctx, err)
 		return

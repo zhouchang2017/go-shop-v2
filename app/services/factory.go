@@ -94,10 +94,12 @@ func MakeBookmarkService() *BookmarkService {
 }
 
 func MakeOrderService() *OrderService {
-	mongoRep := repositories.NewBasicMongoRepositoryByDefault(&models.Order{}, mongodb.GetConFn())
-	orderRep := repositories.NewOrderRep(mongoRep)
-	itemRep := repositories.NewItemRep(mongoRep)
-	inventoryRep := repositories.NewInventoryRep(mongoRep)
+	orderMongoRep := repositories.NewBasicMongoRepositoryByDefault(&models.Order{}, mongodb.GetConFn())
+	itemMongoRep := repositories.NewBasicMongoRepositoryByDefault(&models.Item{}, mongodb.GetConFn())
+	inventoryMongoRep := repositories.NewBasicMongoRepositoryByDefault(&models.Inventory{}, mongodb.GetConFn())
+	orderRep := repositories.NewOrderRep(orderMongoRep)
+	itemRep := repositories.NewItemRep(itemMongoRep)
+	inventoryRep := repositories.NewInventoryRep(inventoryMongoRep)
 	return NewOrderService(orderRep, itemRep, inventoryRep)
 }
 
