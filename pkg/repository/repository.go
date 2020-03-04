@@ -14,6 +14,11 @@ type InsertResult struct {
 	Error  error
 }
 
+type CountResult struct {
+	Result int64
+	Error  error
+}
+
 type QueryResult struct {
 	Result interface{}
 	Error  error
@@ -33,7 +38,7 @@ type IRepository interface {
 	FindOne(ctx context.Context, credentials map[string]interface{}) <-chan QueryResult
 	FindAll(ctx context.Context) <-chan QueryResult
 	FindMany(ctx context.Context, credentials map[string]interface{}) <-chan QueryResult
-	Count(ctx context.Context, filter interface{}) <-chan QueryResult
+	Count(ctx context.Context, filter interface{}) <-chan CountResult
 	Pagination(ctx context.Context, req *request.IndexRequest) <-chan QueryPaginationResult
 	AggregatePagination(ctx context.Context, entities interface{}, req *request.IndexRequest, pipe ...bson.D) <-chan QueryPaginationResult
 	Create(ctx context.Context, entity interface{}) <-chan InsertResult

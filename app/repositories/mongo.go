@@ -223,8 +223,8 @@ func (this *mongoRep) FindAll(ctx context.Context) <-chan repository.QueryResult
 	return output
 }
 
-func (this *mongoRep) Count(ctx context.Context, filter interface{}) <-chan repository.QueryResult {
-	output := make(chan repository.QueryResult)
+func (this *mongoRep) Count(ctx context.Context, filter interface{}) <-chan repository.CountResult {
+	output := make(chan repository.CountResult)
 	go func() {
 		defer close(output)
 
@@ -234,11 +234,11 @@ func (this *mongoRep) Count(ctx context.Context, filter interface{}) <-chan repo
 
 		total, err := this.Collection().CountDocuments(ctx, filter)
 		if err != nil {
-			output <- repository.QueryResult{Error: err}
+			output <- repository.CountResult{Error: err}
 			return
 		}
 
-		output <- repository.QueryResult{Result: total}
+		output <- repository.CountResult{Result: total}
 	}()
 	return output
 }
@@ -302,7 +302,7 @@ func (this *mongoRep) Pagination(ctx context.Context, req *request.IndexRequest)
 			result <- repository.QueryPaginationResult{Error: r.Error}
 			return
 		}
-		total = r.Result.(int64)
+		total = r.Result
 
 		cursor, err := this.Collection().Find(ctx, filter, find)
 		if err != nil {

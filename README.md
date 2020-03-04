@@ -10,6 +10,16 @@ docker-compose up -d rabbitmq
 
 MongoDB 
 
+keyfile
+```shell script
+$ openssl rand -base64 756 > mongod-keyfile
+$ chmod 600 mongod-keyfile
+
+# 在ubuntu 需要设置为docker用户所有
+You'll just need to chown 999:999 keyfile before you run the docker container (you probably need sudo in there).
+
+```
+
 本地host设置
 ```
 $ sudo vim /etc/hosts

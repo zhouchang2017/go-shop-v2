@@ -34,7 +34,7 @@ func (this *TopicService) Count(ctx context.Context) int64 {
 	if count.Error != nil {
 		return 0
 	}
-	return count.Result.(int64)
+	return count.Result
 }
 
 // 简单列表

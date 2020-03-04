@@ -11,7 +11,7 @@ type UserAddress struct {
 	City             string `json:"city"`
 	Areas            string `json:"areas"`
 	Addr             string `json:"addr"`
-	IsDefault        int    `json:"is_default" bson:"is_default"`
+	IsDefault        bool   `json:"is_default" bson:"is_default"`
 }
 
 type AssociatedUserAddress struct {
