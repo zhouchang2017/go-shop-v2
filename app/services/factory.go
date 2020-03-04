@@ -97,10 +97,12 @@ func MakeOrderService() *OrderService {
 	orderMongoRep := repositories.NewBasicMongoRepositoryByDefault(&models.Order{}, mongodb.GetConFn())
 	itemMongoRep := repositories.NewBasicMongoRepositoryByDefault(&models.Item{}, mongodb.GetConFn())
 	inventoryMongoRep := repositories.NewBasicMongoRepositoryByDefault(&models.Inventory{}, mongodb.GetConFn())
+	orderInventoryLogMongoRep := repositories.NewBasicMongoRepositoryByDefault(&models.OrderInventoryLog{}, mongodb.GetConFn())
 	orderRep := repositories.NewOrderRep(orderMongoRep)
 	itemRep := repositories.NewItemRep(itemMongoRep)
 	inventoryRep := repositories.NewInventoryRep(inventoryMongoRep)
-	return NewOrderService(orderRep, itemRep, inventoryRep)
+	orderInventoryLogRep := repositories.NewOrderInventoryLogRep(orderInventoryLogMongoRep)
+	return NewOrderService(orderRep, itemRep, inventoryRep, orderInventoryLogRep)
 }
 
 func MakeAddressService() *AddressService {

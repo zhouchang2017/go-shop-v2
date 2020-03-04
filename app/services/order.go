@@ -110,13 +110,14 @@ func (opt *ConfirmOption) IsValid() error {
 }
 
 type OrderService struct {
-	orderRep     *repositories.OrderRep
-	itemRep      *repositories.ItemRep
-	inventoryRep *repositories.InventoryRep
+	orderRep             *repositories.OrderRep
+	itemRep              *repositories.ItemRep
+	inventoryRep         *repositories.InventoryRep
+	orderInventoryLogRep *repositories.OrderInventoryLogRep
 }
 
-func NewOrderService(orderRep *repositories.OrderRep, itemRep *repositories.ItemRep, inventoryRep *repositories.InventoryRep) *OrderService {
-	return &OrderService{orderRep: orderRep, itemRep: itemRep, inventoryRep: inventoryRep}
+func NewOrderService(orderRep *repositories.OrderRep, itemRep *repositories.ItemRep, inventoryRep *repositories.InventoryRep, logRep *repositories.OrderInventoryLogRep) *OrderService {
+	return &OrderService{orderRep: orderRep, itemRep: itemRep, inventoryRep: inventoryRep, orderInventoryLogRep: logRep}
 }
 
 // 列表
@@ -195,6 +196,8 @@ func (srv *OrderService) Create(ctx context.Context, userInfo *models.User, opt 
 	// create order and deduct/lock inventory
 	var orderRes *models.Order
 	err = mongo.WithSession(ctx, session, func(sessionContext mongo.SessionContext) error {
+		// define
+		itemInventoryLog := make([]*models.ItemInventoryLog, 0)
 		// create order
 		created := <-srv.orderRep.Create(sessionContext, order)
 		if created.Error != nil {
@@ -203,12 +206,28 @@ func (srv *OrderService) Create(ctx context.Context, userInfo *models.User, opt 
 		}
 		orderRes = created.Result.(*models.Order)
 		// deduct / lock inventory
+		addressLocation, _ := order.UserAddress.Location()
 		for _, orderItem := range order.OrderItems {
-			lockErr := srv.inventoryRep.LockById(sessionContext, orderItem.Item.Id, orderItem.Count)
+			itemInventory, lockErr := srv.inventoryRep.LockByItemId(sessionContext, orderItem.Item.Id, orderItem.Count, 0, addressLocation)
 			if lockErr != nil {
 				session.AbortTransaction(sessionContext)
 				return lockErr
 			}
+			// fill item inventory log
+			itemInventoryLog = append(itemInventoryLog, &models.ItemInventoryLog{
+				ItemId:      orderItem.Item.Id,
+				InventoryId: itemInventory.GetID(),
+			})
+		}
+		// create order inventory log
+		orderInventoryLog := &models.OrderInventoryLog{
+			OrderNo:          order.OrderNo,
+			ItemInventoryLog: itemInventoryLog,
+		}
+		logCreated := <-srv.orderInventoryLogRep.Create(sessionContext, orderInventoryLog)
+		if logCreated.Error != nil {
+			session.AbortTransaction(sessionContext)
+			return logCreated.Error
 		}
 		// return
 		session.CommitTransaction(sessionContext)
@@ -227,10 +246,14 @@ func (srv *OrderService) getDiscounts(opt *OrderCreateOption) uint64 {
 }
 
 func (srv *OrderService) generateOrder(user *models.User, opt *OrderCreateOption, orderItems []*models.OrderItem) *models.Order {
+	var itemCount int64
+	for _, orderItem := range opt.OrderItems {
+		itemCount += orderItem.Count
+	}
 	// build model of order
 	resOrder := &models.Order{
 		OrderNo:      utils.RandomOrderNo(""),
-		ItemCount:    len(opt.OrderItems),
+		ItemCount:    itemCount,
 		OrderAmount:  opt.OrderAmount,
 		ActualAmount: opt.ActualAmount,
 		OrderItems:   orderItems,
