@@ -77,6 +77,10 @@ func main() {
 	// 刷新缓存
 	connect.FlushDB()
 
+	// 库存初始化
+	inventoryRep := repositories.NewInventoryRep(repositories.NewBasicMongoRepositoryByDefault(&models.Inventory{}, mongodb.GetConFn()))
+	inventoryRep.InitCache()
+
 	// 微信skd
 	wechat.NewSDK(configs.WeappConfig)
 
