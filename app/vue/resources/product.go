@@ -113,7 +113,6 @@ func (this *Product) CustomHttpHandle(router gin.IRouter) {
 		var description = form.Description
 		var optionValues = []*models.OptionValue{}
 
-
 		for _, image := range form.Images {
 
 			res, err := qiniuService.PutByUrl(ctx, image.Src(), utils.RandomString(32))
@@ -161,7 +160,6 @@ func (this *Product) CustomHttpHandle(router gin.IRouter) {
 		for key, value := range matchImages {
 			description = strings.ReplaceAll(description, key, value)
 		}
-
 
 		paserCache[form.Id] = map[string]interface{}{
 			"images":        images,

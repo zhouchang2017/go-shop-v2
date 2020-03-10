@@ -8,6 +8,7 @@ import (
 	ctx2 "go-shop-v2/pkg/ctx"
 	"go-shop-v2/pkg/request"
 	"net/http"
+	"strconv"
 )
 
 type OrderController struct {
@@ -16,17 +17,30 @@ type OrderController struct {
 
 func (ctrl *OrderController) Index(ctx *gin.Context) {
 	user := ctx2.GetUser(ctx).(*models.User)
-	var req *request.IndexRequest
+	var req request.IndexRequest
 	if err := ctx.ShouldBind(&req); err != nil {
 		ResponseError(ctx, err)
 		return
 	}
+	if status := ctx.Query("status"); status != "" {
+		var value int
+		atoi, err := strconv.Atoi(status)
+		if err == nil {
+			value = atoi
+		}
+		req.AppendFilter("status", value)
+	}
+
 	req.AppendFilter("user.id", user.GetID())
 
-	orders, pagination, err := ctrl.orderSrv.Pagination(ctx, req)
+	orders, pagination, err := ctrl.orderSrv.Pagination(ctx, &req)
 	if err != nil {
 		ResponseError(ctx, err)
 		return
+	}
+	if len(orders) == 0 {
+		// 默认空数组
+		orders = []*models.Order{}
 	}
 	// return
 	Response(ctx, gin.H{
@@ -34,7 +48,6 @@ func (ctrl *OrderController) Index(ctx *gin.Context) {
 		"pagination": pagination,
 	}, http.StatusOK)
 }
-
 
 func (ctrl *OrderController) Show(ctx *gin.Context) {
 	id := ctx.Param("id")

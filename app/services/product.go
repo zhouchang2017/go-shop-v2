@@ -9,6 +9,7 @@ import (
 	"go-shop-v2/pkg/response"
 	"go-shop-v2/pkg/vue/contracts"
 	"go.mongodb.org/mongo-driver/bson"
+	"golang.org/x/sync/errgroup"
 )
 
 type ProductService struct {
@@ -38,6 +39,11 @@ func (this *ProductService) FindByIdWithItems(ctx context.Context, id string) (p
 		return nil, itemRes.Error
 	}
 	product.Items = itemRes.Result.([]*models.Item)
+	product.Avatar = product.GetAvatar()
+	for _, item := range product.Items {
+		item.Product = product.ToAssociated()
+		item.Avatar = item.GetAvatar()
+	}
 	return product, nil
 }
 
@@ -106,7 +112,39 @@ func (this *ProductService) Pagination(ctx context.Context, req *request.IndexRe
 		err = results.Error
 		return
 	}
-	return results.Result.([]*models.Product), results.Pagination, nil
+	includes := req.Includes()
+	products = results.Result.([]*models.Product)
+	for _, with := range includes {
+		if with == "item" {
+			var g errgroup.Group
+			res := []*models.Product{}
+			sem := make(chan struct{}, 10)
+			for _, product := range products {
+				product.Avatar = product.GetAvatar()
+				product := product
+				sem <- struct{}{}
+				g.Go(func() error {
+					items := this.ItemService.FindByProductId(ctx, product.GetID())
+					product.Items = items
+					for _, item := range product.Items {
+						item.Product = product.ToAssociated()
+						item.Avatar = item.GetAvatar()
+					}
+
+					res = append(res, product)
+					<-sem
+					return err
+				})
+			}
+			if err := g.Wait(); err != nil {
+
+				return res, pagination, err
+			}
+			products = res
+
+		}
+	}
+	return products, results.Pagination, nil
 }
 
 type ProductCreateOption struct {

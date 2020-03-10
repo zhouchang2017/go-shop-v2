@@ -31,6 +31,12 @@ func newItemRep() *repositories.ItemRep {
 	return rep
 }
 
+func newProductRep() *repositories.ProductRep {
+	mongoRep := repositories.NewBasicMongoRepositoryByDefault(&models.Product{}, mongodb.GetConFn())
+	//productCacheRep := repositories.NewRedisCache(&models.Product{}, redis.GetConFn(), mongoRep)
+	return repositories.NewProductRep(mongoRep, newItemRep())
+}
+
 func MakeItemService() *ItemService {
 	return NewItemService(newItemRep())
 }
@@ -109,4 +115,15 @@ func MakeAddressService() *AddressService {
 	mongoRep := repositories.NewBasicMongoRepositoryByDefault(&models.UserAddress{}, mongodb.GetConFn())
 	rep := repositories.NewAddressRep(mongoRep)
 	return NewAddressService(rep)
+}
+
+func MakePromotionItemService() *PromotionItemService {
+	rep := repositories.NewPromotionItemRep(repositories.NewBasicMongoRepositoryByDefault(&models.PromotionItem{}, mongodb.GetConFn()))
+	return NewPromotionItemService(rep, newProductRep())
+}
+
+func MakePromotionService() *PromotionService {
+	promotionItemRep := repositories.NewPromotionItemRep(repositories.NewBasicMongoRepositoryByDefault(&models.PromotionItem{}, mongodb.GetConFn()))
+	rep := repositories.NewPromotionRep(repositories.NewBasicMongoRepositoryByDefault(&models.Promotion{}, mongodb.GetConFn()), promotionItemRep)
+	return NewPromotionService(rep)
 }

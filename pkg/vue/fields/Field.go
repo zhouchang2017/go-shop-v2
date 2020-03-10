@@ -26,6 +26,7 @@ type Field struct {
 	*element.Element
 	Panel             string                `json:"panel"`
 	Readonly          bool                  `json:"readonly"`
+	Expand            bool                  `json:"expand"`
 	showOnIndex       bool                  `json:"-"`
 	showOnDetail      bool                  `json:"-"`
 	showOnCreation    bool                  `json:"-"`
@@ -93,6 +94,14 @@ func (this Field) ShowOnCreation() bool {
 // 更新页是否可见
 func (this Field) ShowOnUpdate() bool {
 	return this.showOnUpdate
+}
+
+// 设置为表格扩展行
+func (f *Field) SetExpand(ok bool) {
+	f.Expand = ok
+	if f.Expand {
+		f.showOnIndex = ok
+	}
 }
 
 // 设置首页可见
@@ -204,10 +213,8 @@ func getValueByField(model interface{}, field string) interface{} {
 		}
 	}
 
-
 	if value.IsValid() {
 		f := value.FieldByName(field)
-
 
 		if f.IsValid() {
 			return f.Interface()

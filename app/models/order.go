@@ -21,7 +21,7 @@ const (
 type Order struct {
 	model.MongoModel
 	OrderNo      string                 `json:"order_no" bson:"order_no" name:"订单号"`
-	ItemCount    int64                    `json:"item_count" bson:"item_count" name:"订单商品数量"`
+	ItemCount    int64                  `json:"item_count" bson:"item_count" name:"订单商品数量"`
 	OrderAmount  uint64                 `json:"order_amount" bson:"order_amount" name:"订单金额,单位分"`
 	ActualAmount uint64                 `json:"actual_amount" bson:"actual_amount" name:"实付金额,单位分"`
 	OrderItems   []*OrderItem           `json:"order_items" bson:"order_items" name:"订单详情"`
@@ -31,6 +31,14 @@ type Order struct {
 	Logistics    []*Logistics           `json:"logistics" name:"物流信息"`
 	Payment      *AssociatedPayment     `json:"payment" name:"支付信息"`
 	Status       int                    `json:"status" name:"订单状态"`
+}
+
+// 订单总计商品数量
+func (o Order) ItemsQty() (count int64) {
+	for _, item := range o.OrderItems {
+		count += item.Count
+	}
+	return count
 }
 
 func NewOrder() *Order {
@@ -50,8 +58,10 @@ func (this *Order) OriginId() string {
 }
 
 type OrderItem struct {
-	Item  *AssociatedItem `json:"item"`
-	Count int64           `json:"count"`
+	Item   *AssociatedItem `json:"item"`
+	Count  int64           `json:"count"`  // 购买数量
+	Price  int64           `json:"price"`  // item单品优惠价格，受Promotion.Type = 0 的影响
+	Amount int64           `json:"amount"` // 实际价格
 }
 
 type Logistics struct {

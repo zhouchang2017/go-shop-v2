@@ -27,6 +27,14 @@ type IndexRequest struct {
 	Ids            *string                `json:"ids" form:"ids"`         // filter by ids,Split ","
 	query          map[string]interface{} // 自定义搜索
 	projection     map[string]interface{} // 自定义projection
+	With           string                 `json:"with" form:"with"`
+}
+
+func (this *IndexRequest) Includes() []string {
+	if this.With == "" {
+		return []string{}
+	}
+	return strings.Split(this.With, ",")
 }
 
 func (this *IndexRequest) SetSearchField(field string) {

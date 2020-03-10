@@ -20,6 +20,7 @@ type Product struct {
 	TotalSalesQty    int64               `json:"total_sales_qty" bson:"total_sales_qty"`
 	FakeSalesQty     int64               `json:"fake_sales_qty,omitempty" bson:"fake_sales_qty"`
 	Images           []qiniu.Image       `json:"images" bson:"images"`
+	Avatar           *qiniu.Image        `json:"avatar,omitempty" bson:"-"`
 	OnSale           bool                `json:"on_sale" bson:"on_sale"`
 	Sort             int64               `json:"sort"`
 	Qty              int64               `json:"qty" bson:"-"`
@@ -48,6 +49,14 @@ func (this Product) GetSort() int64 {
 
 func (this Product) GetType() string {
 	return "product"
+}
+
+func (this Product) GetAvatar() *qiniu.Image {
+	var avatar *qiniu.Image
+	if len(this.Images) > 0 {
+		avatar = &(this.Images[0])
+	}
+	return avatar
 }
 
 func (this Product) ToAssociated() *AssociatedProduct {

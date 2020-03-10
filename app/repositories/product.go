@@ -38,7 +38,7 @@ func (this *ProductRep) FindItemById(ctx context.Context, id string) (item *mode
 }
 
 func (this *ProductRep) WithItems(ctx context.Context, id string) (product *models.Product, err error) {
-	res := <-this.itemRep.FindById(ctx, id)
+	res := <-this.FindById(ctx, id)
 	if res.Error != nil {
 		return nil, res.Error
 	}

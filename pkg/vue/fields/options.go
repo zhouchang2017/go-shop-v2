@@ -128,6 +128,15 @@ func SetTextAlign(align string) FieldOption {
 	}
 }
 
+func SetExpand(flag bool) FieldOption {
+	return func(field interface{}) {
+		basicField, err := resolveBasicField(field)
+		if err == nil {
+			basicField.SetExpand(flag)
+		}
+	}
+}
+
 func SetAsHtml(flag bool) FieldOption {
 	return func(field interface{}) {
 		basicField, err := resolveBasicField(field)

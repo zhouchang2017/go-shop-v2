@@ -25,6 +25,8 @@ func registerResources() {
 		resources2.NewInventoryLogResource(),
 		resources2.NewArticleResource(),
 		resources2.NewTopicResource(),
+		resources2.NewPromotionResource(),
+		resources2.NewPromotionItemResource(),
 	}
 }
 
@@ -35,6 +37,8 @@ func registerPages() {
 		pages2.NewManualInventoryUpdatePage(),
 		pages2.NewProductCreatePage(),
 		pages2.NewProductUpdatePage(),
+		pages2.NewPromotionCreatePage(),
+		pages2.NewPromotionUpdatePage(),
 	}
 }
 

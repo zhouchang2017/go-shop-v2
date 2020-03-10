@@ -16,14 +16,13 @@ import (
 
 var once sync.Once
 var con *Connection
-
 var GetConFn func() *Connection = func() *Connection {
 	return con
 }
 
 func TestConnect() {
 	Connect(Config{
-		Host:       "106.54.17.169",
+		Host:       "mongodb-primary",
 		Port:       "30000",
 		Database:   "go-shop",
 		Username:   "root",
