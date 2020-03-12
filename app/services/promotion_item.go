@@ -4,6 +4,7 @@ import (
 	"context"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
+	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"golang.org/x/sync/errgroup"
@@ -35,6 +36,12 @@ func (this *PromotionItemService) Pagination(ctx context.Context, req *request.I
 		sem <- struct{}{}
 		g.Go(func() error {
 			product, err := this.productRep.WithItems(ctx, promotion.ProductId)
+			if err != nil {
+				if err == err2.Err404 {
+					<-sem
+					return nil
+				}
+			}
 			promotion.Product = product.ToAssociated()
 
 			for _, unit := range promotion.Units {

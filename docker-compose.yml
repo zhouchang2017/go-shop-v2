@@ -1,31 +1,6 @@
 version: "3.3"
 
 services:
-  mysql:
-    image: mysql
-    command: --default-authentication-plugin=mysql_native_password
-    restart: always
-    ports:
-      - 33060:3306
-    volumes:
-      - ./docker/mysql:/data/db
-    environment:
-      MYSQL_ROOT_PASSWORD: 12345678
-      TZ: "Asia/Shanghai"
-
-  mongo:
-    image: mongo
-    restart: always
-    ports:
-      - 27017:27017
-    volumes:
-      - ./docker/mongo/data:/data/db
-    command: --bind_ip_all
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: 12345678
-      TZ: "Asia/Shanghai"
-
   rabbitmq:
     image: rabbitmq:management
     ports:
@@ -66,7 +41,7 @@ services:
     depends_on:
       - mongodb-secondary
       - mongodb-arbiter
-    restart: on-failure
+    restart: always
 
   mongodb-secondary:
     image: mongo:latest
@@ -84,7 +59,7 @@ services:
       - 30001:30001
     depends_on:
       - mongodb-arbiter
-    restart: on-failure
+    restart: always
 
   mongodb-arbiter:
     image: mongo:latest
@@ -100,4 +75,4 @@ services:
       - ./docker/mongodb-arbiter/data:/data/db
     ports:
       - 30002:30002
-    restart: on-failure
+    restart: always

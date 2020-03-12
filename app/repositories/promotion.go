@@ -21,7 +21,6 @@ type PromotionRep struct {
 	promotionItemRep *PromotionItemRep
 }
 
-
 func (this *PromotionRep) FindByIdWithItems(ctx context.Context, id string) (promotion *models.Promotion, err error) {
 
 	results := <-this.FindById(ctx, id)
@@ -246,7 +245,6 @@ func (this *PromotionRep) Save(ctx context.Context, entity interface{}) <-chan r
 
 			// 查询所有items ids
 			ids := this.resolveItemIds(ctx, promotion.GetID())
-
 			var deleteIds []string
 			promotionItems := []*models.PromotionItem{}
 			for _, item := range items {
@@ -280,11 +278,12 @@ func (this *PromotionRep) Save(ctx context.Context, entity interface{}) <-chan r
 					promotionItems = append(promotionItems, saved.Result.(*models.PromotionItem))
 				}
 			}
-
-			if err = <-this.promotionItemRep.DeleteMany(ctx, deleteIds...); err != nil {
-				// 删除失败
-				session.AbortTransaction(sessionContext)
-				return err
+			if len(deleteIds) > 0 {
+				if err = <-this.promotionItemRep.DeleteMany(ctx, deleteIds...); err != nil {
+					// 删除失败
+					session.AbortTransaction(sessionContext)
+					return err
+				}
 			}
 
 			promotion.Items = promotionItems

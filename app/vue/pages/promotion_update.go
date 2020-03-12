@@ -1,6 +1,7 @@
 package pages
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"go-shop-v2/app/services"
 	"go-shop-v2/app/usecases"
@@ -59,6 +60,33 @@ func (p *promotionUpdatePage) HttpHandles(router gin.IRouter) {
 			return
 		}
 		c.JSON(http.StatusOK, promotion)
+	})
+
+	// 更新促销计划api
+	router.PUT("promotions/:Promotion", func(c *gin.Context) {
+		if !p.AuthorizedTo(c, ctx.GetUser(c).(auth.Authenticatable)) {
+			c.AbortWithStatus(403)
+			return
+		}
+
+		promotion, err := p.promotionService.FindById(c, c.Param("Promotion"))
+		if err != nil {
+			err2.ErrorEncoder(nil, err, c.Writer)
+			return
+		}
+		form := services.PromotionCreateOption{}
+
+		if err := c.ShouldBind(&form); err != nil {
+			err2.ErrorEncoder(nil, err, c.Writer)
+			return
+		}
+		updatedPromotion, err := p.promotionService.Update(c, promotion, &form)
+		if err != nil {
+			err2.ErrorEncoder(nil, err, c.Writer)
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"redirect": fmt.Sprintf("/promotions/%s", updatedPromotion.GetID())})
 	})
 }
 

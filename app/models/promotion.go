@@ -257,9 +257,10 @@ func (p PromotionItem) itemExistWithProductId(id string, productId string) bool 
 }
 
 type PromotionItemUnit struct {
-	ItemId string          `json:"item_id" bson:"item_id" form:"item_id"`
-	Item   *AssociatedItem `json:"item" bson:"-"`      // 冗余数据，不存库
-	Price  int64           `json:"price" bson:"price"` // 活动价
+	ItemId      string          `json:"item_id" bson:"item_id" form:"item_id"`
+	Item        *AssociatedItem `json:"item" bson:"-"`                    // 冗余数据，不存库
+	Price       int64           `json:"price" bson:"price"`               // 活动价
+	OriginPrice int64           `json:"origin_price" bson:"origin_price"` // 原始价格
 }
 
 // Order Items ["123","33"]

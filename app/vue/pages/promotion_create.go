@@ -1,11 +1,15 @@
 package pages
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"go-shop-v2/app/services"
 	"go-shop-v2/pkg/auth"
+	"go-shop-v2/pkg/ctx"
+	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/vue/contracts"
 	"go-shop-v2/pkg/vue/core"
+	"net/http"
 )
 
 var PromotionCreatePage *promotionCreatePage
@@ -38,8 +42,29 @@ func (p *promotionCreatePage) VueRouter() contracts.Router {
 	return router
 }
 
-func (p promotionCreatePage) HttpHandles(router gin.IRouter) {
+func (p *promotionCreatePage) HttpHandles(router gin.IRouter) {
+	// 创建促销api
+	router.POST("promotions", func(c *gin.Context) {
+		if !p.AuthorizedTo(c, ctx.GetUser(c).(auth.Authenticatable)) {
+			c.AbortWithStatus(403)
+			return
+		}
 
+		option := services.PromotionCreateOption{}
+		err := c.ShouldBind(&option)
+		if err != nil {
+			err2.ErrorEncoder(nil, err, c.Writer)
+			return
+		}
+
+		promotion, err := p.promotionService.Create(c, &option)
+		if err != nil {
+			err2.ErrorEncoder(nil, err, c.Writer)
+			return
+		}
+
+		c.JSON(http.StatusCreated, gin.H{"redirect": fmt.Sprintf("/promotions/%s", promotion.GetID())})
+	})
 }
 
 func (p promotionCreatePage) Title() string {

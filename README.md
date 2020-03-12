@@ -47,6 +47,11 @@ docker-compose exec mongodb-primary mongo --port 30000 -uroot -p12345678 /root/0
 ```
 
 
+产品删除
+  - 删除items
+  - 删除购物车中相关产品
+
+
 #### ChangeLog 
 - 2020-02-16
     - Category 模型不在包含 `[]*OptionValue`,每个产品都管理自身的 `[]*OptionValue`

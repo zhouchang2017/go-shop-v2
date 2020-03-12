@@ -114,13 +114,16 @@ func (this *ProductService) Pagination(ctx context.Context, req *request.IndexRe
 	}
 	includes := req.Includes()
 	products = results.Result.([]*models.Product)
+	for _,product:=range products {
+		product.Avatar = product.GetAvatar()
+
+	}
 	for _, with := range includes {
 		if with == "item" {
 			var g errgroup.Group
 			res := []*models.Product{}
 			sem := make(chan struct{}, 10)
 			for _, product := range products {
-				product.Avatar = product.GetAvatar()
 				product := product
 				sem <- struct{}{}
 				g.Go(func() error {

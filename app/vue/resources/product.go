@@ -227,7 +227,6 @@ func (this *Product) Fields(ctx *gin.Context, model interface{}) func() []interf
 					fields.NewTextField("ID", "Id"),
 					fields.NewTextField("属性名", "Name"),
 					//fields.NewStatusField("")
-					fields.NewTextField("权重", "Sort"),
 					fields.NewLabelsFields("属性值", "Values").Label("name"),
 				}
 			}),

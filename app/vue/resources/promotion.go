@@ -19,6 +19,10 @@ type Promotion struct {
 	service *services.PromotionService
 }
 
+func (this *Promotion) Destroy(ctx *gin.Context, id string) (err error) {
+	return this.service.Delete(ctx,id)
+}
+
 func NewPromotionResource() *Promotion {
 	return &Promotion{model: &models.Promotion{}, service: services.MakePromotionService()}
 }
@@ -27,6 +31,12 @@ func NewPromotionResource() *Promotion {
 func (this *Promotion) CreationComponent() contracts.Page {
 	return pages.NewPromotionCreatePage()
 }
+
+// 自定义更新页
+func (this *Promotion) UpdateComponent() contracts.Page {
+	return pages.NewPromotionUpdatePage()
+}
+
 
 // 实现列表页api
 func (this *Promotion) Pagination(ctx *gin.Context, req *request.IndexRequest) (res interface{}, pagination response.Pagination, err error) {
@@ -106,5 +116,5 @@ func (this Promotion) Group() string {
 }
 
 func (this Promotion) Icon() string {
-	return "icons-box"
+	return "icons-announcement"
 }
