@@ -6,6 +6,7 @@ import (
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/services"
 	"go-shop-v2/app/tb"
+	fields2 "go-shop-v2/app/vue/fields"
 	"go-shop-v2/app/vue/pages"
 	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/qiniu"
@@ -64,7 +65,7 @@ func (this *Product) Pagination(ctx *gin.Context, req *request.IndexRequest) (re
 
 // 实现详情页api
 func (this *Product) Show(ctx *gin.Context, id string) (res interface{}, err error) {
-	return this.service.FindByIdWithItems(ctx, id)
+	return this.service.FindById(ctx, id)
 }
 
 // 正则匹配富文本img src地址
@@ -231,15 +232,7 @@ func (this *Product) Fields(ctx *gin.Context, model interface{}) func() []interf
 				}
 			}),
 
-			fields.NewTable("SKU", "Items", func() []contracts.Field {
-				return []contracts.Field{
-					fields.NewIDField(),
-					fields.NewTextField("编码", "Code"),
-					fields.NewCurrencyField("价格", "Price"),
-					fields.NewLabelsFields("销售属性", "OptionValues").Label("name"),
-					fields.NewTextField("销量", "SalesQty"),
-				}
-			}),
+			fields2.NewProductSkuDetailField("SKU", "Items"),
 
 			fields.NewRichTextField("描述", "Description"),
 			fields.NewTextField("权重", "Sort").Min(0).Max(9999).InputNumber(),

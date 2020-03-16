@@ -70,3 +70,19 @@ func TestProductService_FindById(t *testing.T) {
 	}
 	spew.Dump(id)
 }
+
+func TestProductService_FindItemById(t *testing.T) {
+	mongodb.TestConnect()
+	defer mongodb.Close()
+
+	redis.TestConnect()
+	defer redis.Close()
+
+	service := MakeProductService()
+
+	id, err := service.FindItemById(context.Background(), "5e6aec27f669d80a99ad020c")
+	if err!=nil {
+		t.Fatal(err)
+	}
+	spew.Dump(id)
+}

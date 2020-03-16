@@ -24,6 +24,10 @@ func (this *PromotionService) FindByIdWithItems(ctx context.Context, id string) 
 
 // 列表
 func (this *PromotionService) Pagination(ctx context.Context, req *request.IndexRequest) (promotions []*models.Promotion, pagination response.Pagination, err error) {
+	filters := req.Filters.Unmarshal()
+	for key, value := range filters {
+		req.AppendFilter(key, value)
+	}
 	results := <-this.rep.Pagination(ctx, req)
 	if results.Error != nil {
 		err = results.Error
@@ -93,7 +97,9 @@ func (this *PromotionService) Update(ctx context.Context, model *models.Promotio
 	if saved.Error != nil {
 		return nil, saved.Error
 	}
-	return saved.Result.(*models.Promotion), nil
+	promotion = saved.Result.(*models.Promotion)
+
+	return promotion, nil
 }
 
 // 删除
@@ -114,6 +120,50 @@ func (this *PromotionService) FindActivePromotionByProductId(ctx context.Context
 }
 
 // 计算订单促销价格
-func (this *PromotionService) CalculateByOrder(ctx context.Context, order *models.Order) {
+func (this *PromotionService) CalculateByOrder(ctx context.Context, items []*OrderItemCreateOption) *models.PromotionResult {
+	// 组装数据
+	var itemPromotions []*models.PromotionOrderItem
+	for _, item := range items {
+		itemPromotion := &models.PromotionOrderItem{
+			ItemId:              item.ItemId,
+			ProductId:           item.ProductId,
+			Qty:                 item.Qty,
+			UnMutexPromotions:   nil,
+			MutexPromotion:      nil,
+			MutexPromotionId:    item.MutexPromotion,
+			UnMutexPromotionIds: item.UnMutexPromotions,
+			Price:               item.Price,
+		}
 
+		var promotions []*models.PromotionItem
+		// 互斥活动
+		if item.MutexPromotion != nil {
+			if promotion, err := this.rep.FindActivePromotion(ctx, *item.MutexPromotion, item.ProductId); err == nil {
+				promotions = append(promotions, promotion)
+			}
+		}
+		// 非互斥活动
+		for _, id := range item.UnMutexPromotions {
+			if promotion, err := this.rep.FindActivePromotion(ctx, id, item.ProductId); err == nil {
+				promotions = append(promotions, promotion)
+			}
+		}
+		var mutexPromotion *models.PromotionItem
+		for _, promotion := range promotions {
+			if promotion.Promotion.Mutex {
+				if mutexPromotion == nil {
+					itemPromotion.MutexPromotion = promotion
+					mutexPromotion = promotion
+				} else {
+					// 出现两个互斥促销，异常
+				}
+
+			} else {
+				itemPromotion.UnMutexPromotions = append(itemPromotion.UnMutexPromotions, promotion)
+			}
+		}
+
+		itemPromotions = append(itemPromotions, itemPromotion)
+	}
+	return models.PromotionCalculate(itemPromotions...)
 }

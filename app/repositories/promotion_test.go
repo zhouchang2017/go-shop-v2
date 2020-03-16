@@ -202,3 +202,17 @@ func TestPromotionRep_Delete(t *testing.T) {
 		t.Fatal(error)
 	}
 }
+
+func TestPromotionRep_FindActivePromotionUnitSaleByProductId(t *testing.T) {
+	mongodb.TestConnect()
+	defer mongodb.Close()
+
+	promotionItemRep := NewPromotionItemRep(NewBasicMongoRepositoryByDefault(&models.PromotionItem{}, mongodb.GetConFn()))
+	rep := NewPromotionRep(NewBasicMongoRepositoryByDefault(&models.Promotion{}, mongodb.GetConFn()), promotionItemRep)
+
+	id, err := rep.FindActivePromotionUnitSaleByProductId(context.Background(), "5e69b789d9acdd33dafb742e")
+	if err!=nil {
+		spew.Dump(err)
+	}
+	spew.Dump(id)
+}

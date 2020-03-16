@@ -99,7 +99,7 @@ func Connect(c Config) *Connection {
 			panic(err)
 		}
 
-		timeout, cancelFunc := context.WithTimeout(context.Background(), 2*time.Second)
+		timeout, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancelFunc()
 		err = client.Ping(timeout, readpref.Primary())
 		if err != nil {

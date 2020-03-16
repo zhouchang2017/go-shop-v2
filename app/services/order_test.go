@@ -36,15 +36,15 @@ func TestOrderService_Create(t *testing.T) {
 					Addr:         "科苑天桥下",
 				},
 				TakeGoodType: models.OrderTakeGoodTypeOnline,
-				OrderItems:   []*orderItem{
+				OrderItems:   []*OrderItemCreateOption{
 					{
 						ItemId: "5e51e253ecbe820cbd5f6d77",
-						Count:  1,
+						Qty:  1,
 						Price:  109000,
 					},
 					{
 						ItemId: "5e51e253ecbe820cbd5f6d80",
-						Count:  2,
+						Qty:  2,
 						Price:  109000,
 					},
 				},

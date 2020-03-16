@@ -63,10 +63,10 @@ func (this *ShopCartRep) Index(ctx context.Context, userId string, page int64, p
 }
 
 // 添加数量
-func (this *ShopCartRep) UpdateQty(ctx context.Context, userId string, itemId string, qty int64) (err error) {
+func (this *ShopCartRep) UpdateQty(ctx context.Context, userId string, item *models.Item, qty int64) (err error) {
 	arrayFilters := []interface{}{
 		bson.M{
-			"elem.item_id": itemId,
+			"elem.item_id": item.GetID(),
 		},
 	}
 	_, err = this.Collection().UpdateOne(ctx,
@@ -74,7 +74,7 @@ func (this *ShopCartRep) UpdateQty(ctx context.Context, userId string, itemId st
 			"user_id": userId,
 		},
 		bson.M{
-			"$set": bson.M{"items.$[elem].qty": qty},
+			"$set": bson.M{"items.$[elem].qty": qty, "items.$[elem].price": item.PromotionPrice},
 			"$currentDate": bson.M{
 				"updated_at": true,
 			},
@@ -92,11 +92,11 @@ func (this *ShopCartRep) UpdateQty(ctx context.Context, userId string, itemId st
 // deleted = true 说明之前的被删除
 
 // 更新itemId
-func (this *ShopCartRep) Update(ctx context.Context, userId string, beforeItemId string, afterItemId string, qty int64) (status int64, err error) {
+func (this *ShopCartRep) Update(ctx context.Context, userId string, beforeItemId string, afterItem *models.Item, qty int64) (status int64, err error) {
 	result := this.Collection().FindOne(ctx,
 		bson.M{
 			"user_id": userId,
-			"items":   bson.M{"$elemMatch": bson.M{"item_id": afterItemId}},
+			"items":   bson.M{"$elemMatch": bson.M{"item_id": afterItem.GetID()}},
 		},
 	)
 	if result.Err() == nil {
@@ -106,7 +106,7 @@ func (this *ShopCartRep) Update(ctx context.Context, userId string, beforeItemId
 		if err := this.Remove(ctx, userId, beforeItemId); err != nil {
 			return status, err
 		}
-		if err := this.UpdateQty(ctx, userId, afterItemId, qty); err != nil {
+		if err := this.UpdateQty(ctx, userId, afterItem, qty); err != nil {
 			return status, err
 		}
 		status = 2
@@ -124,7 +124,7 @@ func (this *ShopCartRep) Update(ctx context.Context, userId string, beforeItemId
 			"user_id": userId,
 		},
 		bson.M{
-			"$set": bson.M{"items.$[elem].item_id": afterItemId, "items.$[elem].qty": qty},
+			"$set": bson.M{"items.$[elem].item_id": afterItem.GetID(), "items.$[elem].qty": qty,"items.$[elem].price":afterItem.PromotionPrice},
 			"$currentDate": bson.M{
 				"updated_at": true,
 			},
@@ -140,21 +140,24 @@ func (this *ShopCartRep) Update(ctx context.Context, userId string, beforeItemId
 }
 
 // 添加
-func (this *ShopCartRep) Add(ctx context.Context, userId string, itemId string, qty int64) (err error) {
+func (this *ShopCartRep) Add(ctx context.Context, userId string, item *models.Item, qty int64) (err error) {
 
 	result := this.Collection().FindOne(ctx,
 		bson.M{
 			"user_id": userId,
-			"items":   bson.M{"$elemMatch": bson.M{"item_id": itemId}},
+			"items":   bson.M{"$elemMatch": bson.M{"item_id": item.GetID()}},
 		},
 	)
 	if result.Err() == nil {
 		_, err = this.Collection().UpdateOne(ctx,
 			bson.M{
 				"user_id": userId,
-				"items":   bson.M{"$elemMatch": bson.M{"item_id": itemId}},
+				"items":   bson.M{"$elemMatch": bson.M{"item_id": item.GetID()}},
 			},
 			bson.M{
+				"$set": bson.M{
+					"items.$.price": item.PromotionPrice,
+				},
 				"$inc": bson.M{
 					"items.$.qty": qty,
 				},
@@ -171,7 +174,7 @@ func (this *ShopCartRep) Add(ctx context.Context, userId string, itemId string, 
 	_, err = this.Collection().UpdateOne(ctx, bson.M{"user_id": userId}, bson.M{
 		"$push": bson.M{
 			"items": bson.M{
-				"$each":     bson.A{bson.M{"item_id": itemId, "qty": qty, "checked": true}},
+				"$each":     bson.A{bson.M{"item_id": item.GetID(), "qty": qty, "price": item.PromotionPrice}},
 				"$position": 0,
 			},
 		},

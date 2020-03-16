@@ -2,12 +2,12 @@ package services
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
 	ctx2 "go-shop-v2/pkg/ctx"
 	"go-shop-v2/pkg/db/mongodb"
+	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"go-shop-v2/pkg/utils"
@@ -17,11 +17,11 @@ import (
 
 // create struct
 type OrderCreateOption struct {
-	UserAddress  orderUserAddress `json:"user_address" form:"user_address"`
-	TakeGoodType int              `json:"take_good_type" form:"take_good_type"`
-	OrderItems   []*orderItem     `json:"order_items" form:"order_items"`
-	OrderAmount  uint64           `json:"order_amount" form:"order_amount"`
-	ActualAmount uint64           `json:"actual_amount" form:"actual_amount"`
+	UserAddress  orderUserAddress         `json:"user_address" form:"user_address"`
+	TakeGoodType int                      `json:"take_good_type" form:"take_good_type"`
+	OrderItems   []*OrderItemCreateOption `json:"order_items" form:"order_items"`
+	OrderAmount  uint64                   `json:"order_amount" form:"order_amount"`
+	ActualAmount uint64                   `json:"actual_amount" form:"actual_amount"`
 }
 
 type orderUserAddress struct {
@@ -34,47 +34,50 @@ type orderUserAddress struct {
 	Addr         string `json:"addr" form:"addr"`
 }
 
-type orderItem struct {
-	ItemId string `json:"item_id" form:"item_id"`
-	Count  int64  `json:"count" form:"count"`
-	Price  int64  `json:"price" form:"price"`
+type OrderItemCreateOption struct {
+	ItemId            string `json:"item_id" form:"item_id"`
+	ProductId         string
+	Qty               int64    `json:"qty" form:"qty"`                             // 购买数量
+	Price             int64    `json:"price" form:"price"`                         // 商品价格
+	MutexPromotion    *string  `json:"mutexPromotion" form:"mutexPromotion"`       // 参加的互斥活动，互斥活动只允许同时参加一个
+	UnMutexPromotions []string `json:"unMutexPromotions" form:"unMutexPromotions"` // 参加的非互斥活动
 }
 
 func (opt *OrderCreateOption) IsValid() error {
 	// user address
 	if opt.UserAddress.ContactName == "" {
-		return errors.New("empty contact name")
+		return err2.Err422.F("empty contact name")
 	}
 	if opt.UserAddress.ContactPhone == "" {
-		return errors.New("empty contact phone")
+		return err2.Err422.F("empty contact phone")
 	}
 	if opt.UserAddress.Province == "" {
-		return errors.New("empty province")
+		return err2.Err422.F("empty province")
 	}
 	if opt.UserAddress.City == "" {
-		return errors.New("empty city")
+		return err2.Err422.F("empty city")
 	}
 	if opt.UserAddress.Areas == "" {
-		return errors.New("empty areas")
+		return err2.Err422.F("empty areas")
 	}
 	if opt.UserAddress.Addr == "" {
-		return errors.New("empty address")
+		return err2.Err422.F("empty address")
 	}
 	// items
 	if len(opt.OrderItems) == 0 {
-		return errors.New("empty order items")
+		return err2.Err422.F("empty order items")
 	}
 	for _, item := range opt.OrderItems {
 		if item.ItemId == "" {
-			return errors.New("empty item id")
+			return err2.Err422.F("empty item id")
 		}
-		if item.Count == 0 {
-			return errors.New("invalid item count")
+		if item.Qty == 0 {
+			return err2.Err422.F("invalid item count")
 		}
 	}
 	// amount
 	if opt.OrderAmount == 0 {
-		return errors.New("invalid order amount")
+		return err2.Err422.F("invalid order amount")
 	}
 	return nil
 }
@@ -89,10 +92,10 @@ type DeliverOption struct {
 
 func (opt *DeliverOption) IsValid() error {
 	if opt.OrderNo == "" {
-		return errors.New("empty order no")
+		return err2.Err422.F("empty order no")
 	}
 	if opt.TrackNo == "" {
-		return errors.New("empty track no")
+		return err2.Err422.F("empty track no")
 	}
 	return nil
 }
@@ -104,20 +107,20 @@ type ConfirmOption struct {
 
 func (opt *ConfirmOption) IsValid() error {
 	if opt.OrderNo == "" {
-		return errors.New("empty order no")
+		return err2.Err422.F("empty order no")
 	}
 	return nil
 }
 
 type OrderService struct {
-	orderRep             *repositories.OrderRep
-	itemRep              *repositories.ItemRep
-	inventoryRep         *repositories.InventoryRep
-	orderInventoryLogRep *repositories.OrderInventoryLogRep
+	orderRep *repositories.OrderRep
+	//orderInventoryLogRep *repositories.OrderInventoryLogRep
+	promotionSrv *PromotionService
+	productSrv   *ProductService
 }
 
-func NewOrderService(orderRep *repositories.OrderRep, itemRep *repositories.ItemRep, inventoryRep *repositories.InventoryRep, logRep *repositories.OrderInventoryLogRep) *OrderService {
-	return &OrderService{orderRep: orderRep, itemRep: itemRep, inventoryRep: inventoryRep, orderInventoryLogRep: logRep}
+func NewOrderService(orderRep *repositories.OrderRep, promotionSrv *PromotionService, productSrv *ProductService) *OrderService {
+	return &OrderService{orderRep: orderRep, promotionSrv: promotionSrv, productSrv: productSrv}
 }
 
 // 列表
@@ -152,35 +155,44 @@ func (srv *OrderService) Create(ctx context.Context, userInfo *models.User, opt 
 	for _, orderItem := range opt.OrderItems {
 		// todo: here should be optimized
 		// 价格合法
-		dbItemQuery := <-srv.itemRep.FindById(ctx, orderItem.ItemId)
-		if dbItemQuery.Error != nil {
-			return nil, dbItemQuery.Error
+		item, err := srv.productSrv.FindItemById(ctx, orderItem.ItemId)
+		if err != nil {
+			return nil, err
 		}
-		dbItem := dbItemQuery.Result.(*models.Item)
+		orderItem.ProductId = item.Product.Id
 		// valid price
-		if dbItem.Price != orderItem.Price {
-			return nil, errors.New(fmt.Sprintf("invalid item price with %s-%d", orderItem.ItemId, orderItem.Price))
+		if item.PromotionPrice != orderItem.Price {
+			return nil, err2.Err422.F(fmt.Sprintf("invalid item price with %s-%d", orderItem.ItemId, orderItem.Price))
 		}
 		// 库存充足
-		dbItemCount, _ := srv.inventoryRep.SearchByItemId(ctx, orderItem.ItemId)
-		if dbItemCount < orderItem.Count {
-			return nil, errors.New(fmt.Sprintf("item %s inventory not enough which remain %d", orderItem.ItemId, dbItemCount))
+		if item.Qty < orderItem.Qty {
+			return nil, err2.Err422.F(fmt.Sprintf("item %s inventory not enough which remain %d", orderItem.ItemId, item.Qty))
 		}
 		// calculate all amount
-		calcAmount += uint64(dbItem.Price * orderItem.Count)
+		calcAmount += uint64(item.PromotionPrice * orderItem.Qty)
 		// store item with detail
 		detailItem = append(detailItem, &models.OrderItem{
-			Item:  dbItem.ToAssociated(),
-			Count: orderItem.Count,
+			Item:  item.ToAssociated(),
+			Count: orderItem.Qty,
+			Price: orderItem.Price,
 		})
 	}
 	// 金额匹配
 	if calcAmount != opt.OrderAmount {
-		return nil, errors.New("order amount not equal")
+		return nil, err2.Err422.F("order amount not equal")
 	}
-	// 目前不涉及优惠，暂时取一致
-	if discountAmount := srv.getDiscounts(opt); opt.OrderAmount-discountAmount != opt.ActualAmount {
-		return nil, errors.New("invalid order actual amount")
+	// 计算优惠
+	promotionResult := srv.getDiscounts(ctx, opt)
+	if opt.OrderAmount-uint64(promotionResult.SalePrices) != opt.ActualAmount {
+		return nil, err2.Err422.F("invalid order actual amount")
+	}
+	if detail := promotionResult.Detail(); detail != nil {
+		for _, item := range detailItem {
+			if info := detail.FindByItemId(item.Item.Id); info != nil {
+				item.PromotionInfo = info
+				item.Amount = item.Price - info.UnitSalePrices
+			}
+		}
 	}
 	// 生成订单
 	order = srv.generateOrder(userInfo, opt, detailItem)
@@ -197,7 +209,7 @@ func (srv *OrderService) Create(ctx context.Context, userInfo *models.User, opt 
 	var orderRes *models.Order
 	err = mongo.WithSession(ctx, session, func(sessionContext mongo.SessionContext) error {
 		// define
-		itemInventoryLog := make([]*models.ItemInventoryLog, 0)
+		// itemInventoryLog := make([]*models.ItemInventoryLog, 0)
 		// create order
 		created := <-srv.orderRep.Create(sessionContext, order)
 		if created.Error != nil {
@@ -206,29 +218,35 @@ func (srv *OrderService) Create(ctx context.Context, userInfo *models.User, opt 
 		}
 		orderRes = created.Result.(*models.Order)
 		// deduct / lock inventory
-		addressLocation, _ := order.UserAddress.Location()
+		//addressLocation, _ := order.UserAddress.Location()
 		for _, orderItem := range order.OrderItems {
-			itemInventory, lockErr := srv.inventoryRep.LockByItemId(sessionContext, orderItem.Item.Id, orderItem.Count, 0, addressLocation)
-			if lockErr != nil {
+			// 直接扣库存
+			if err := srv.productSrv.ItemService.DecQty(sessionContext, orderItem.Item.Id, orderItem.Count); err != nil {
+				// 扣库存失败
 				session.AbortTransaction(sessionContext)
-				return lockErr
+				return err
 			}
+			//itemInventory, lockErr := srv.inventoryRep.LockByItemId(sessionContext, orderItem.Item.Id, orderItem.Count, 0, addressLocation)
+			//if lockErr != nil {
+			//	session.AbortTransaction(sessionContext)
+			//	return lockErr
+			//}
 			// fill item inventory log
-			itemInventoryLog = append(itemInventoryLog, &models.ItemInventoryLog{
-				ItemId:      orderItem.Item.Id,
-				InventoryId: itemInventory.GetID(),
-			})
+			//itemInventoryLog = append(itemInventoryLog, &models.ItemInventoryLog{
+			//	ItemId: orderItem.Item.Id,
+			//	//InventoryId: itemInventory.GetID(),
+			//})
 		}
 		// create order inventory log
-		orderInventoryLog := &models.OrderInventoryLog{
-			OrderNo:          order.OrderNo,
-			ItemInventoryLog: itemInventoryLog,
-		}
-		logCreated := <-srv.orderInventoryLogRep.Create(sessionContext, orderInventoryLog)
-		if logCreated.Error != nil {
-			session.AbortTransaction(sessionContext)
-			return logCreated.Error
-		}
+		//orderInventoryLog := &models.OrderInventoryLog{
+		//	OrderNo:          order.OrderNo,
+		//	ItemInventoryLog: itemInventoryLog,
+		//}
+		//logCreated := <-srv.orderInventoryLogRep.Create(sessionContext, orderInventoryLog)
+		//if logCreated.Error != nil {
+		//	session.AbortTransaction(sessionContext)
+		//	return logCreated.Error
+		//}
 		// return
 		session.CommitTransaction(sessionContext)
 		return nil
@@ -241,14 +259,14 @@ func (srv *OrderService) Create(ctx context.Context, userInfo *models.User, opt 
 	return orderRes, nil
 }
 
-func (srv *OrderService) getDiscounts(opt *OrderCreateOption) uint64 {
-	return 0
+func (srv *OrderService) getDiscounts(ctx context.Context, opt *OrderCreateOption) *models.PromotionResult {
+	return srv.promotionSrv.CalculateByOrder(ctx, opt.OrderItems)
 }
 
 func (srv *OrderService) generateOrder(user *models.User, opt *OrderCreateOption, orderItems []*models.OrderItem) *models.Order {
 	var itemCount int64
 	for _, orderItem := range opt.OrderItems {
-		itemCount += orderItem.Count
+		itemCount += orderItem.Qty
 	}
 	// build model of order
 	resOrder := &models.Order{
@@ -295,7 +313,7 @@ func (srv *OrderService) Deliver(ctx context.Context, opt *DeliverOption) error 
 	}
 	order := orderRes.Result.(*models.Order)
 	if order.Status != models.OrderStatusPreSend {
-		return errors.New(fmt.Sprintf("order %s can not be delivered caused of not pre send status", opt.OrderNo))
+		return err2.Err422.F(fmt.Sprintf("order %s can not be delivered caused of not pre send status", opt.OrderNo))
 	}
 	// 处理物流
 	newLogistics := append(order.Logistics, &models.Logistics{
@@ -325,7 +343,7 @@ func (srv *OrderService) Confirm(ctx context.Context, opt *ConfirmOption) error 
 	authUser := ctx2.GetUser(ctx)
 	userInfo, ok := authUser.(*models.User)
 	if !ok {
-		return errors.New("invalid user who is unauthenticated")
+		return err2.Err422.F("invalid user who is unauthenticated")
 	}
 	// 查询订单并校验状态
 	orderRes := <-srv.orderRep.FindOne(ctx, map[string]interface{}{
@@ -336,11 +354,11 @@ func (srv *OrderService) Confirm(ctx context.Context, opt *ConfirmOption) error 
 	}
 	order := orderRes.Result.(*models.Order)
 	if order.Status != models.OrderStatusPreConfirm {
-		return errors.New(fmt.Sprintf("order %s can not be comfirm caused of not pre confirm status", opt.OrderNo))
+		return err2.Err422.F(fmt.Sprintf("order %s can not be comfirm caused of not pre confirm status", opt.OrderNo))
 	}
 	// 校验是否为用户本人
 	if order.User.Id != userInfo.GetID() {
-		return errors.New(fmt.Sprintf("order %s can not be comfirm caused of invalid user", opt.OrderNo))
+		return err2.Err422.F(fmt.Sprintf("order %s can not be comfirm caused of invalid user", opt.OrderNo))
 	}
 	// 更新
 	updated := <-srv.orderRep.Update(ctx, order.GetID(), bson.M{

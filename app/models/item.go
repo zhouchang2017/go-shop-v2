@@ -11,21 +11,29 @@ type Item struct {
 	Code             string             `json:"code" bson:"code"`
 	Product          *AssociatedProduct `json:"product,omitempty" bson:"product,omitempty"`
 	Price            int64              `json:"price,omitempty" bson:"price"`
+	PromotionPrice   int64              `json:"promotion_price" bson:"-"` // 促销价
 	OptionValues     []*OptionValue     `json:"option_values" bson:"option_values" form"option_values" `
 	SalesQty         int64              `json:"sales_qty,omitempty" bson:"sales_qty" form"sales_qty" `
-	Qty              int64              `json:"qty" bson:"-"`
+	Qty              int64              `json:"qty" bson:"qty"` // 可售数量
 	Inventories      []*Inventory       `json:"inventories,omitempty" bson:"-"`
-	Avatar           *qiniu.Image       `json:"avatar,omitempty" bson:"-"`
+	Avatar           *qiniu.Image       `json:"avatar,omitempty" bson:"avatar"`
 }
 
-func (this Item) GetAvatar() (image *qiniu.Image) {
+func (this *Item) SetAvatar() {
+	var image *qiniu.Image
+	if this.Product != nil {
+		image = this.Product.Avatar
+	}
 	for _, value := range this.OptionValues {
 		if value.Image != nil && value.Image.Src() != "" {
 			image = value.Image
-			return image
 		}
 	}
-	return this.Product.Avatar
+	this.Avatar = image
+}
+
+func (this Item) GetAvatar() (image *qiniu.Image) {
+	return this.Avatar
 }
 
 // 关联简单SKU结构

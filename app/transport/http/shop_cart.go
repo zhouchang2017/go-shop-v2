@@ -11,8 +11,7 @@ import (
 )
 
 type ShopCartController struct {
-	srv     *services.ShopCartService
-	itemSrv *services.ItemService
+	srv *services.ShopCartService
 }
 
 type shopCartForm struct {
@@ -29,34 +28,6 @@ func (this *ShopCartController) Index(ctx *gin.Context) {
 	if err != nil {
 		ResponseError(ctx, err)
 		return
-	}
-
-	var ids []string
-
-	for _, item := range shopCartItems {
-		ids = append(ids, item.ItemId)
-	}
-
-	items, err := this.itemSrv.Items(ctx, ids...)
-	if err != nil {
-		ResponseError(ctx, err)
-		return
-	}
-
-	resolveItem := func(id string) *models.Item {
-		for _, item := range items {
-			if item.GetID() == id {
-				return item
-			}
-		}
-		return nil
-	}
-
-	for _, cartItem := range shopCartItems {
-		item := resolveItem(cartItem.ItemId)
-		if item != nil {
-			cartItem.Item = item
-		}
 	}
 
 	Response(ctx, gin.H{
@@ -78,25 +49,13 @@ func (this *ShopCartController) Add(ctx *gin.Context) {
 		form.Qty = 1
 	}
 
-	if err := this.srv.Add(ctx, user.GetID(), form.ItemId, form.Qty); err != nil {
-		ResponseError(ctx, err)
-		return
-	}
-
-	item, err := this.itemSrv.FindById(ctx, form.ItemId)
+	item, err := this.srv.Add(ctx, user.GetID(), form.ItemId, form.Qty)
 	if err != nil {
-		// 产品不存在
 		ResponseError(ctx, err)
 		return
 	}
 
-	res := &models.ShopCartItem{
-		ItemId:  form.ItemId,
-		Item:    item,
-		Qty:     form.Qty,
-		Checked: true,
-	}
-	Response(ctx, res, 200)
+	Response(ctx, item, 200)
 }
 
 type updateShopCartForm struct {
@@ -123,24 +82,27 @@ func (this *ShopCartController) Update(ctx *gin.Context) {
 
 	// itemId != nil 在购物车点击更新
 	if form.ItemId != nil {
-		updated, err := this.srv.Update(ctx, user.GetID(), id, *form.ItemId, form.Qty)
+		status, shopCartItem, err := this.srv.Update(ctx, user.GetID(), id, *form.ItemId, form.Qty)
 		if err != nil {
 			ResponseError(ctx, err)
 			return
 		}
 		Response(ctx, gin.H{
-			"status": updated,
+			"status": status,
+			"data":   shopCartItem,
 		}, http.StatusOK)
 		return
 	}
 
-	if err := this.srv.UpdateQty(ctx, user.GetID(), id, form.Qty); err != nil {
+	shopCartItem, err := this.srv.UpdateQty(ctx, user.GetID(), id, form.Qty)
+	if err != nil {
 		ResponseError(ctx, err)
 		return
 	}
 
 	Response(ctx, gin.H{
 		"status": 3,
+		"data":   shopCartItem,
 	}, 200)
 }
 
@@ -162,6 +124,22 @@ func (this *ShopCartController) UpdateChecked(ctx *gin.Context) {
 		return
 	}
 	Response(ctx, form.Ids, 200)
+}
+
+// 获取选定items详情
+func (this *ShopCartController) GetCheckedItemsDetail(ctx *gin.Context) {
+	var form updateShopCartCheckedForm
+	if err := ctx.ShouldBind(&form); err != nil {
+		ResponseError(ctx, err)
+		return
+	}
+	user := ctx2.GetUser(ctx).(*models.User)
+	detail, err := this.srv.GetShopCartItemsDetail(ctx, user.GetID(), form.Ids...)
+	if err != nil {
+		ResponseError(ctx, err)
+		return
+	}
+	Response(ctx, detail, 200)
 }
 
 type deleteShopCartForm struct {

@@ -19,7 +19,6 @@ const (
 )
 
 type Order struct {
-
 	model.MongoModel `inline`
 	OrderNo          string                 `json:"order_no" bson:"order_no" name:"订单号"`
 	ItemCount        int64                  `json:"item_count" bson:"item_count" name:"订单商品数量"`
@@ -59,10 +58,11 @@ func (this *Order) OriginId() string {
 }
 
 type OrderItem struct {
-	Item   *AssociatedItem `json:"item"`
-	Count  int64           `json:"count"`  // 购买数量
-	Price  int64           `json:"price"`  // item单品优惠价格，受Promotion.Type = 0 的影响
-	Amount int64           `json:"amount"` // 实际价格
+	Item          *AssociatedItem    `json:"item"`
+	Count         int64              `json:"count"`                                // 购买数量
+	Price         int64              `json:"price"`                                // item单品优惠价格，受Promotion.Type = 0 的影响
+	Amount        int64              `json:"amount"`                               // 实际支付价格
+	PromotionInfo *ItemPromotionInfo `json:"promotion_info" bson:"promotion_info"` // 冗余促销信息
 }
 
 type Logistics struct {

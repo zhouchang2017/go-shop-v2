@@ -5,7 +5,6 @@ import (
 	"go-shop-v2/app/services"
 	"go-shop-v2/pkg/auth"
 	err2 "go-shop-v2/pkg/err"
-	"net/http"
 )
 
 var guard string
@@ -18,10 +17,9 @@ func Register(app *gin.Engine) {
 	productSrv := services.MakeProductService()
 	v1 := app.Group("v1")
 	indexController := &IndexController{
-		productSrv:   productSrv,
-		topicSrv:     services.MakeTopicService(),
-		articleSrv:   services.MakeArticleService(),
-		inventorySrv: services.MakeInventoryService(),
+		productSrv: productSrv,
+		topicSrv:   services.MakeTopicService(),
+		articleSrv: services.MakeArticleService(),
 	}
 	authController := &AuthController{
 		userSrv: services.MakeUserService(),
@@ -39,18 +37,24 @@ func Register(app *gin.Engine) {
 	// 话题详情
 	v1.GET("/topics/:id", indexController.Topic)
 
-	// 产品详情
-	v1.GET("/products/:id", indexController.Product)
+	productController := &ProductController{
+		productSrv:   services.MakeProductService(),
+		promotionSrv: services.MakePromotionService(),
+	}
 
-	// 淘宝详情接口
-	v1.GET("/taobao/:id", indexController.TaobaoDetail)
+	// 产品详情
+	v1.GET("/products/:id", productController.Show)
+
+	// 产品促销计划
+	v1.GET("/products/:id/promotions", productController.Promotion)
 
 	// 需要授权路由
 	v1.Use(auth.AuthMiddleware(guard))
 
+
+
 	shopCartController := &ShopCartController{
-		srv:     services.MakeShopCartService(),
-		itemSrv: services.MakeItemService(),
+		srv: services.MakeShopCartService(),
 	}
 	// 购物车列表页
 	v1.GET("/shopping-cart", shopCartController.Index)
@@ -59,9 +63,11 @@ func Register(app *gin.Engine) {
 	// 更新购物车
 	v1.PUT("/shopping-cart/:id", shopCartController.Update)
 	// 更新购物车选定状态
-	v1.PUT("/shopping-cart", shopCartController.UpdateChecked)
+	//v1.PUT("/shopping-cart", shopCartController.UpdateChecked)
 	// 删除购物车
 	v1.DELETE("/shopping-cart", shopCartController.Delete)
+	// 获取购物车选定产品详情
+	v1.PUT("/shopping-cart",shopCartController.GetCheckedItemsDetail)
 
 	orderController := &OrderController{
 		orderSrv: services.MakeOrderService(),
@@ -118,6 +124,6 @@ func ResponseError(ctx *gin.Context, err error) {
 		errStatus = err2.New(500, err.Error())
 	}
 
-	ctx.JSON(http.StatusOK, errStatus)
+	ctx.JSON(errStatus.Code(), errStatus)
 	ctx.Abort()
 }

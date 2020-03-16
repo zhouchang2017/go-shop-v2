@@ -18,6 +18,11 @@ func NewItemService(rep *repositories.ItemRep) *ItemService {
 	return &ItemService{rep: rep}
 }
 
+// 减库存
+func (this *ItemService) DecQty(ctx context.Context, itemId string, qty int64) error {
+	return this.rep.DecQty(ctx, itemId, qty)
+}
+
 func (this *ItemService) FindByProductId(ctx context.Context, productId string) (items []*models.Item) {
 	items = []*models.Item{}
 	results := <-this.rep.FindByProductId(ctx, productId)
@@ -32,7 +37,7 @@ func (this *ItemService) FindByProductId(ctx context.Context, productId string) 
 func (this *ItemService) Pagination(ctx context.Context, req *request.IndexRequest) (items []*models.Item, pagination response.Pagination, err error) {
 	filters := req.Filters.Unmarshal()
 	for key, value := range filters {
-		req.AppendFilter(key,value)
+		req.AppendFilter(key, value)
 	}
 	results := <-this.rep.Pagination(ctx, req)
 	if results.Error != nil {
@@ -40,10 +45,7 @@ func (this *ItemService) Pagination(ctx context.Context, req *request.IndexReque
 		return
 	}
 	items = results.Result.([]*models.Item)
-	for _, item := range items {
-		item.Avatar = item.GetAvatar()
-		item.WithMeta("avatar", item.GetAvatar())
-	}
+
 	return items, results.Pagination, nil
 }
 

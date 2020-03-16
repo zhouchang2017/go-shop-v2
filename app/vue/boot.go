@@ -16,13 +16,13 @@ func registerResources() {
 		resources2.NewAdminResource(),
 		resources2.NewBrandResource(),
 		resources2.NewCategoryResource(),
-		resources2.NewInventoryResource(),
+		//resources2.NewInventoryResource(), // 库存系统
 		resources2.NewItemResource(),
-		resources2.NewInventoryActionResource(),
+		//resources2.NewInventoryActionResource(), // 库存系统操作
 		resources2.NewProductResource(),
 		resources2.NewShopResource(),
 		resources2.NewOrderResource(),
-		resources2.NewInventoryLogResource(),
+		//resources2.NewInventoryLogResource(), // 库存系统日志
 		resources2.NewArticleResource(),
 		resources2.NewTopicResource(),
 		resources2.NewPromotionResource(),
@@ -32,9 +32,9 @@ func registerResources() {
 
 func registerPages() {
 	pages = []contracts.Page{
-		pages2.NewInventoryAggregatePage(),
-		pages2.NewManualInventoryCreatePage(),
-		pages2.NewManualInventoryUpdatePage(),
+		//pages2.NewInventoryAggregatePage(), // 聚合库存自定义页面
+		//pages2.NewManualInventoryCreatePage(), // 入库\出库添加页面
+		//pages2.NewManualInventoryUpdatePage(), // 入库\出库更新页面
 		pages2.NewProductCreatePage(),
 		pages2.NewProductUpdatePage(),
 		pages2.NewPromotionCreatePage(),

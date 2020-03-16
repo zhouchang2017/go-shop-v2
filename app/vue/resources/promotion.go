@@ -5,6 +5,7 @@ import (
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/services"
 	"go-shop-v2/app/vue/pages"
+	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"go-shop-v2/pkg/vue/contracts"
@@ -20,7 +21,7 @@ type Promotion struct {
 }
 
 func (this *Promotion) Destroy(ctx *gin.Context, id string) (err error) {
-	return this.service.Delete(ctx,id)
+	return this.service.Delete(ctx, id)
 }
 
 func NewPromotionResource() *Promotion {
@@ -36,7 +37,6 @@ func (this *Promotion) CreationComponent() contracts.Page {
 func (this *Promotion) UpdateComponent() contracts.Page {
 	return pages.NewPromotionUpdatePage()
 }
-
 
 // 实现列表页api
 func (this *Promotion) Pagination(ctx *gin.Context, req *request.IndexRequest) (res interface{}, pagination response.Pagination, err error) {
@@ -117,4 +117,18 @@ func (this Promotion) Group() string {
 
 func (this Promotion) Icon() string {
 	return "icons-announcement"
+}
+
+// 自定义api
+func (this *Promotion) CustomHttpHandle(router gin.IRouter) {
+	// 获取产品生效活动
+	router.GET("api/products/:Product/promotions", func(ctx *gin.Context) {
+		id := ctx.Param("Product")
+		if id == "" {
+			err2.ErrorEncoder(ctx, err2.Err422.F("缺少产品id参数"), ctx.Writer)
+			return
+		}
+		promotionItems := this.service.FindActivePromotionByProductId(ctx, id)
+		ctx.JSON(200, promotionItems)
+	})
 }

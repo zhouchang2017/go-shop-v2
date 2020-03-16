@@ -12,8 +12,9 @@ type ShopCart struct {
 }
 
 type ShopCartItem struct {
-	ItemId  string `json:"item_id" bson:"item_id"`
-	Item    *Item  `json:"item" bson:"-"`
-	Qty     int64  `json:"qty"`
-	Checked bool   `json:"checked"`
+	ItemId     string           `json:"item_id" bson:"item_id"`
+	Item       *Item            `json:"item" bson:"-"`
+	Promotions []*PromotionItem `json:"promotions" bson:"-"` // 促销信息
+	Price      int64            `json:"price"`               // 加入购物车时候的价格
+	Qty        int64            `json:"qty"`
 }

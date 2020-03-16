@@ -83,8 +83,6 @@ func (c *Category) Fields(ctx *gin.Context, model interface{}) func() []interfac
 			fields.NewTextField("名称", "Name"),
 			fields.NewDateTime("创建时间", "CreatedAt"),
 			fields.NewDateTime("更新时间", "UpdatedAt"),
-			// 自定义字段
-			// fields2.NewCategoryOptionField("销售属性", "Options"),
 		}
 	}
 }

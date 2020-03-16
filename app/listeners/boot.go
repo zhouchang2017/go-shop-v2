@@ -9,5 +9,5 @@ func Boot(mq *message.RabbitMQ) {
 	mq.Register(NewAdminUpdatedSyncAssociatedShop())
 	mq.Register(NewShopCreatedSyncAssociatedAdmin())
 	mq.Register(NewShopUpdatedSyncAssociatedAdmin())
-	mq.Register(NewTimeOutCloseInventoryAction())
+	//mq.Register(NewTimeOutCloseInventoryAction())
 }

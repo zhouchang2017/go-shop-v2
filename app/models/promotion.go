@@ -1,10 +1,11 @@
 package models
 
 import (
-	"errors"
 	"fmt"
-	"github.com/davecgh/go-spew/spew"
 	"go-shop-v2/pkg/db/model"
+	"go-shop-v2/pkg/utils"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"math"
 	"time"
 )
 
@@ -47,17 +48,36 @@ type AssociatedPromotion struct {
 	EndedAt     time.Time        `json:"ended_at" bson:"ended_at"` // 结束时间
 }
 
-func (p Promotion) ToAssociated() *AssociatedPromotion {
+func (a *AssociatedPromotion) makePromotion() *Promotion {
+	objId, _ := primitive.ObjectIDFromHex(a.Id)
+	promotion := &Promotion{
+		Name:        a.Name,
+		Description: a.Description,
+		Type:        a.Type,
+		Mutex:       a.Mutex,
+		Rule:        a.Rule,
+		Policy:      a.Policy,
+		Enable:      a.Enable,
+	}
+	promotion.ID = objId
+	return promotion
+}
+
+func (p Promotion) GetDescription() string {
 	var description string
 	if p.Description == "" && p.Rule != nil && p.Policy != nil {
 		description = p.String()
 	} else {
 		description = p.Description
 	}
+	return description
+}
+
+func (p Promotion) ToAssociated() *AssociatedPromotion {
 	return &AssociatedPromotion{
 		Id:          p.GetID(),
 		Name:        p.Name,
-		Description: description,
+		Description: p.GetDescription(),
 		Type:        p.Type,
 		Mutex:       p.Mutex,
 		Enable:      p.Enable,
@@ -70,7 +90,68 @@ func (p Promotion) ToAssociated() *AssociatedPromotion {
 
 // 优惠描述
 func (p Promotion) String() string {
-	return fmt.Sprintf("%s,%s", p.Rule.Description(), p.Policy.Description())
+	return fmt.Sprintf("%s，%s", p.Rule.Description(), p.Policy.Description())
+}
+
+// 通过产品id获取产品优惠item
+func (p Promotion) findItemByProductId(productId string) *PromotionItem {
+	for _, item := range p.Items {
+		if item.ProductId == productId {
+			return item
+		}
+	}
+	return nil
+}
+
+func (p *Promotion) addItem(promotionItem *PromotionItem, itemId string, price int64, qty int64) {
+	find := p.findItemByProductId(promotionItem.ProductId)
+	if find != nil {
+		find.addItem(itemId, promotionItem.ProductId, price, qty)
+	} else {
+		promotionItem.addItem(itemId, promotionItem.ProductId, price, qty)
+		p.Items = append(p.Items, promotionItem)
+	}
+}
+
+func (p *Promotion) totalItemsAmountAndQty() (amount int64, qty int64) {
+	for _, item := range p.Items {
+		for _, i := range item.items {
+			amount += i.qty * i.price
+			qty += i.qty
+		}
+	}
+	return
+}
+
+func (p *Promotion) assignSalePrice(salePrice int64) {
+	amount, _ := p.totalItemsAmountAndQty()
+	avg := float64(salePrice) / float64(amount)
+	var used int64
+	for index, item := range p.Items {
+		for ind, i := range item.items {
+			if index+1 == len(p.Items) && ind+1 == len(item.items) {
+				i.salePrice = salePrice - used
+				i.unitSalePrice = int64(math.Ceil(float64(i.salePrice) / float64(i.qty)))
+			} else {
+				i.unitSalePrice = int64(math.Ceil(avg * float64(i.price)))
+				i.salePrice = i.unitSalePrice * i.qty
+				used += i.salePrice
+			}
+		}
+	}
+}
+
+func (p *Promotion) calculate(salePrices int64) (promotion *Promotion, salePrice int64, accessRule bool) {
+	amount, qty := p.totalItemsAmountAndQty()
+	amount -= salePrices
+	// 判断规则
+	if accessRule = p.Rule.verify(amount, qty); accessRule {
+		// 策略
+		salePrice = p.Policy.calculate(amount)
+		p.assignSalePrice(salePrice)
+		return p, salePrice, true
+	}
+	return nil, 0, false
 }
 
 type promotionItem struct {
@@ -110,72 +191,6 @@ func (p Promotion) getItemSaleAmount(itemId string, originPrice int64) int64 {
 	return originPrice
 }
 
-// 促进价格计算
-func (p Promotion) Calculate(order *Order) (total int64, data []*promotionItem, err error) {
-	data = []*promotionItem{}
-	// 验证促销时间是否有效
-
-	// 过滤符合规则商品
-	items := p.filterIncludeItems(order)
-	spew.Dump(items)
-	if p.Type == 0 {
-		for _, item := range items {
-			if p.ValidationItemPrice(item.Item.Id, item.Price) {
-				data = append(data, &promotionItem{
-					Promotion: struct {
-						Id   string `json:"id"`
-						Name string `json:"name"`
-					}{
-						Id:   p.GetID(),
-						Name: p.Name,
-					},
-					ItemId:      item.Item.Id,
-					OriginPrice: item.Item.Price,
-					Price:       item.Price,
-					Count:       item.Count,
-					UnitAmount:  item.Price,
-					Amount:      item.Price * item.Count,
-				})
-			} else {
-				// 验证不通过，价格被篡改
-				saleAmount := p.getItemSaleAmount(item.Item.Id, item.Item.Price)
-				return 0, nil, fmt.Errorf("item.id[%s] item.code[%s],实际优惠价格%d,提交优惠价格%d\n", item.Item.Id, item.Item.Code, saleAmount/100, item.Price/100)
-			}
-		}
-	}
-	// 验证是否复合规则
-	if p.Rule.verify(items) {
-		// 计算价格
-		total, data = p.Policy.calculate(items)
-		return
-	}
-	return 0, nil, errors.New("不符合促销规则")
-}
-
-// 过滤不存在优惠活动中的商品
-func (p Promotion) filterIncludeItems(order *Order) (items []*OrderItem) {
-	items = []*OrderItem{}
-	if p.Type == UnitSale {
-		for _, item := range order.OrderItems {
-			if p.itemExist(item.Item.Id) {
-				items = append(items, item)
-			}
-		}
-	} else {
-		// 如果是复合类型优惠，units 为空的话，
-		// 该产品所有sku都加入活动，
-		// 如果units不为空，则在数组里的sku才生效
-
-		for _, item := range order.OrderItems {
-			if p.itemExistWithProductId(item.Item.Id, item.Item.Product.Id) {
-				items = append(items, item)
-			}
-		}
-	}
-
-	return items
-}
-
 // 验证item是否存在于活动中
 func (p Promotion) itemExist(id string) bool {
 	for _, item := range p.Items {
@@ -195,13 +210,77 @@ func (p Promotion) itemExistWithProductId(id string, productId string) bool {
 	return false
 }
 
+type promotionItemItem struct {
+	itemId        string
+	price         int64
+	qty           int64
+	salePrice     int64
+	unitSalePrice int64
+}
+
 // 促销计划产品
 type PromotionItem struct {
 	model.MongoModel `inline`
+	items            []*promotionItemItem // 用户计算，参加该活动的产品
 	Promotion        *AssociatedPromotion `json:"promotion" bson:"promotion"`
 	ProductId        string               `json:"product_id" bson:"product_id" form:"product_id"`
 	Product          *AssociatedProduct   `json:"product,omitempty" bson:"-"` // 添加数据结构，方便前端展示
 	Units            []*PromotionItemUnit `json:"units"`
+}
+
+// 添加受改活动影响商品
+func (p *PromotionItem) addItem(itemId string, productId string, price int64, qty int64) {
+	if productId != p.ProductId {
+		// 不符合规则
+		return
+	}
+	if p.Promotion != nil {
+		// 验证是否在活动内
+		if p.Promotion.Type == 0 {
+			// 单品活动
+			if p.itemExist(itemId) {
+				var exist bool
+				for _, item := range p.items {
+					if item.itemId == itemId {
+						exist = true
+						// 已存在同样产品
+						if item.price == price {
+							item.qty += qty
+						}
+					}
+				}
+				if !exist {
+					p.items = append(p.items, &promotionItemItem{
+						itemId: itemId,
+						price:  price,
+						qty:    qty,
+					})
+				}
+			}
+		}
+		if p.Promotion.Type == 1 {
+			// 复合活动
+			if p.itemExistWithProductId(itemId, productId) {
+				var exist bool
+				for _, item := range p.items {
+					if item.itemId == itemId {
+						exist = true
+						// 已存在同样产品
+						if item.price == price {
+							item.qty += qty
+						}
+					}
+				}
+				if !exist {
+					p.items = append(p.items, &promotionItemItem{
+						itemId: itemId,
+						price:  price,
+						qty:    qty,
+					})
+				}
+			}
+		}
+	}
 }
 
 func NewPromotionItem(productId string) *PromotionItem {
@@ -209,6 +288,35 @@ func NewPromotionItem(productId string) *PromotionItem {
 		ProductId: productId,
 		Units:     []*PromotionItemUnit{},
 	}
+}
+
+// units中最便宜的价格
+func (p *PromotionItem) MinPrice() int64 {
+	var prices []int64
+	for _, item := range p.Units {
+		prices = append(prices, item.Price)
+	}
+	return utils.Min(prices...)
+}
+
+// units中最贵的价格
+func (p *PromotionItem) MaxPrice() int64 {
+	var prices []int64
+	for _, item := range p.Units {
+		prices = append(prices, item.Price)
+	}
+	return utils.Max(prices...)
+}
+
+// 获取item促销价格
+// 不存在返回-1
+func (p PromotionItem) FindPriceByItemId(id string) int64 {
+	for _, unit := range p.Units {
+		if unit.ItemId == id {
+			return unit.Price
+		}
+	}
+	return -1
 }
 
 func (p *PromotionItem) AddUnit(item *Item, price int64) error {
@@ -256,14 +364,41 @@ func (p PromotionItem) itemExistWithProductId(id string, productId string) bool 
 	return false
 }
 
+type PromotionItems []*PromotionItem
+
+func (p PromotionItems) IncludeItem(id string, productId string) PromotionItems {
+	items := make(PromotionItems, 0)
+	for _, item := range p {
+		if item.Promotion.Type == UnitSale {
+			// 单品活动
+			if item.itemExist(id) {
+				items = append(items, item)
+				continue
+			}
+		}
+		// 复合活动
+		if item.itemExistWithProductId(id, productId) {
+			items = append(items, item)
+		}
+	}
+	return items
+}
+
+func (p PromotionItems) FindById(id string) *PromotionItem {
+	for _, item := range p {
+		if item.Promotion.Id == id {
+			return item
+		}
+	}
+	return nil
+}
+
 type PromotionItemUnit struct {
 	ItemId      string          `json:"item_id" bson:"item_id" form:"item_id"`
 	Item        *AssociatedItem `json:"item" bson:"-"`                    // 冗余数据，不存库
 	Price       int64           `json:"price" bson:"price"`               // 活动价
 	OriginPrice int64           `json:"origin_price" bson:"origin_price"` // 原始价格
 }
-
-// Order Items ["123","33"]
 
 // 促销流程
 // 产品-> 可以对应多个促销计划
@@ -282,22 +417,14 @@ type PromotionRule struct {
 }
 
 // 验证是否复合规则
-func (p PromotionRule) verify(items []*OrderItem) bool {
+func (p PromotionRule) verify(amount int64, qty int64) bool {
 	switch p.Type {
 	case 0:
 		return true
 	case 1:
-		var amount int64
-		for _, item := range items {
-			amount += item.Price
-		}
 		return uint64(amount) >= p.Value
 	case 2:
-		var countQty int64
-		for _, item := range items {
-			countQty += item.Count
-		}
-		return countQty > int64(p.Value)
+		return qty >= int64(p.Value)
 	}
 	return false
 }
@@ -307,17 +434,11 @@ func (this PromotionRule) Description() string {
 	case 0:
 		return ""
 	case 1:
-		return fmt.Sprintf("订单金额大于%d", this.Value/100)
+		return fmt.Sprintf("订单金额大于%d元", this.Value/100)
 	case 2:
-		return fmt.Sprintf("单笔订单商品数量大于%d", this.Value)
+		return fmt.Sprintf("单笔订单商品数量大于%d件", this.Value)
 	}
 	return ""
-}
-
-// Verify() bool // 效验是否符合
-// 价格大于
-type PromotionRuleAmountGreaterThan struct {
-	Value int64 // 最低价格
 }
 
 const (
@@ -335,57 +456,25 @@ type PromotionPolicy struct {
 func (p PromotionPolicy) Description() string {
 	switch p.Type {
 	case 1:
-		return fmt.Sprintf("%d折", p.Value/10)
+		return fmt.Sprintf("享%d折", p.Value/10)
 	case 2:
-		return fmt.Sprintf("直减%d", p.Value/100)
+		return fmt.Sprintf("优惠%d元", p.Value/100)
 	case 3:
 		return "免运费"
 	}
 	return ""
 }
 
-func (p PromotionPolicy) calculate(items []*OrderItem) (total int64, data []*promotionItem) {
-	data = []*promotionItem{}
+func (p PromotionPolicy) calculate(amount int64) (salePrice int64) {
 	switch p.Type {
 	case 1:
-		// 打折
-		for _, item := range items {
-			amount := item.Price * p.Value / 100 // 折后价
-			itemTotalAmount := amount * item.Count
-			data = append(data, &promotionItem{
-				ItemId:      item.Item.Id,    // skuId
-				OriginPrice: item.Item.Price, // sku定价
-				Price:       item.Price,      // 单品价格
-				Count:       item.Count,      // 数量
-				UnitAmount:  amount,          // 优惠后单价
-				Amount:      itemTotalAmount, // item优惠后总金额
-			})
-			total += itemTotalAmount
-		}
-		return total, data
+		salePrice = amount - (amount * p.Value / 100)
 
 	case 2:
 		// 直减，订单总额减
-		// 总金额
-		var totalAmount int64
-		for _, item := range items {
-			totalAmount += item.Amount * item.Count
-		}
-		// 优惠单价
-		avgSale := p.Value / totalAmount
-		for _, item := range items {
-			data = append(data, &promotionItem{
-				ItemId:      item.Item.Id,                      // skuId
-				OriginPrice: item.Item.Price,                   // sku定价
-				Price:       item.Price,                        // 单品价格
-				Count:       item.Count,                        // 数量
-				UnitAmount:  item.Price * avgSale,              // 优惠后单价
-				Amount:      item.Price * avgSale * item.Count, // item优惠后总金额
-			})
-			total += item.Price * avgSale * item.Count
-		}
-		return total, data
-
+		salePrice = p.Value
+	default:
+		salePrice = 0
 	}
-	return 0, nil
+	return salePrice
 }

@@ -10,7 +10,7 @@ func Max(a ...int64) (max int64) {
 	return max
 }
 
-func Min(a ...int64) (min int64)  {
+func Min(a ...int64) (min int64) {
 	min = a[0]
 	for _, value := range a {
 		if value < min {

@@ -13,19 +13,35 @@ import (
 )
 
 type ProductService struct {
-	rep         *repositories.ProductRep
-	ItemService *ItemService
+	rep          *repositories.ProductRep
+	promotionRep *repositories.PromotionRep
+	ItemService  *ItemService
 }
 
-func NewProductService(rep *repositories.ProductRep) *ProductService {
+func NewProductService(rep *repositories.ProductRep, promotionRep *repositories.PromotionRep) *ProductService {
 	return &ProductService{
-		rep:         rep,
-		ItemService: NewItemService(rep.GetItemRep()),
+		rep:          rep,
+		promotionRep: promotionRep,
+		ItemService:  NewItemService(rep.GetItemRep()),
 	}
 }
 
 func (this *ProductService) FindItemById(ctx context.Context, id string) (item *models.Item, err error) {
-	return this.rep.FindItemById(ctx, id)
+	item, err = this.rep.FindItemById(ctx, id)
+	if err != nil {
+		return
+	}
+	promotionItem, err := this.promotionRep.FindActivePromotionUnitSaleByProductId(ctx, item.Product.Id)
+	if err == nil {
+		price := promotionItem.FindPriceByItemId(item.GetID())
+		if price != -1 {
+			item.PromotionPrice = price
+			return item, nil
+		}
+	}
+	item.PromotionPrice = item.Price
+
+	return item, nil
 }
 
 func (this *ProductService) FindByIdWithItems(ctx context.Context, id string) (product *models.Product, err error) {
@@ -34,21 +50,34 @@ func (this *ProductService) FindByIdWithItems(ctx context.Context, id string) (p
 		return nil, res.Error
 	}
 	product = res.Result.(*models.Product)
+	promotionItem, err := this.promotionRep.FindActivePromotionUnitSaleByProductId(ctx, product.GetID())
+	if err == nil {
+		// 存在单品促销
+		product.PromotionPrice = promotionItem.MinPrice()
+	} else {
+		// 不存在单品促销，促销价设置为自身价格
+		product.PromotionPrice = product.Price
+	}
+
 	itemRes := <-this.rep.GetItemRep().FindByProductId(ctx, id)
 	if itemRes.Error != nil {
 		return nil, itemRes.Error
 	}
-	product.Items = itemRes.Result.([]*models.Item)
-	product.Avatar = product.GetAvatar()
-	for _, item := range product.Items {
-		item.Product = product.ToAssociated()
-		item.Avatar = item.GetAvatar()
+	items := itemRes.Result.([]*models.Item)
+
+	for _, item := range items {
+		if promotionItem != nil {
+			itemPromotionPrice := promotionItem.FindPriceByItemId(item.GetID())
+			if itemPromotionPrice != -1 {
+				item.PromotionPrice = itemPromotionPrice
+				continue
+			}
+		}
+		item.PromotionPrice = item.Price
 	}
+	product.Items = items
+
 	return product, nil
-}
-
-func (this *ProductService) FindByIdWithItemsAndStock() {
-
 }
 
 func (this *ProductService) List(ctx context.Context, req *request.IndexRequest) (products []contracts.RelationsOption, pagination response.Pagination, err error) {
@@ -83,7 +112,37 @@ func (this *ProductService) FindByIds(ctx context.Context, ids []string) (produc
 		err = results.Error
 		return
 	}
-	return results.Result.([]*models.Product), nil
+	products = results.Result.([]*models.Product)
+	var g errgroup.Group
+	res := []*models.Product{}
+	sem := make(chan struct{}, 10)
+
+	for _, product := range products {
+		product := product // local variable
+		sem <- struct{}{}
+		// 获取产品单品促销活动信息
+		g.Go(func() error {
+			promotionItem, err := this.promotionRep.FindActivePromotionUnitSaleByProductId(ctx, product.GetID())
+			if err == nil {
+				// 存在单品促销
+				product.PromotionPrice = promotionItem.MinPrice()
+			} else {
+				// 不存在单品促销，促销价设置为自身价格
+				product.PromotionPrice = product.Price
+			}
+
+			res = append(res, product)
+			<-sem
+			return err
+		})
+
+		if err := g.Wait(); err != nil {
+			return res, err
+		}
+		products = res
+	}
+
+	return products, nil
 }
 
 func (this *ProductService) RelationResolveIds(ctx context.Context, ids []string) (products []contracts.RelationsOption, err error) {
@@ -114,38 +173,57 @@ func (this *ProductService) Pagination(ctx context.Context, req *request.IndexRe
 	}
 	includes := req.Includes()
 	products = results.Result.([]*models.Product)
-	for _,product:=range products {
-		product.Avatar = product.GetAvatar()
 
-	}
+	hasItem := false
 	for _, with := range includes {
 		if with == "item" {
-			var g errgroup.Group
-			res := []*models.Product{}
-			sem := make(chan struct{}, 10)
-			for _, product := range products {
-				product := product
-				sem <- struct{}{}
-				g.Go(func() error {
-					items := this.ItemService.FindByProductId(ctx, product.GetID())
-					product.Items = items
-					for _, item := range product.Items {
-						item.Product = product.ToAssociated()
-						item.Avatar = item.GetAvatar()
-					}
-
-					res = append(res, product)
-					<-sem
-					return err
-				})
-			}
-			if err := g.Wait(); err != nil {
-
-				return res, pagination, err
-			}
-			products = res
-
+			hasItem = true
+			break
 		}
+	}
+
+	var g errgroup.Group
+	res := []*models.Product{}
+	sem := make(chan struct{}, 10)
+
+	for _, product := range products {
+		product := product // local variable
+		sem <- struct{}{}
+		// 获取产品单品促销活动信息
+		g.Go(func() error {
+			promotionItem, err := this.promotionRep.FindActivePromotionUnitSaleByProductId(ctx, product.GetID())
+			if err == nil {
+				// 存在单品促销
+				product.PromotionPrice = promotionItem.MinPrice()
+			} else {
+				// 不存在单品促销，促销价设置为自身价格
+				product.PromotionPrice = product.Price
+			}
+			if hasItem {
+				// 加载items
+				items := this.ItemService.FindByProductId(ctx, product.GetID())
+				for _, item := range items {
+					if promotionItem != nil {
+						itemPromotionPrice := promotionItem.FindPriceByItemId(item.GetID())
+						if itemPromotionPrice != -1 {
+							item.PromotionPrice = itemPromotionPrice
+							continue
+						}
+					}
+					item.PromotionPrice = item.Price
+				}
+				product.Items = items
+			}
+
+			res = append(res, product)
+			<-sem
+			return nil
+		})
+
+		if err := g.Wait(); err != nil {
+			return res, pagination, err
+		}
+		products = res
 	}
 	return products, results.Pagination, nil
 }
@@ -223,7 +301,16 @@ func (this *ProductService) FindById(ctx context.Context, id string) (product *m
 		err = byId.Error
 		return
 	}
-	return byId.Result.(*models.Product), nil
+	product = byId.Result.(*models.Product)
+
+	promotionItem, err := this.promotionRep.FindActivePromotionUnitSaleByProductId(ctx, product.GetID())
+	if err != nil {
+		// log
+		product.PromotionPrice = product.Price
+		return product, nil
+	}
+	product.PromotionPrice = promotionItem.MinPrice()
+	return product, nil
 }
 
 // 删除

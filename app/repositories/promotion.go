@@ -41,8 +41,49 @@ func (this *PromotionRep) FindByIdWithItems(ctx context.Context, id string) (pro
 	return promotion, nil
 }
 
-func productPriceCacheKey(id string) string {
+func ProductPromotionCacheKey(id string) string {
 	return fmt.Sprintf("products:%s", id)
+}
+
+// 获取Product单品促销
+func (this *PromotionRep) FindActivePromotionUnitSaleByProductId(ctx context.Context, productId string) (promotionItem *models.PromotionItem, err error) {
+	promotionItem = &models.PromotionItem{}
+	//if redis.GetConFn() != nil {
+	//	result, err := redis.GetConFn().HMGet(ProductPromotionCacheKey(productId), "unit_sale").Result()
+	//	if err == nil {
+	//		if result[0] != nil {
+	//			jsonValue := result[0].(string)
+	//			if err := json.Unmarshal([]byte(jsonValue), promotionItem); err != nil {
+	//				log.Printf("%s [%s] FindActivePromotionUnitSaleByProductId form cache,error:%s\n", this.TableName(), productId, err)
+	//				// 从缓存中移除
+	//				redis.GetConFn().HDel(ProductPromotionCacheKey(productId), "unit_sale")
+	//			}
+	//			return promotionItem, nil
+	//		}
+	//	}
+	//}
+	result := this.promotionItemRep.Collection().FindOne(ctx, bson.M{
+		"product_id":         productId,
+		"promotion.type":     models.UnitSale, // 单品优惠
+		"promotion.enable":   true,
+		"promotion.begin_at": bson.M{"$lte": time.Now()},
+		"promotion.ended_at": bson.M{"$gt": time.Now()},
+	}, options.FindOne().SetSort(bson.M{"_id": -1}))
+	if result.Err() != nil {
+		err = result.Err()
+		return
+	}
+	if err := result.Decode(promotionItem); err != nil {
+		return nil, err
+	}
+
+	//if redis.GetConFn() != nil {
+	//	if marshal, err := json.Marshal(promotionItem); err == nil {
+	//		redis.GetConFn().HMSet(ProductPromotionCacheKey(productId), "unit_sale", marshal)
+	//	}
+	//}
+
+	return
 }
 
 // 获取Product显示价格
@@ -58,52 +99,42 @@ func (this *PromotionRep) FindProductsPrice(ctx context.Context, productIds ...s
 		//prices[id] = -1
 		id := id
 
-		if redis.GetConFn() != nil {
-			result, err := redis.GetConFn().HMGet(productPriceCacheKey(id), "price").Result()
-			if err == nil {
-				if len(result) > 0 {
-					price := result[0]
-					if price != nil {
-						// hit
-						prices[id] = price.(int64)
-						break
-					}
-
-				}
-			}
-		}
+		//if redis.GetConFn() != nil {
+		//	result, err := redis.GetConFn().HMGet(ProductPromotionCacheKey(id), "price").Result()
+		//	if err == nil {
+		//		if len(result) > 0 {
+		//			price := result[0]
+		//			if price != nil {
+		//				// hit
+		//				prices[id] = price.(int64)
+		//				break
+		//			}
+		//
+		//		}
+		//	}
+		//}
 
 		sem <- struct{}{}
 		group.Go(func() error {
-			promotionItem := &models.PromotionItem{}
-			result := this.promotionItemRep.Collection().FindOne(ctx, bson.M{
-				"product_id":         id,
-				"promotion.type":     models.UnitSale, // 单品优惠
-				"promotion.enable":   true,
-				"promotion.begin_at": bson.M{"$lte": time.Now()},
-				"promotion.ended_at": bson.M{"$gt": time.Now()},
-			})
-			if result.Err() != nil {
+			promotionItem, err := this.FindActivePromotionUnitSaleByProductId(ctx, id)
+			if err != nil {
 				// 不存在促销
 				// set cache
 				if redis.GetConFn() != nil {
-					redis.GetConFn().HMSet(productPriceCacheKey(id), "price", -1)
+					redis.GetConFn().HMSet(ProductPromotionCacheKey(id), "price", -1)
 				}
 				prices[id] = -1
 			}
-			err := result.Decode(promotionItem)
-			if err == nil {
-				var p []int64
-				for _, item := range promotionItem.Units {
-					p = append(p, item.Price)
-				}
-				minPrice := utils.Min(p...)
-				prices[id] = minPrice
-				if redis.GetConFn() != nil {
-					redis.GetConFn().HMSet(productPriceCacheKey(id), "price", minPrice)
-
-				}
+			var p []int64
+			for _, item := range promotionItem.Units {
+				p = append(p, item.Price)
 			}
+			minPrice := utils.Min(p...)
+			prices[id] = minPrice
+			//if redis.GetConFn() != nil {
+			//	redis.GetConFn().HMSet(ProductPromotionCacheKey(id), "price", minPrice)
+			//
+			//}
 			<-sem
 			return err
 		})
@@ -115,21 +146,45 @@ func (this *PromotionRep) FindProductsPrice(ctx context.Context, productIds ...s
 
 }
 
-// 获取Product对应的活动
-func (this *PromotionRep) FindActivePromotionByProductId(ctx context.Context, productId string) (items []*models.PromotionItem) {
-	items = []*models.PromotionItem{}
-	find, err := this.promotionItemRep.Collection().Find(ctx, bson.M{
+func (this *PromotionRep) FindActivePromotion(ctx context.Context, promotionId string, productId string) (item *models.PromotionItem, err error) {
+	item = &models.PromotionItem{}
+	res := this.promotionItemRep.Collection().FindOne(ctx, bson.M{
+		"promotion.id":       promotionId,
 		"product_id":         productId,
 		"promotion.enable":   true,
 		"promotion.begin_at": bson.M{"$lte": time.Now()},
 		"promotion.ended_at": bson.M{"$gt": time.Now()},
+		"deleted_at":         bson.D{{"$eq", nil}},
 	})
+	if res.Err() != nil {
+		return nil, res.Err()
+	}
+	err = res.Decode(item)
+	return
+}
+
+// 获取Product生效的活动
+func (this *PromotionRep) FindActivePromotionByProductId(ctx context.Context, productId string) (items []*models.PromotionItem) {
+	items = []*models.PromotionItem{}
+
+	find, err := this.promotionItemRep.Collection().Find(ctx, bson.M{
+		"product_id":         productId,
+		"promotion.enable":   true,
+		"promotion.type":     models.RecombinationSale, // 复合优惠
+		"promotion.begin_at": bson.M{"$lte": time.Now()},
+		"promotion.ended_at": bson.M{"$gt": time.Now()},
+	}, options.Find().SetSort(bson.M{"_id": -1}))
 	if err != nil {
 		return items
 	}
 	if err := find.All(ctx, &items); err != nil {
 		return items
 	}
+
+	if promotionItem, err := this.FindActivePromotionUnitSaleByProductId(ctx, productId); err == nil {
+		items = append([]*models.PromotionItem{promotionItem}, items...)
+	}
+
 	return items
 }
 
@@ -231,10 +286,10 @@ func (this *PromotionRep) Save(ctx context.Context, entity interface{}) <-chan r
 			result <- repository.QueryResult{Error: err}
 			return
 		}
-
+		p := entity.(*models.Promotion)
+		items := p.Items
 		err = mongo.WithSession(ctx, session, func(sessionContext mongo.SessionContext) error {
-			p := entity.(*models.Promotion)
-			items := p.Items
+
 			// promotion
 			promotionSaved := <-this.IRepository.Save(ctx, entity)
 			if promotionSaved.Error != nil {
@@ -296,6 +351,20 @@ func (this *PromotionRep) Save(ctx context.Context, entity interface{}) <-chan r
 		session.EndSession(ctx)
 		if err != nil {
 			result <- repository.QueryResult{Error: err}
+		} else {
+
+			// 更新缓存
+			//if redis.GetConFn() != nil {
+			//	for _, item := range p.Items {
+			//		if p.Type == models.UnitSale {
+			//			// 单品促销
+			//			if marshal, err := json.Marshal(item); err == nil {
+			//				redis.GetConFn().HMSet(ProductPromotionCacheKey(item.ProductId), "unit_sale", marshal)
+			//			}
+			//		}
+			//	}
+			//}
+
 		}
 	}()
 	return result
@@ -307,9 +376,19 @@ func (this *PromotionRep) Delete(ctx context.Context, id string) <-chan error {
 	go func() {
 		defer close(result)
 
+		//var promotion *models.Promotion
+		var err error
+		//if redis.GetConFn() != nil {
+		//	promotion, err = this.FindByIdWithItems(ctx, id)
+		//	if err != nil {
+		//		result <- err
+		//		return
+		//	}
+		//
+		//}
+
 		// 开启事务
 		var session mongo.Session
-		var err error
 		if session, err = mongodb.GetConFn().Client().StartSession(); err != nil {
 			result <- err
 			return
@@ -342,6 +421,19 @@ func (this *PromotionRep) Delete(ctx context.Context, id string) <-chan error {
 			return nil
 		})
 		session.EndSession(ctx)
+		//if err == nil {
+		//	// 清除缓存
+		//	if redis.GetConFn() != nil {
+		//		if promotion != nil {
+		//			for _, item := range promotion.Items {
+		//				if promotion.Type == models.UnitSale {
+		//					// 单品促销
+		//					redis.GetConFn().HDel(ProductPromotionCacheKey(item.ProductId), "unit_sale")
+		//				}
+		//			}
+		//		}
+		//	}
+		//}
 		result <- err
 	}()
 	return result

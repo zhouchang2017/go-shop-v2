@@ -45,7 +45,7 @@ func MakeProductService() *ProductService {
 	mongoRep := repositories.NewBasicMongoRepositoryByDefault(&models.Product{}, mongodb.GetConFn())
 	//productCacheRep := repositories.NewRedisCache(&models.Product{}, redis.GetConFn(), mongoRep)
 	rep := repositories.NewProductRep(mongoRep, newItemRep())
-	return NewProductService(rep)
+	return NewProductService(rep, repositories.MakePromotionRep())
 }
 
 func MakeInventoryService() *InventoryService {
@@ -82,9 +82,11 @@ func MakeTopicService() *TopicService {
 }
 
 func MakeShopCartService() *ShopCartService {
-	mongoRep := repositories.NewBasicMongoRepositoryByDefault(&models.ShopCart{}, mongodb.GetConFn())
-	rep := repositories.NewShopCartRep(mongoRep)
-	return NewShopCartService(rep)
+	return NewShopCartService(
+		repositories.MakeShopCartRep(),
+		repositories.MakeItemRep(),
+		repositories.MakePromotionRep(),
+	)
 }
 
 func MakeUserService() *UserService {
@@ -100,15 +102,11 @@ func MakeBookmarkService() *BookmarkService {
 }
 
 func MakeOrderService() *OrderService {
-	orderMongoRep := repositories.NewBasicMongoRepositoryByDefault(&models.Order{}, mongodb.GetConFn())
-	itemMongoRep := repositories.NewBasicMongoRepositoryByDefault(&models.Item{}, mongodb.GetConFn())
-	inventoryMongoRep := repositories.NewBasicMongoRepositoryByDefault(&models.Inventory{}, mongodb.GetConFn())
-	orderInventoryLogMongoRep := repositories.NewBasicMongoRepositoryByDefault(&models.OrderInventoryLog{}, mongodb.GetConFn())
-	orderRep := repositories.NewOrderRep(orderMongoRep)
-	itemRep := repositories.NewItemRep(itemMongoRep)
-	inventoryRep := repositories.NewInventoryRep(inventoryMongoRep)
-	orderInventoryLogRep := repositories.NewOrderInventoryLogRep(orderInventoryLogMongoRep)
-	return NewOrderService(orderRep, itemRep, inventoryRep, orderInventoryLogRep)
+	return NewOrderService(
+		repositories.MakeOrderRep(),
+		MakePromotionService(),
+		MakeProductService(),
+	)
 }
 
 func MakeAddressService() *AddressService {
@@ -123,7 +121,5 @@ func MakePromotionItemService() *PromotionItemService {
 }
 
 func MakePromotionService() *PromotionService {
-	promotionItemRep := repositories.NewPromotionItemRep(repositories.NewBasicMongoRepositoryByDefault(&models.PromotionItem{}, mongodb.GetConFn()))
-	rep := repositories.NewPromotionRep(repositories.NewBasicMongoRepositoryByDefault(&models.Promotion{}, mongodb.GetConFn()), promotionItemRep)
-	return NewPromotionService(rep)
+	return NewPromotionService(repositories.MakePromotionRep())
 }

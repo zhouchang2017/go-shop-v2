@@ -1,24 +1,18 @@
 package http
 
 import (
-	"errors"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/gin-gonic/gin"
 	"go-shop-v2/app/services"
-	"go-shop-v2/app/tb"
-	"go-shop-v2/app/usecases"
-	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/request"
-	"go.mongodb.org/mongo-driver/bson"
 	"math"
 	"sort"
 )
 
 type IndexController struct {
-	productSrv   *services.ProductService
-	topicSrv     *services.TopicService
-	articleSrv   *services.ArticleService
-	inventorySrv *services.InventoryService
+	productSrv *services.ProductService
+	topicSrv   *services.TopicService
+	articleSrv *services.ArticleService
 }
 
 type IndexMorph interface {
@@ -47,16 +41,12 @@ func (this *IndexController) Index(ctx *gin.Context) {
 		// error handle
 		spew.Dump(err)
 	}
-
 	form.AppendFilter("on_sale", true)
-
 	var data dataSlice
 
 	// 不展现 description,attributes,options
-	form.Hidden = "description,attributes,options"
-	// 只搜索第一张图片
-	form.AppendProjection("images", bson.M{"$slice": 1})
-	// products
+	form.Hidden = "description,attributes,options,images"
+
 	products, pagination, err := this.productSrv.Pagination(ctx, form)
 
 	if err != nil {
@@ -72,6 +62,7 @@ func (this *IndexController) Index(ctx *gin.Context) {
 	}
 
 	count := pagination.Total
+
 	var totalPage int64 = 1
 	if count < pagination.PerPage {
 		totalPage = 1
@@ -138,23 +129,25 @@ func (this *IndexController) Topic(ctx *gin.Context) {
 // product detail
 func (this *IndexController) Product(ctx *gin.Context) {
 	id := ctx.Param("id")
-	product, err := usecases.ProductWithStock(ctx, id, this.productSrv, this.inventorySrv)
+	product, err := this.productSrv.FindByIdWithItems(ctx, id)
 	if err != nil {
 		// err
 		spew.Dump(err)
 	}
 
 	var items []map[string]interface{}
-
+	var qty int64
 	for _, item := range product.Items {
 		items = append(items, map[string]interface{}{
-			"id":            item.GetID(),
-			"code":          item.Code,
-			"price":         item.Price,
-			"option_values": item.OptionValues,
-			"qty":           item.Qty,
-			"avatar":        item.GetAvatar(),
+			"id":              item.GetID(),
+			"code":            item.Code,
+			"price":           item.Price,
+			"promotion_price": item.PromotionPrice,
+			"option_values":   item.OptionValues,
+			"qty":             item.Qty,
+			"avatar":          item.GetAvatar(),
 		})
+		qty += item.Qty
 	}
 
 	productResponse := map[string]interface{}{
@@ -168,11 +161,12 @@ func (this *IndexController) Product(ctx *gin.Context) {
 		"items":           items,
 		"description":     product.Description,
 		"price":           product.Price,
+		"promotion_price": product.PromotionPrice,
 		"images":          product.Images,
 		"total_sales_qty": product.TotalSalesQty + product.FakeSalesQty,
 		"on_sale":         product.OnSale,
 		"sort":            product.Sort,
-		"qty":             product.Qty,
+		"qty":             qty,
 	}
 
 	Response(ctx, productResponse, 200)
@@ -182,67 +176,4 @@ func (this *IndexController) Product(ctx *gin.Context) {
 func (this *IndexController) Products(ctx *gin.Context) {
 	//id := ctx.Query("ids")
 
-}
-
-type taobaoResponse struct {
-	Data *tbResponseBody `json:"data"`
-}
-
-type tbResponseBody struct {
-	//ApiStack []tbApiStackItem       `json:"apiStack"`
-	Item     tbResponseBodyItem     `json:"item"`
-	MockData string                 `json:"mockData,omitempty"`
-	Data     map[string]interface{} `json:"data,omitempty"`
-	Props    interface{}            `json:"props"`
-	PropsCut string                 `json:"propsCut"`
-	SkuBase  skuBase                `json:"skuBase"`
-}
-
-type tbApiStackItem map[string]interface{}
-
-type skuBase struct {
-	Props []tbSkuBaseItem `json:"props"`
-}
-
-type tbSkuBaseItem struct {
-	Name   string               `json:"name"`
-	Pid    string               `json:"pid"`
-	Values []tbSkuBaseItemValue `json:"values"`
-}
-
-type tbSkuBaseItemValue struct {
-	Name string `json:"name"`
-	Vid  string `json:"vid"`
-}
-
-type tbResponseBodyItem struct {
-	BrandValueId    string   `json:"brandValueId"`
-	CartUrl         string   `json:"cartUrl"`
-	CategoryId      string   `json:"categoryId"`
-	CommentCount    string   `json:"commentCount"`
-	H5moduleDescUrl string   `json:"h5moduleDescUrl"`
-	Images          []string `json:"images"`
-	ItemId          string   `json:"itemId"`
-	Title           string   `json:"title"`
-}
-
-// test taobao product detail api
-func (this *IndexController) TaobaoDetail(ctx *gin.Context) {
-	id := ctx.Param("id")
-	if id == "" {
-		// err
-		err2.ErrorEncoder(ctx, errors.New("id 参数缺少"), ctx.Writer)
-		return
-	}
-
-	service := &tb.TaobaoSdkService{}
-	data, err := service.Detail(id)
-
-	if err != nil {
-		// err
-		err2.ErrorEncoder(ctx, err, ctx.Writer)
-		return
-	}
-
-	ctx.JSON(200, data)
 }
