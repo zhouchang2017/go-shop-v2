@@ -1,7 +1,6 @@
 package http
 
 import (
-	"github.com/davecgh/go-spew/spew"
 	"github.com/gin-gonic/gin"
 	"go-shop-v2/app/services"
 	err2 "go-shop-v2/pkg/err"
@@ -20,7 +19,8 @@ func (this *ProductController) Show(ctx *gin.Context) {
 	product, err := this.productSrv.FindByIdWithItems(ctx, id)
 	if err != nil {
 		// err
-		spew.Dump(err)
+		ResponseError(ctx, err)
+		return
 	}
 
 	var items []map[string]interface{}
@@ -34,6 +34,7 @@ func (this *ProductController) Show(ctx *gin.Context) {
 			"option_values":   item.OptionValues,
 			"qty":             item.Qty,
 			"avatar":          item.GetAvatar(),
+			"on_sale":         item.OnSale,
 		})
 		qty += item.Qty
 	}

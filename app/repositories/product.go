@@ -6,6 +6,7 @@ import (
 	"go-shop-v2/app/models"
 	ctx2 "go-shop-v2/pkg/ctx"
 	"go-shop-v2/pkg/db/mongodb"
+	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/repository"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -96,6 +97,7 @@ func (this *ProductRep) Create(ctx context.Context, entity interface{}) <-chan r
 			for _, item := range items {
 				item.Product = product.ToAssociated()
 				item.SetAvatar()
+				item.OnSale = product.OnSale
 				itemRes := <-this.itemRep.Create(sessionContext, item)
 				if itemRes.Error != nil {
 					log.Printf("create item error:%s", itemRes.Error)
@@ -155,6 +157,7 @@ func (this *ProductRep) Save(ctx context.Context, entity interface{}) <-chan rep
 			for _, item := range items {
 				item.Product = product.ToAssociated()
 				item.SetAvatar()
+				item.OnSale = product.OnSale
 				if item.ID.IsZero() {
 					// 新增变体
 					created := <-this.itemRep.Create(sessionContext, item)
@@ -212,17 +215,7 @@ func (this *ProductRep) Delete(ctx context.Context, id string) <-chan error {
 	result := make(chan error)
 	go func() {
 		defer close(result)
-
-		//var product *models.Product
 		var err error
-		//if redis.GetConFn() != nil {
-		//	product, err = this.WithItems(ctx, id)
-		//	if err != nil {
-		//		result <- err
-		//		return
-		//	}
-		//
-		//}
 
 		// 开启事务
 		var session mongo.Session
@@ -288,20 +281,65 @@ func (this *ProductRep) Delete(ctx context.Context, id string) <-chan error {
 			return nil
 		})
 		session.EndSession(ctx)
-		//if err == nil {
-		//	// 清除缓存
-		//	if redis.GetConFn() != nil {
-		//		if product != nil {
-		//			redis.GetConFn().HDel(ProductCacheKey(product.GetID()), "detail")
-		//			redis.GetConFn().HDel(ProductCacheKey(product.GetID()), "items")
-		//			// 库存缓存
-		//			for _, item := range product.Items {
-		//				redis.GetConFn().HDel(ItemCacheKey(item.GetID()), "qty")
-		//			}
-		//		}
-		//	}
-		//}
 		result <- err
+	}()
+	return result
+}
+
+// 重写restore方法
+func (this *ProductRep) Restore(ctx context.Context, id string) <-chan repository.QueryResult {
+	result := make(chan repository.QueryResult)
+	go func() {
+		defer close(result)
+		var err error
+
+		objId, err := primitive.ObjectIDFromHex(id)
+		if err != nil {
+			result <- repository.QueryResult{Error: err2.Err404}
+			return
+		}
+
+		// 开启事务
+		var session mongo.Session
+		if session, err = mongodb.GetConFn().Client().StartSession(); err != nil {
+			result <- repository.QueryResult{Error: err}
+			return
+		}
+		if err = session.StartTransaction(); err != nil {
+			result <- repository.QueryResult{Error: err}
+			return
+		}
+		err = mongo.WithSession(ctx, session, func(sessionContext mongo.SessionContext) error {
+			update := this.Collection().FindOneAndUpdate(ctx, bson.M{"_id": objId}, bson.M{
+				"$set": bson.M{"deleted_at": nil},
+				"$currentDate": bson.M{
+					"updated_at": true,
+				},
+			})
+			if update.Err() != nil {
+				session.AbortTransaction(sessionContext)
+				return update.Err()
+			}
+
+			if _, err = this.itemRep.Collection().UpdateMany(sessionContext, bson.M{
+				"product.id": id,
+			}, bson.M{
+				"$set": bson.M{"deleted_at": nil},
+				"$currentDate": bson.M{
+					"updated_at": true,
+				},
+			}); err != nil {
+				session.AbortTransaction(sessionContext)
+				return err
+			}
+			result <- repository.QueryResult{Error: nil}
+			session.CommitTransaction(sessionContext)
+			return nil
+		})
+		if err != nil {
+			result <- repository.QueryResult{Error: err}
+		}
+		session.EndSession(ctx)
 	}()
 	return result
 }

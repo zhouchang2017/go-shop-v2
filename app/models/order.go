@@ -31,6 +31,7 @@ type Order struct {
 	Logistics        []*Logistics           `json:"logistics" name:"物流信息"`
 	Payment          *AssociatedPayment     `json:"payment" name:"支付信息"`
 	Status           int                    `json:"status" name:"订单状态"`
+	PromotionInfo    *PromotionOverView     `json:"promotion_info" bson:"promotion_info"` // 促销信息
 }
 
 // 订单总计商品数量

@@ -4,6 +4,7 @@ import (
 	"context"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
+	ctx2 "go-shop-v2/pkg/ctx"
 	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
@@ -136,7 +137,9 @@ func (this *ShopCartService) Index(ctx context.Context, userId string, page int6
 	for _, item := range items {
 		itemIds = append(itemIds, item.ItemId)
 	}
-	result := <-this.itemRep.FindByIds(ctx, itemIds...)
+	// 加载软删除变体，前端标记为已失效
+	withTrashedCtx := ctx2.WithTrashed(ctx, true)
+	result := <-this.itemRep.FindByIds(withTrashedCtx, itemIds...)
 	if result.Error != nil {
 		err = result.Error
 		return

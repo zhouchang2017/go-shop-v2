@@ -183,19 +183,12 @@ func (srv *OrderService) Create(ctx context.Context, userInfo *models.User, opt 
 	}
 	// 计算优惠
 	promotionResult := srv.getDiscounts(ctx, opt)
+
 	if opt.OrderAmount-uint64(promotionResult.SalePrices) != opt.ActualAmount {
 		return nil, err2.Err422.F("invalid order actual amount")
 	}
-	if detail := promotionResult.Detail(); detail != nil {
-		for _, item := range detailItem {
-			if info := detail.FindByItemId(item.Item.Id); info != nil {
-				item.PromotionInfo = info
-				item.Amount = item.Price - info.UnitSalePrices
-			}
-		}
-	}
 	// 生成订单
-	order = srv.generateOrder(userInfo, opt, detailItem)
+	order = srv.generateOrder(userInfo, opt, detailItem, promotionResult)
 	// save order into db
 	// transaction of mongo
 	var session mongo.Session
@@ -263,7 +256,20 @@ func (srv *OrderService) getDiscounts(ctx context.Context, opt *OrderCreateOptio
 	return srv.promotionSrv.CalculateByOrder(ctx, opt.OrderItems)
 }
 
-func (srv *OrderService) generateOrder(user *models.User, opt *OrderCreateOption, orderItems []*models.OrderItem) *models.Order {
+func (srv *OrderService) generateOrder(user *models.User, opt *OrderCreateOption, orderItems []*models.OrderItem, promotionResult *models.PromotionResult) *models.Order {
+	if detail := promotionResult.Detail(); detail != nil {
+		for _, item := range orderItems {
+			if info := detail.FindByItemId(item.Item.Id); info != nil {
+				item.PromotionInfo = info
+				item.Amount = item.Price - info.UnitSalePrices
+			}
+		}
+	} else {
+		for _, item := range orderItems {
+			item.Amount = item.Price
+		}
+	}
+
 	var itemCount int64
 	for _, orderItem := range opt.OrderItems {
 		itemCount += orderItem.Qty
@@ -290,10 +296,11 @@ func (srv *OrderService) generateOrder(user *models.User, opt *OrderCreateOption
 			Areas:        opt.UserAddress.Areas,
 			Addr:         opt.UserAddress.Addr,
 		},
-		TakeGoodType: opt.TakeGoodType,
-		Logistics:    nil, // todo: confirm how different between using nil and &models.Logistics
-		Payment:      nil, // todo: same with above
-		Status:       models.OrderStatusPrePay,
+		TakeGoodType:  opt.TakeGoodType,
+		Logistics:     nil, // todo: confirm how different between using nil and &models.Logistics
+		Payment:       nil, // todo: same with above
+		PromotionInfo: promotionResult.Overview(), // 促销总览
+		Status:        models.OrderStatusPrePay,
 	}
 	// return
 	return resOrder

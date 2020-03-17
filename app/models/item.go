@@ -1,9 +1,9 @@
 package models
 
 import (
-	"bytes"
 	"go-shop-v2/pkg/db/model"
 	"go-shop-v2/pkg/qiniu"
+	"strings"
 )
 
 type Item struct {
@@ -13,6 +13,7 @@ type Item struct {
 	Price            int64              `json:"price,omitempty" bson:"price"`
 	PromotionPrice   int64              `json:"promotion_price" bson:"-"` // 促销价
 	OptionValues     []*OptionValue     `json:"option_values" bson:"option_values" form"option_values" `
+	OnSale           bool               `json:"on_sale" bson:"on_sale"` // 上/下架 受product影响
 	SalesQty         int64              `json:"sales_qty,omitempty" bson:"sales_qty" form"sales_qty" `
 	Qty              int64              `json:"qty" bson:"qty"` // 可售数量
 	Inventories      []*Inventory       `json:"inventories,omitempty" bson:"-"`
@@ -62,11 +63,11 @@ func (this Item) ToAssociated() *AssociatedItem {
 }
 
 func (this *Item) OptionValueString() string {
-	bufferString := bytes.NewBufferString("")
+	var opts []string
 	for _, opt := range this.OptionValues {
-		bufferString.WriteString(opt.Name)
+		opts = append(opts,opt.Name)
 	}
-	return bufferString.String()
+	return strings.Join(opts,"/")
 }
 
 // 添加销售属性值

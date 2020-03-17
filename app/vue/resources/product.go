@@ -27,6 +27,15 @@ type Product struct {
 	service *services.ProductService
 }
 
+func (this *Product) Restore(ctx *gin.Context, id string) (err error) {
+	_, err = this.service.Restore(ctx, id)
+	return
+}
+
+func (this *Product) Destroy(ctx *gin.Context, id string) (err error) {
+	return this.service.Delete(ctx, id)
+}
+
 // 实现关联关系 列表
 func (this *Product) List(ctx *gin.Context, req *request.IndexRequest) (data []contracts.RelationsOption, pagination response.Pagination, err error) {
 	return this.service.List(ctx, req)

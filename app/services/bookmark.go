@@ -9,7 +9,8 @@ import (
 )
 
 type BookmarkService struct {
-	rep *repositories.BookmarkRep
+	rep        *repositories.BookmarkRep
+	productRep *repositories.ProductRep
 }
 
 func (this *BookmarkService) Pagination(ctx context.Context, req *request.IndexRequest) (bookmarks []*models.Bookmark, pagination response.Pagination, err error) {
@@ -28,6 +29,15 @@ func (this *BookmarkService) Pagination(ctx context.Context, req *request.IndexR
 
 // 收藏夹产品列表
 func (this *BookmarkService) Index(ctx context.Context, userId string, page int64, perPage int64) (ids []string, pagination response.Pagination, err error) {
+	//productIds, pagination, err := this.rep.Index(ctx, userId, page, perPage)
+	//if err != nil {
+	//	return
+	//}
+	//byIds := this.productRep.FindByIds(ctx, productIds...)
+	//if err != nil {
+	//	ResponseError(ctx, err)
+	//	return
+	//}
 	return this.rep.Index(ctx, userId, page, perPage)
 }
 

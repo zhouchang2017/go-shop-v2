@@ -15,16 +15,18 @@ func PromotionWithItemsAndProduct(ctx context.Context, id string, promotionSrv *
 
 	var g errgroup.Group
 	sem := make(chan struct{}, 10)
-	items := make([]*models.PromotionItem, len(promotion.Items))
-	for index, item := range promotion.Items {
-		index, item := index, item
+	items := make([]*models.PromotionItem, 0)
+	for _, item := range promotion.Items {
+		item := item
 		sem <- struct{}{}
 		g.Go(func() error {
 			product, err := productService.FindById(ctx, item.ProductId)
-			item.Product = product.ToAssociated()
-			items[index] = item
+			if err == nil {
+				item.Product = product.ToAssociated()
+				items = append(items, item)
+			}
 			<-sem
-			return err
+			return nil
 		})
 	}
 	if err := g.Wait(); err != nil {

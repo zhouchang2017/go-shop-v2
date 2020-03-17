@@ -69,8 +69,43 @@ type PromotionResult struct {
 	Infos      []*PromotionInfo
 }
 
+type PromotionOverView struct {
+	SalePrices int64                    `json:"sale_prices"` // 优惠总额
+	Infos      []*PromotionOverViewItem `json:"infos"`       // 优惠项目
+}
+
+type PromotionOverViewItem struct {
+	Id          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	SalePrice   int64  `json:"sale_price" bson:"sale_price"`
+}
+
+// 获取优惠总览
+func (p *PromotionResult) Overview() *PromotionOverView {
+	if p.Infos == nil {
+		return nil
+	}
+	res := &PromotionOverView{}
+	res.SalePrices = p.SalePrices
+	infos := make([]*PromotionOverViewItem, 0)
+	for _, item := range p.Infos {
+		infos = append(infos, &PromotionOverViewItem{
+			Id:          item.Promotion.GetID(),
+			Name:        item.Promotion.Name,
+			Description: item.Promotion.GetDescription(),
+			SalePrice:   item.SalePrice,
+		})
+	}
+	res.Infos = infos
+	return res
+}
+
 // 获取优惠明细
 func (p *PromotionResult) Detail() ItemPromotionInfos {
+	if p.Infos == nil {
+		return nil
+	}
 	res := ItemPromotionInfos{}
 	for _, info := range p.Infos {
 		for _, item := range info.Promotion.Items {
@@ -89,9 +124,9 @@ func (p *PromotionResult) Detail() ItemPromotionInfos {
 					find.UnitSalePrices += i.unitSalePrice
 				} else {
 					res = append(res, &ItemPromotionInfo{
-						ItemId:        i.itemId,
-						Infos:         []*ItemPromotion{newItem},
-						SalePrices:    i.salePrice,
+						ItemId:         i.itemId,
+						Infos:          []*ItemPromotion{newItem},
+						SalePrices:     i.salePrice,
 						UnitSalePrices: i.unitSalePrice,
 					})
 				}
@@ -145,7 +180,10 @@ func promotionMax(arr []*PromotionResult) *PromotionResult {
 func PromotionCalculate(items ...*PromotionOrderItem) *PromotionResult {
 	promotions := make(promotions, 0)
 	for _, item := range items {
-		item.promotions = append(item.UnMutexPromotions, item.MutexPromotion)
+		if item.MutexPromotion != nil {
+			item.promotions = append(item.promotions, item.MutexPromotion)
+		}
+		item.promotions = append(item.promotions, item.UnMutexPromotions...)
 		for _, promotion := range item.promotions {
 			find := promotions.findById(promotion.Promotion.Id)
 			if find != nil {
@@ -158,6 +196,12 @@ func PromotionCalculate(items ...*PromotionOrderItem) *PromotionResult {
 		}
 	}
 	var promotionResults []*PromotionResult
+	if len(promotions) == 0 {
+		return &PromotionResult{
+			SalePrices: 0,
+			Infos:      nil,
+		}
+	}
 	permute := promotions.permute()
 	for _, items := range permute {
 		var salePrices int64 = 0   //优惠总额
