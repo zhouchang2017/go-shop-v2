@@ -100,12 +100,24 @@ func (opt *DeliverOption) IsValid() error {
 	return nil
 }
 
-// deliver struct
+// confirm struct
 type ConfirmOption struct {
 	OrderNo string `json:"order_no" form:"order_no"`
 }
 
 func (opt *ConfirmOption) IsValid() error {
+	if opt.OrderNo == "" {
+		return err2.Err422.F("empty order no")
+	}
+	return nil
+}
+
+// cancel struct
+type CancelOption struct {
+	OrderNo string
+}
+
+func (opt *CancelOption) IsValid() error {
 	if opt.OrderNo == "" {
 		return err2.Err422.F("empty order no")
 	}
@@ -283,12 +295,7 @@ func (srv *OrderService) generateOrder(user *models.User, opt *OrderCreateOption
 		OrderAmount:  opt.OrderAmount,
 		ActualAmount: opt.ActualAmount,
 		OrderItems:   orderItems,
-		User: &models.AssociatedUser{
-			Id:       user.GetID(),
-			Nickname: user.Nickname,
-			Avatar:   user.Avatar,
-			Gender:   user.Gender,
-		},
+		User:         user.ToAssociated(),
 		UserAddress: &models.AssociatedUserAddress{
 			Id:           opt.UserAddress.Id,
 			ContactName:  opt.UserAddress.ContactName,
