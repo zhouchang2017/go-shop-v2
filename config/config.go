@@ -19,13 +19,14 @@ func init() {
 var Config *config
 
 type config struct {
-	LbsKey       string         `json:"lbs_key"`
-	WeappConfig  wechat.Config  `json:"weapp_config"`
-	MongoTestCfg mongodb.Config `json:"mongo_config_test"`
-	MongoCfg     mongodb.Config `json:"mongo_config"`
-	MysqlCfg     mysql.Config   `json:"mysql_config"`
-	RedisCfg     redis.Config   `json:"redis_config"`
-	QiniuCfg     qiniu.Config   `json:"qiniu_config"`
+	LbsKey       string           `json:"lbs_key"`
+	WeappConfig  wechat.Config    `json:"weapp_config"`
+	WechatPayCfg wechat.PayConfig `json:"wechatpay_config"`
+	MongoTestCfg mongodb.Config   `json:"mongo_config_test"`
+	MongoCfg     mongodb.Config   `json:"mongo_config"`
+	MysqlCfg     mysql.Config     `json:"mysql_config"`
+	RedisCfg     redis.Config     `json:"redis_config"`
+	QiniuCfg     qiniu.Config     `json:"qiniu_config"`
 }
 
 func NewConfig() *config {
@@ -35,6 +36,11 @@ func NewConfig() *config {
 // rabbitMQ uri
 func (c *config) RabbitMQUri() string {
 	return "amqp://guest:guest@localhost:5672/"
+}
+
+// wechat payment config
+func (c *config) WechatPayConfig() wechat.PayConfig {
+	return c.WechatPayCfg
 }
 
 // mongodb config

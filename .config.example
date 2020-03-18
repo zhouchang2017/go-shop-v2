@@ -1,7 +1,15 @@
 {
     "weapp_config":{
-            "app_id":"wxd2b59e487cbd5998",
-            "app_secret":"47957eb7df2920a84cd9ffd22cdb0424"
+        "app_id":"wxd2b59e487cbd5998",
+        "app_secret":"47957eb7df2920a84cd9ffd22cdb0424"
+    },
+    "wechatpay_config":{
+        "app_id": "",
+        "app_key": "",
+        "mch_id": "",
+        "cert_path": "",
+        "key_path": "",
+        "notify_url": ""
     },
     "mongo_config": {
         "host": "localhost",
@@ -30,5 +38,6 @@
         "qiniu_secret_key": "Jtq379mcl9lU0ZOB9rjXmQ_fEZ80fU9G4X3PiEVr",
         "bucket": "go-shop-v201",
         "file_upload_action":"https://upload-z2.qiniup.com"
-    }
+    },
+    "lbs_key": "K3DBZ-27U6P-M34DP-V2RF3-6BHI7-AWF3O"
 }

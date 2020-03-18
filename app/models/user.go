@@ -8,7 +8,7 @@ import (
 
 type User struct {
 	model.MongoModel `inline`
-	WechatMiniId     string      `json:"wechat_mini_id" bson:"wechat_mini_id"`  // todo 数据库唯一
+	WechatMiniId     string      `json:"wechat_mini_id" bson:"wechat_mini_id"` // todo 数据库唯一
 	WechatUnionId    string      `json:"wechat_union_id" bson:"wechat_union_id"`
 	Nickname         string      `json:"nickname" bson:"nickname"`
 	Avatar           qiniu.Image `json:"avatar" bson:"avatar"`
@@ -32,17 +32,19 @@ func (user *User) GetAuthPassword() string {
 }
 
 type AssociatedUser struct {
-	Id       string      `json:"id"`
-	Nickname string      `json:"nickname"`
-	Avatar   qiniu.Image `json:"avatar"`
-	Gender   int         `json:"gender"`
+	Id           string      `json:"id"`
+	WechatMiniId string      `json:"wechat_mini_id"`
+	Nickname     string      `json:"nickname"`
+	Avatar       qiniu.Image `json:"avatar"`
+	Gender       int         `json:"gender"`
 }
 
 func (user *User) ToAssociated() *AssociatedUser {
 	return &AssociatedUser{
-		Id:       user.GetID(),
-		Nickname: user.Nickname,
-		Avatar:   user.Avatar,
-		Gender:   user.Gender,
+		Id:           user.GetID(),
+		WechatMiniId: user.WechatMiniId,
+		Nickname:     user.Nickname,
+		Avatar:       user.Avatar,
+		Gender:       user.Gender,
 	}
 }
