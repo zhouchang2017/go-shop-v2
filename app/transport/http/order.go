@@ -6,6 +6,7 @@ import (
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/services"
 	ctx2 "go-shop-v2/pkg/ctx"
+	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/request"
 	"net/http"
 	"strconv"
@@ -15,6 +16,7 @@ type OrderController struct {
 	orderSrv *services.OrderService
 }
 
+// 订单列表
 func (ctrl *OrderController) Index(ctx *gin.Context) {
 	user := ctx2.GetUser(ctx).(*models.User)
 	var req request.IndexRequest
@@ -49,6 +51,7 @@ func (ctrl *OrderController) Index(ctx *gin.Context) {
 	}, http.StatusOK)
 }
 
+// 订单详情
 func (ctrl *OrderController) Show(ctx *gin.Context) {
 	id := ctx.Param("id")
 	topic, err := ctrl.orderSrv.FindById(ctx, id)
@@ -59,7 +62,8 @@ func (ctrl *OrderController) Show(ctx *gin.Context) {
 	Response(ctx, topic, http.StatusOK)
 }
 
-func (ctrl *OrderController) CreateOrder(ctx *gin.Context) {
+// 创建订单
+func (ctrl *OrderController) Store(ctx *gin.Context) {
 	// get user information with auth
 	userInfo := ctx2.GetUser(ctx).(*models.User)
 	// check form data
@@ -76,4 +80,31 @@ func (ctrl *OrderController) CreateOrder(ctx *gin.Context) {
 		return
 	}
 	Response(ctx, order, http.StatusOK)
+}
+
+// 取消订单
+// api PUT /orders/:id/cancel
+func (ctrl *OrderController) Cancel(ctx *gin.Context) {
+	id := ctx.Param("id")
+	if id == "" {
+		ResponseError(ctx, err2.Err422.F("订单号异常"))
+		return
+	}
+
+	order, err := ctrl.orderSrv.FindById(ctx, id)
+	if err != nil {
+		ResponseError(ctx, err2.Err422.F("订单不存在"))
+		return
+	}
+	user := ctx2.GetUser(ctx).(*models.User)
+	if order.User.Id != user.GetID() {
+		ResponseError(ctx, err2.Err422.F("订单不存在"))
+		return
+	}
+
+	if err := ctrl.orderSrv.Cancel(ctx, order); err != nil {
+		ResponseError(ctx, err)
+		return
+	}
+	Response(ctx, nil, http.StatusNoContent)
 }

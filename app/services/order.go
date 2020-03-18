@@ -252,10 +252,12 @@ func (srv *OrderService) Create(ctx context.Context, userInfo *models.User, opt 
 	return orderRes, nil
 }
 
+// 计算促销优惠
 func (srv *OrderService) getDiscounts(ctx context.Context, opt *OrderCreateOption) *models.PromotionResult {
 	return srv.promotionSrv.CalculateByOrder(ctx, opt.OrderItems)
 }
 
+// 生成订单
 func (srv *OrderService) generateOrder(user *models.User, opt *OrderCreateOption, orderItems []*models.OrderItem, promotionResult *models.PromotionResult) *models.Order {
 	if detail := promotionResult.Detail(); detail != nil {
 		for _, item := range orderItems {
@@ -297,8 +299,8 @@ func (srv *OrderService) generateOrder(user *models.User, opt *OrderCreateOption
 			Addr:         opt.UserAddress.Addr,
 		},
 		TakeGoodType:  opt.TakeGoodType,
-		Logistics:     nil, // todo: confirm how different between using nil and &models.Logistics
-		Payment:       nil, // todo: same with above
+		Logistics:     nil,                        // todo: confirm how different between using nil and &models.Logistics
+		Payment:       nil,                        // todo: same with above
 		PromotionInfo: promotionResult.Overview(), // 促销总览
 		Status:        models.OrderStatusPrePay,
 	}
@@ -378,4 +380,39 @@ func (srv *OrderService) Confirm(ctx context.Context, opt *ConfirmOption) error 
 	}
 	// return
 	return nil
+}
+
+// 取消订单
+func (srv *OrderService) Cancel(ctx context.Context, order *models.Order) error {
+	if err := order.StatusToFailed(); err != nil {
+		return err
+	}
+	// 开启事务
+	var session mongo.Session
+	var err error
+	if session, err = mongodb.GetConFn().Client().StartSession(); err != nil {
+		return err
+	}
+	if err = session.StartTransaction(); err != nil {
+		return err
+	}
+	err = mongo.WithSession(ctx, session, func(sessionContext mongo.SessionContext) error {
+		// 退还库存
+		for _, item := range order.OrderItems {
+			if err := srv.productSrv.ItemService.IncQty(sessionContext, item.Item.Id, item.Count); err != nil {
+				session.AbortTransaction(sessionContext)
+				return err
+			}
+		}
+		// 保存订单状态
+		saved := <-srv.orderRep.Save(sessionContext, order)
+		if saved.Error != nil {
+			sessionContext.AbortTransaction(sessionContext)
+			return saved.Error
+		}
+		session.CommitTransaction(sessionContext)
+		return nil
+	})
+	session.EndSession(ctx)
+	return err
 }

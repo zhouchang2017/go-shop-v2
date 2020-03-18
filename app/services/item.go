@@ -23,6 +23,11 @@ func (this *ItemService) DecQty(ctx context.Context, itemId string, qty int64) e
 	return this.rep.DecQty(ctx, itemId, qty)
 }
 
+// 加库存
+func (this *ItemService) IncQty(ctx context.Context, itemId string, qty int64) error {
+	return this.rep.IncQty(ctx, itemId, qty)
+}
+
 func (this *ItemService) FindByProductId(ctx context.Context, productId string) (items []*models.Item) {
 	items = []*models.Item{}
 	results := <-this.rep.FindByProductId(ctx, productId)

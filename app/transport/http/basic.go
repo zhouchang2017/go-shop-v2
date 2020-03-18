@@ -51,8 +51,6 @@ func Register(app *gin.Engine) {
 	// 需要授权路由
 	v1.Use(auth.AuthMiddleware(guard))
 
-
-
 	shopCartController := &ShopCartController{
 		srv: services.MakeShopCartService(),
 	}
@@ -67,7 +65,7 @@ func Register(app *gin.Engine) {
 	// 删除购物车
 	v1.DELETE("/shopping-cart", shopCartController.Delete)
 	// 获取购物车选定产品详情
-	v1.PUT("/shopping-cart",shopCartController.GetCheckedItemsDetail)
+	v1.PUT("/shopping-cart", shopCartController.GetCheckedItemsDetail)
 
 	orderController := &OrderController{
 		orderSrv: services.MakeOrderService(),
@@ -77,7 +75,9 @@ func Register(app *gin.Engine) {
 	// 查询订单
 	v1.GET("/orders/:id", orderController.Show)
 	// 下单
-	v1.POST("/orders", orderController.CreateOrder)
+	v1.POST("/orders", orderController.Store)
+	// 取消订单
+	v1.PUT("/orders/:id/cancel", orderController.Cancel)
 
 	bookmarkSrv := services.MakeBookmarkService()
 	bookmarkController := &BookmarkController{

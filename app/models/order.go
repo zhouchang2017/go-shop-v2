@@ -2,17 +2,18 @@ package models
 
 import (
 	"go-shop-v2/pkg/db/model"
+	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/utils"
 )
 
 const (
-	OrderStatusPrePay      = 0
-	OrderStatusPaid        = 1
-	OrderStatusFailed      = 2
-	OrderStatusPreSend     = 3
-	OrderStatusPreConfirm  = 4
-	OrderStatusPreEvaluate = 5
-	OrderStatusDone        = 6
+	OrderStatusPrePay      = 0 // 等待付款
+	OrderStatusPaid        = 1 // 支付成功
+	OrderStatusFailed      = 2 // 交易失败
+	OrderStatusPreSend     = 3 // 等待发货
+	OrderStatusPreConfirm  = 4 // 等待收货
+	OrderStatusPreEvaluate = 5 // 待评价
+	OrderStatusDone        = 6 // 交易完成
 
 	OrderTakeGoodTypeOnline  = 1
 	OrderTakeGoodTypeOffline = 2
@@ -32,6 +33,15 @@ type Order struct {
 	Payment          *AssociatedPayment     `json:"payment" name:"支付信息"`
 	Status           int                    `json:"status" name:"订单状态"`
 	PromotionInfo    *PromotionOverView     `json:"promotion_info" bson:"promotion_info"` // 促销信息
+}
+
+// 状态设置为取消
+func (o *Order) StatusToFailed() error {
+	if o.Status == OrderStatusPrePay {
+		o.Status = OrderStatusFailed
+		return nil
+	}
+	return err2.Err422.F("当前订单状态[%d]不允许取消", o.Status)
 }
 
 // 订单总计商品数量

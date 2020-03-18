@@ -35,7 +35,7 @@ func (this *ItemRep) DecQty(ctx context.Context, itemId string, qty int64) error
 }
 
 // 增减库存
-func (this *ItemRep) IncqTY(ctx context.Context, itemId string, qty int64) error {
+func (this *ItemRep) IncQty(ctx context.Context, itemId string, qty int64) error {
 	objId, err := primitive.ObjectIDFromHex(itemId)
 	if err != nil {
 		return err
