@@ -3,7 +3,6 @@ package repositories
 import (
 	"context"
 	"errors"
-	"github.com/davecgh/go-spew/spew"
 	ctx2 "go-shop-v2/pkg/ctx"
 	"go-shop-v2/pkg/db/mongodb"
 	err2 "go-shop-v2/pkg/err"
@@ -43,9 +42,11 @@ func (this *mongoRep) newModel() interface{} {
 }
 
 func (this *mongoRep) newModels() interface{} {
-	t := reflect.ValueOf(this.model).Type()
-	slice:= reflect.MakeSlice(reflect.SliceOf(t),0,0)
-	return reflect.New(slice.Type()).Interface()
+	modelType := reflect.TypeOf(this.model)
+	slice := reflect.MakeSlice(reflect.SliceOf(modelType), 0, 0)
+	x := reflect.New(slice.Type())
+	x.Elem().Set(slice)
+	return x.Interface()
 	//return reflect.New(reflect.SliceOf(t)).Interface()
 }
 
@@ -183,14 +184,13 @@ func (this *mongoRep) FindByIds(ctx context.Context, ids ...string) <-chan repos
 		}
 
 		models := this.newModels()
-		spew.Dump(models)
+
 		err = cursor.All(ctx, models)
 		if err != nil {
 			output <- repository.QueryResult{Error: err}
 			return
 		}
 		i := reflect.ValueOf(models).Elem().Interface()
-		spew.Dump(models)
 		output <- repository.QueryResult{Result: i}
 	}()
 	return output
