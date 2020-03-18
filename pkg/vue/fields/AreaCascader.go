@@ -1,6 +1,8 @@
 package fields
 
-import "github.com/gin-gonic/gin"
+import (
+	"github.com/gin-gonic/gin"
+)
 
 // 省市区选择器
 type AreaCascader struct {
@@ -36,6 +38,9 @@ func (this *AreaCascader) Resolve(ctx *gin.Context, model interface{}) {
 		return
 	}
 	addressModels := this.resolveAttribute(ctx, model)
+	if addressModels == nil {
+		return
+	}
 	value := &areaCascaderValue{
 		Province: getValueByField(addressModels, "Province").(string),
 		City:     getValueByField(addressModels, "City").(string),

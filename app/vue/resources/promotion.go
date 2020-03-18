@@ -79,7 +79,18 @@ func (p Promotion) Fields(ctx *gin.Context, model interface{}) func() []interfac
 					fields.NewStatusOption("金额大于", 1),
 					fields.NewStatusOption("数量大于", 2),
 				}, ),
-				fields.NewTextField("值", "Rule.Value", fields.OnlyOnDetail()),
+				fields.NewTextField("值", "Rule.Value", fields.OnlyOnDetail(),fields.SetResolveForDisplay(func(ctx *gin.Context, model interface{}) interface{} {
+					promotion:=model.(*models.Promotion)
+					if promotion!=nil {
+						if promotion.Rule.Type == 1 {
+							return promotion.Rule.Value / 100
+						}
+						if promotion.Rule.Type == 2 {
+							return promotion.Rule.Value
+						}
+					}
+					return nil
+				})),
 			),
 
 			panels.NewPanel("优惠策略",
@@ -88,7 +99,18 @@ func (p Promotion) Fields(ctx *gin.Context, model interface{}) func() []interfac
 					fields.NewStatusOption("直减", 2),
 					fields.NewStatusOption("免邮", 3),
 				}, ),
-				fields.NewTextField("值", "Policy.Value", fields.OnlyOnDetail()),
+				fields.NewTextField("值", "Policy.Value", fields.OnlyOnDetail(),fields.SetResolveForDisplay(func(ctx *gin.Context, model interface{}) interface{} {
+					promotion:=model.(*models.Promotion)
+					if promotion!=nil {
+						if promotion.Policy.Type == 1 {
+							return promotion.Policy.Value / 10
+						}
+						if promotion.Policy.Type == 2 {
+							return promotion.Policy.Value / 100
+						}
+					}
+					return nil
+				})),
 			),
 
 			fields.NewHasManyField("促销商品", &PromotionItemResource{}),

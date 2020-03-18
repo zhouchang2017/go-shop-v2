@@ -84,20 +84,7 @@ func (opt *OrderCreateOption) IsValid() error {
 
 // deliver struct
 type DeliverOption struct {
-	OrderNo      string `json:"order_no" form:"order_no"`
-	OperatorId   string `json:"operator_id" form:"operator_id"`
-	OperatorName string `json:"operator_name" form:"operator_name"`
-	models.Logistics
-}
-
-func (opt *DeliverOption) IsValid() error {
-	if opt.OrderNo == "" {
-		return err2.Err422.F("empty order no")
-	}
-	if opt.TrackNo == "" {
-		return err2.Err422.F("empty track no")
-	}
-	return nil
+	Options []*models.LogisticsOption `json:"options" form:"options"`
 }
 
 // confirm struct
@@ -316,38 +303,18 @@ func (srv *OrderService) generateOrder(user *models.User, opt *OrderCreateOption
 }
 
 // 发货
-func (srv *OrderService) Deliver(ctx context.Context, opt *DeliverOption) error {
-	if err := opt.IsValid(); err != nil {
-		return err
+func (srv *OrderService) Deliver(ctx context.Context, order *models.Order, opt *DeliverOption) (model *models.Order, err error) {
+	if order.Status == models.OrderStatusPreSend || order.Status == models.OrderStatusPartSend {
+		if err := order.Shipment(opt.Options...); err != nil {
+			return nil, err
+		}
+		saved := <-srv.orderRep.Save(ctx, order)
+		if saved.Error != nil {
+			return nil, saved.Error
+		}
+		return saved.Result.(*models.Order), nil
 	}
-	// 查询订单并校验状态
-	orderRes := <-srv.orderRep.FindOne(ctx, map[string]interface{}{
-		"order_no": opt.OrderNo,
-	})
-	if orderRes.Error != nil {
-		return orderRes.Error
-	}
-	order := orderRes.Result.(*models.Order)
-	if order.Status != models.OrderStatusPreSend {
-		return err2.Err422.F(fmt.Sprintf("order %s can not be delivered caused of not pre send status", opt.OrderNo))
-	}
-	// 处理物流
-	newLogistics := append(order.Logistics, &models.Logistics{
-		Enterprise: opt.Enterprise,
-		TrackNo:    opt.TrackNo,
-	})
-	// 更新
-	updated := <-srv.orderRep.Update(ctx, order.GetID(), bson.M{
-		"$set": bson.M{
-			"status":    models.OrderStatusPreConfirm,
-			"logistics": newLogistics,
-		},
-	})
-	if updated.Error != nil {
-		return updated.Error
-	}
-	// return
-	return nil
+	return nil, err2.Err422.F(fmt.Sprintf("order %s can not be delivered caused of not pre send status", order.OrderNo))
 }
 
 // 确认收货

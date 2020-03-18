@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/services"
+	fields2 "go-shop-v2/app/vue/fields"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"go-shop-v2/pkg/vue/contracts"
@@ -41,32 +42,23 @@ func (order *Order) Group() string {
 func (order *Order) Fields(ctx *gin.Context, model interface{}) func() []interface{} {
 	return func() []interface{} {
 		return []interface{}{
-			fields.NewIDField(),
-			fields.NewTextField("订单号", "OrderNo"),
-			fields.NewDateTime("创建时间", "CreatedAt"),
-			fields.NewDateTime("更新时间", "UpdatedAt"),
-			fields.NewTextField("订单金额", "OrderAmount"),
-			fields.NewTextField("实付金额", "ActualAmount"),
-			fields.NewStatusField("订单状态", "Status").WithOptions([]*fields.StatusOption{
-				fields.NewStatusOption("待支付", 0).Cancel(),
-				fields.NewStatusOption("待发货", 1).Warning(),
-				fields.NewStatusOption("待收货", 2).Info(),
-				fields.NewStatusOption("已完成", 3).Success(),
-				fields.NewStatusOption("已取消", 4).Danger(),
-				fields.NewStatusOption("处理失败", 5).Error(),
-			}),
+			fields.NewIDField(fields.WithMeta("min-width", 150)),
+			fields.NewTextField("订单号", "OrderNo", fields.WithMeta("min-width", 150)),
+
+			fields.NewCurrencyField("订单金额", "OrderAmount"),
+			fields.NewCurrencyField("实付金额", "ActualAmount"),
 
 			panels.NewPanel("收货信息",
 				fields.NewTextField("收货人", "UserAddress.ContactName", fields.SetShowOnIndex(false)),
 				fields.NewTextField("联系方式", "UserAddress.ContactPhone", fields.SetShowOnIndex(false)),
-				fields.NewAreaCascader("省/市/区", "UserAddress"),
+				fields.NewAreaCascader("省/市/区", "UserAddress", fields.SetShowOnIndex(false)),
 				fields.NewTextField("详细地址", "UserAddress.Addr", fields.SetShowOnIndex(false)),
 			),
 
 			panels.NewPanel("用户",
-				fields.NewTextField("用户", "Nickname"),
-				fields.NewImageField("头像", "Avatar", fields.SetShowOnIndex(false)),
-				fields.NewStatusField("性别", "Gender", fields.SetShowOnIndex(false)).WithOptions([]*fields.StatusOption{
+				fields.NewAvatar("头像", "User.Avatar", fields.SetShowOnIndex(false)).RoundedFull(),
+				fields.NewTextField("用户", "User.Nickname"),
+				fields.NewStatusField("性别", "User.Gender", fields.SetShowOnIndex(false)).WithOptions([]*fields.StatusOption{
 					fields.NewStatusOption("未知", 0),
 					fields.NewStatusOption("男", 1),
 					fields.NewStatusOption("女", 2),
@@ -80,12 +72,16 @@ func (order *Order) Fields(ctx *gin.Context, model interface{}) func() []interfa
 				}
 			}),
 
-			fields.NewTable("支付信息", "Payment", func() []contracts.Field {
-				return []contracts.Field{
-					fields.NewTextField("支付平台", "Platform"),
-					fields.NewTextField("支付单号", "PaymentNo"),
-				}
-			}),
+			//fields.NewTable("支付信息", "Payment", func() []contracts.Field {
+			//	return []contracts.Field{
+			//		fields.NewTextField("支付平台", "Platform"),
+			//		fields.NewTextField("支付单号", "PaymentNo"),
+			//	}
+			//}),
+			fields2.NewOrderItemsField(),
+			fields.NewDateTime("创建时间", "CreatedAt", fields.SetShowOnIndex(false)),
+			fields.NewDateTime("更新时间", "UpdatedAt", fields.WithMeta("min-width", 150)),
+			fields2.NewOrderStatusField(),
 		}
 	}
 
@@ -97,7 +93,8 @@ func (order *Order) Model() interface{} {
 
 func (order *Order) Make(mode interface{}) contracts.Resource {
 	return &Order{
-		srv: order.srv,
+		srv:   order.srv,
+		model: mode,
 	}
 }
 

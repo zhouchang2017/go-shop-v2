@@ -7,6 +7,7 @@ import (
 
 type Panel struct {
 	*element.Element
+	Sort           int64             `json:"sort"`
 	Name           string            `json:"name"`
 	Limit          *int64            `json:"limit"`
 	ShowToolbar    bool              `json:"show_toolbar"`
@@ -23,6 +24,11 @@ func NewPanel(name string, fields ...contracts.Field) *Panel {
 
 func (p *Panel) SetName(name string) {
 	p.Name = name
+}
+
+func (p *Panel) SetSort(sort int64) *Panel {
+	p.Sort = sort
+	return p
 }
 
 func (p *Panel) SetWithoutPending(flag bool) *Panel {
