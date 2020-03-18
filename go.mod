@@ -11,6 +11,7 @@ require (
 	github.com/gin-gonic/gin v1.5.0
 	github.com/go-playground/universal-translator v0.17.0 // indirect
 	github.com/go-redis/redis/v7 v7.2.0
+	github.com/iGoogle-ink/gopay v1.5.6 // indirect
 	github.com/jinzhu/gorm v1.9.11
 	github.com/jinzhu/inflection v1.0.0
 	github.com/json-iterator/go v1.1.8 // indirect
