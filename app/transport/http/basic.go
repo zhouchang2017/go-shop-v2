@@ -112,7 +112,7 @@ func Register(app *gin.Engine) {
 	paymentController := &PaymentController{paymentSrv: services.MakePaymentService()}
 
 	// 统一下单
-	v1.POST("/checkouts", paymentController.CheckOut)
+	v1.POST("/payments", paymentController.UnifiedOrder)
 }
 
 //

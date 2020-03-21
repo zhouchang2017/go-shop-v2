@@ -12,9 +12,9 @@ type PaymentController struct {
 	paymentSrv *services.PaymentService
 }
 
-// 下单
-// api /checkouts
-func (p *PaymentController) CheckOut(ctx *gin.Context) {
+// 统一下单
+// api /payments
+func (p *PaymentController) UnifiedOrder(ctx *gin.Context) {
 	var form services.PaymentOption
 	if err := ctx.ShouldBind(&form); err != nil {
 		ResponseError(ctx, err)
