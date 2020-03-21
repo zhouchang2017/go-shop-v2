@@ -24,3 +24,8 @@ func MakeOrderRep() *OrderRep {
 	orderMongoRep := NewBasicMongoRepositoryByDefault(&models.Order{}, mongodb.GetConFn())
 	return NewOrderRep(orderMongoRep)
 }
+
+func MakeCommentRep() *CommentRep {
+	rep := NewBasicMongoRepositoryByDefault(&models.Comment{}, mongodb.GetConFn())
+	return NewCommentRep(rep)
+}

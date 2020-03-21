@@ -5,12 +5,14 @@ import (
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/services"
 	fields2 "go-shop-v2/app/vue/fields"
+	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"go-shop-v2/pkg/vue/contracts"
 	"go-shop-v2/pkg/vue/core"
 	"go-shop-v2/pkg/vue/fields"
 	"go-shop-v2/pkg/vue/panels"
+	"net/http"
 )
 
 type Order struct {
@@ -65,13 +67,6 @@ func (order *Order) Fields(ctx *gin.Context, model interface{}) func() []interfa
 				}),
 			),
 
-			fields.NewTable("物流信息", "Logistics", func() []contracts.Field {
-				return []contracts.Field{
-					fields.NewTextField("类型", "Enterprise"),
-					fields.NewTextField("单号", "TrackNo"),
-				}
-			}),
-
 			//fields.NewTable("支付信息", "Payment", func() []contracts.Field {
 			//	return []contracts.Field{
 			//		fields.NewTextField("支付平台", "Platform"),
@@ -104,4 +99,27 @@ func (order *Order) SetModel(model interface{}) {
 
 func NewOrderResource() *Order {
 	return &Order{srv: services.MakeOrderService(), model: &models.Order{}}
+}
+
+func (this *Order) CustomHttpHandle(router gin.IRouter) {
+	// 关闭订单
+	router.PUT("/api/orders/:Order/cancel", func(ctx *gin.Context) {
+		id := ctx.Param("Order")
+		if id == "" {
+			err2.ErrorEncoder(ctx, err2.Err422.F("订单号异常"), ctx.Writer)
+			return
+		}
+
+		order, err := this.srv.FindById(ctx, id)
+		if err != nil {
+			err2.ErrorEncoder(ctx, err2.Err422.F("订单不存在"), ctx.Writer)
+			return
+		}
+
+		if err := this.srv.Cancel(ctx, order); err != nil {
+			err2.ErrorEncoder(ctx, err, ctx.Writer)
+			return
+		}
+		ctx.JSON(http.StatusNoContent, nil)
+	})
 }

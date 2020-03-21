@@ -5,6 +5,7 @@ import (
 	"go-shop-v2/pkg/db/model"
 	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/utils"
+	"reflect"
 	"time"
 )
 
@@ -13,10 +14,9 @@ const (
 	OrderStatusPrePay                 // 等待付款
 	OrderStatusPaid                   // 支付成功
 	OrderStatusPreSend                // 等待发货
-	OrderStatusPartSend               // 部分发货
 	OrderStatusPreConfirm             // 等待收货
-	OrderStatusPreEvaluate            // 待评价
 	OrderStatusDone                   // 交易完成
+	OrderStatusPreEvaluate            // 待评价
 
 	OrderTakeGoodTypeOnline  = 1
 	OrderTakeGoodTypeOffline = 2
@@ -37,6 +37,7 @@ type Order struct {
 	Status           int                    `json:"status" name:"订单状态"`
 	PromotionInfo    *PromotionOverView     `json:"promotion_info" bson:"promotion_info"` // 促销信息
 	ShipmentsAt      *time.Time             `json:"shipments_at" bson:"shipments_at"`     // 发货时间
+	CommentedAt      *time.Time             `json:"commented_at" bson:"commented_at"`     // 评价时间
 }
 
 // 状态设置为取消
@@ -46,6 +47,14 @@ func (o *Order) StatusToFailed() error {
 		return nil
 	}
 	return err2.Err422.F("当前订单状态[%d]不允许取消", o.Status)
+}
+
+// 判断是否能评论
+func (o Order) CanComment() bool {
+	if (o.Status == OrderStatusPreEvaluate || o.Status == OrderStatusDone) && o.CommentedAt == nil {
+		return true
+	}
+	return false
 }
 
 // 订单总计商品数量
@@ -72,23 +81,13 @@ func (this *Order) OriginId() string {
 	return this.GetID()
 }
 
-func (this *Order) findItem(id string) *OrderItem {
+func (this *Order) FindItem(id string) *OrderItem {
 	for _, item := range this.OrderItems {
 		if item.Item.Id == id {
 			return item
 		}
 	}
 	return nil
-}
-
-// 计算所有包裹中该商品的数量
-func (this *Order) countItem(id string) (count int64) {
-	for _, item := range this.Logistics {
-		if i := item.findItem(id); i != nil {
-			count += i.Count
-		}
-	}
-	return count
 }
 
 // 计算物流状态
@@ -110,52 +109,136 @@ func (this *Order) refreshShipmentStatus() {
 	}
 	if totalShipmentCount > 0 && totalShipmentCount < totalItemCount {
 		// 部分发货
-		this.Status = OrderStatusPartSend
+		this.Status = OrderStatusPreSend
 	}
 	return
 }
 
 // 发货
 func (this *Order) Shipment(opts ...*LogisticsOption) error {
-	for _,opt:=range opts {
+	var shipments []*Logistics
+	for _, opt := range opts {
 		if err := opt.isValid(); err != nil {
 			return err
 		}
-		item := this.findItem(opt.ItemId)
-		if item == nil {
-			return err2.Err422.F("该订单中不存在itemId[%s]", opt.ItemId)
+		type itemCountMapItem struct {
+			orderTotal int64
+			count      int64
 		}
-		// 验证产品数量
-		// 已发货数量
-		countItem := this.countItem(opt.ItemId)
-		if opt.Count > item.Count-countItem {
-			return err2.Err422.F("产品数量超出该订单购买商品数量，发货数量[%d],订单中该商品数量[%d],以发货数量", opt.Count, item.Count, countItem)
+		var itemCountMap = map[string]*itemCountMapItem{}
+		for _, i := range opt.Items {
+			item := this.FindItem(i.ItemId)
+			if item == nil {
+				return err2.Err422.F("该订单中不存在itemId[%s]", i.ItemId)
+			}
+			if itemCountMap[i.ItemId] != nil {
+				itemCountMap[i.ItemId].count += i.Count
+			} else {
+				itemCountMap[i.ItemId] = &itemCountMapItem{
+					orderTotal: item.Count,
+					count:      i.Count,
+				}
+			}
+		}
+		for key, value := range itemCountMap {
+			if value.orderTotal-value.count < 0 {
+				return err2.Err422.F("itemId[%s]发货数量溢出，总发货数量%d，实际发货数量%d\n", key, value.orderTotal, value.count)
+			}
 		}
 		var logistics *Logistics
-		for _, l := range this.Logistics {
-			if l.Enterprise == opt.Enterprise && l.TrackNo == opt.TrackNo {
-				logistics = l
-				break
-			}
-		}
-		if logistics != nil {
-			if err := logistics.addItem(opt.ItemId, opt.Count, opt.ShopId); err != nil {
-				return err
-			}
-		} else {
-			logistics = &Logistics{
-				Enterprise: opt.Enterprise,
-				TrackNo:    opt.TrackNo,
-				CreatedAt:  time.Now(),
-				UpdatedAt:  time.Now(),
-			}
-			if err := logistics.addItem(opt.ItemId, opt.Count, opt.ShopId); err != nil {
-				return err
-			}
-			this.Logistics = append(this.Logistics, logistics)
-		}
-	}
 
+		logistics = &Logistics{
+			NoDelivery: opt.NoDelivery,
+			CreatedAt:  time.Now(),
+			UpdatedAt:  time.Now(),
+		}
+		if !opt.NoDelivery {
+			info := FindLogisticsInfo(opt.DeliveryId)
+			logistics.DeliveryId = opt.DeliveryId
+			logistics.DeliveryName = info.DeliveryName
+			logistics.TrackNo = opt.TrackNo
+		}
+
+		for _, i := range opt.Items {
+			if err := logistics.addItem(i.ItemId, i.Count, opt.ShopId); err != nil {
+				return err
+			}
+		}
+
+		shipments = append(shipments, logistics)
+
+		//for index, l := range this.Logistics {
+		//	if index+1 > len(opts) {
+		//		break
+		//	}
+		//	mockLogistics := Logistics{
+		//		Items:      opt.Items,
+		//		NoDelivery: opt.NoDelivery,
+		//		DeliveryId: opt.DeliveryId,
+		//		TrackNo:    opt.TrackNo,
+		//	}
+		//	if l.DeliveryId == opt.DeliveryId && l.TrackNo == opt.TrackNo && l.NoDelivery == opt.NoDelivery {
+		//		// 单号未发生变化情况
+		//		if l.Equal(mockLogistics) {
+		//			// 无更新
+		//			logistics = l
+		//		} else {
+		//			// 商品存在更新
+		//			// 先清空包裹
+		//			l.Items = []*LogisticsItem{}
+		//			// 添加商品到包裹
+		//			for _, i := range opt.Items {
+		//				if err := l.addItem(i.ItemId, i.Count, opt.ShopId); err != nil {
+		//					return err
+		//				}
+		//			}
+		//			l.UpdatedAt = time.Now()
+		//		}
+		//		shipments = append(shipments, l)
+		//		continue
+		//	}
+		//	if l.Equal(mockLogistics) {
+		//		//  更新了物流信息
+		//		logistics = l
+		//		logistics.NoDelivery = opt.NoDelivery
+		//		if !logistics.NoDelivery {
+		//			logistics.TrackNo = opt.TrackNo
+		//			logistics.DeliveryId = opt.DeliveryId
+		//			logistics.DeliveryName = FindLogisticsInfo(opt.DeliveryId).DeliveryName
+		//		} else {
+		//			logistics.TrackNo = ""
+		//			logistics.DeliveryId = ""
+		//			logistics.DeliveryName = ""
+		//		}
+		//		logistics.UpdatedAt = time.Now()
+		//		shipments = append(shipments, logistics)
+		//		continue
+		//	}
+		//}
+		//if logistics == nil {
+		//
+		//	logistics = &Logistics{
+		//		NoDelivery: opt.NoDelivery,
+		//		CreatedAt:  time.Now(),
+		//		UpdatedAt:  time.Now(),
+		//	}
+		//	if !opt.NoDelivery {
+		//		info := FindLogisticsInfo(opt.DeliveryId)
+		//		logistics.DeliveryId = opt.DeliveryId
+		//		logistics.DeliveryName = info.DeliveryName
+		//		logistics.TrackNo = opt.TrackNo
+		//	}
+		//
+		//	for _, i := range opt.Items {
+		//		if err := logistics.addItem(i.ItemId, i.Count, opt.ShopId); err != nil {
+		//			return err
+		//		}
+		//	}
+		//
+		//	shipments = append(shipments, logistics)
+		//}
+	}
+	this.Logistics = shipments
 	this.refreshShipmentStatus()
 	return nil
 }
@@ -170,24 +253,35 @@ type OrderItem struct {
 
 // 发货选项结构
 type LogisticsOption struct {
-	Enterprise string `json:"enterprise"`
-	TrackNo    string `json:"track_no"`
-	ItemId     string `json:"item_id"`
-	Count      int64  `json:"count"`
-	ShopId     string `json:"shop_id"`
+	NoDelivery bool             `json:"no_delivery" form:"no_delivery"` // 无需物流
+	DeliveryId string           `json:"delivery_id" form:"delivery_id"` // 物流公司编号
+	TrackNo    string           `json:"track_no" form:"track_no"`       // 物流单号
+	ShopId     string           `json:"shop_id" form:"shop_id"`
+	Items      []*LogisticsItem `json:"items"`
 }
 
 func (l LogisticsOption) isValid() error {
-	if l.ItemId == "" {
-		return err2.Err422.F("缺少发货商品id")
+
+	if len(l.Items) == 0 {
+		return err2.Err422.F("缺少发货商品")
 	}
-	if l.Count == 0 {
-		return err2.Err422.F("发货商品数量必须大于0")
+
+	for _, item := range l.Items {
+		if item.ItemId == "" {
+			return err2.Err422.F("缺少发货商品id")
+		}
+		if item.Count <= 0 {
+			return err2.Err422.F("发货商品数量必须大于0")
+		}
 	}
+
 	if l.ShopId == "" {
 		return err2.Err422.F("缺少寄件方")
 	}
-	if l.Enterprise == "" {
+	if l.NoDelivery {
+		return nil
+	}
+	if l.DeliveryId == "" {
 		return err2.Err422.F("缺少物流公司")
 	}
 	if l.TrackNo == "" {
@@ -198,18 +292,59 @@ func (l LogisticsOption) isValid() error {
 
 // 包裹明细
 type LogisticsItem struct {
-	ItemId string `json:"item_id" bson:"item_id"` // 商品id
-	Count  int64  `json:"count"`                  // 数量
-	ShopId string `json:"shop_id" bson:"shop_id"` // 出货门店
+	ItemId string `json:"item_id" form:"item_id" bson:"item_id"` // 商品id
+	Count  int64  `json:"count"`                                 // 数量
+	ShopId string `json:"shop_id" form:"shop_id" bson:"shop_id"` // 出货门店
+}
+
+func (l LogisticsItem) equal(item LogisticsItem) bool {
+	if l.ItemId == item.ItemId && l.Count == item.Count && l.ShopId == item.ShopId {
+		return true
+	}
+	return false
+}
+
+var LogisticsInfos = []LogisticsInfo{
+	{"百世快递", "BEST"},
+	{"中国邮政速递物流(EMS)", "EMS"},
+	{"品骏物流", "PJ"},
+	{"顺丰速运", "SF"},
+	{"圆通速递", "YTO"},
+	{"韵达快递", "YUNDA"},
+	{"中通快递", "ZTO"},
+	{"申通快递", "STO"},
+}
+
+func FindLogisticsInfo(id string) LogisticsInfo {
+	for _, item := range LogisticsInfos {
+		if item.DeliveryId == id {
+			return item
+		}
+	}
+	return LogisticsInfo{DeliveryName: "未知", DeliveryId: "Unknown"}
+}
+
+type LogisticsInfo struct {
+	DeliveryName string `json:"delivery_name"` // 快递公司
+	DeliveryId   string `json:"delivery_id"`   // 快递公司id
 }
 
 // 物流
 type Logistics struct {
-	Items      []*LogisticsItem `json:"items"`
-	Enterprise string           `json:"enterprise"`
-	TrackNo    string           `json:"track_no" bson:"track_no"`
-	CreatedAt  time.Time        `json:"created_at" bson:"created_at"`
-	UpdatedAt  time.Time        `json:"updated_at" bson:"updated_at"`
+	Items        []*LogisticsItem `json:"items"`
+	NoDelivery   bool             `json:"no_delivery" bson:"no_delivery"`     // 是否无需物流
+	DeliveryName string           `json:"delivery_name" bson:"delivery_name"` // 物流公司名称
+	DeliveryId   string           `json:"delivery_id" bson:"delivery_id"`     // 物流公司标识
+	TrackNo      string           `json:"track_no" bson:"track_no"`           // 物流单号
+	CreatedAt    time.Time        `json:"created_at" bson:"created_at"`
+	UpdatedAt    time.Time        `json:"updated_at" bson:"updated_at"`
+}
+
+func (l Logistics) Equal(logistics Logistics) bool {
+	if l.NoDelivery == logistics.NoDelivery && l.DeliveryId == logistics.DeliveryId && l.TrackNo == logistics.TrackNo {
+		return reflect.DeepEqual(l.Items, logistics.Items)
+	}
+	return false
 }
 
 // 计算物品总数

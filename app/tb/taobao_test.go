@@ -1,7 +1,9 @@
 package tb
 
 import (
+	"encoding/json"
 	"github.com/davecgh/go-spew/spew"
+	"net/http"
 	"regexp"
 	"testing"
 )
@@ -33,7 +35,34 @@ func TestIsUrlReg(t *testing.T) {
 	for _, i := range data {
 		matchString := isUrl.MatchString(i.url)
 		if matchString != i.isOK {
-			t.Fatal("err",i,matchString)
+			t.Fatal("err", i, matchString)
 		}
 	}
+}
+
+func TestKuaiDi100Api(t *testing.T) {
+	// https://www.kuaidi100.com/query?type=zhongtong&postid=73123917441103
+	service := &TaobaoSdkService{}
+	build, err := service.build("https://www.kuaidi100.com/query", map[string]interface{}{
+		"type":   "shunfeng",
+		"postid": "SF1019151340747",
+		"temp":   "0.9780776625299978",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	get, err := http.Get(build)
+	if err != nil {
+		t.Fatal(err)
+	}
+	//all, err := ioutil.ReadAll(get.Body)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	data := map[string]interface{}{}
+	err = json.NewDecoder(get.Body).Decode(&data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	spew.Dump(data)
 }

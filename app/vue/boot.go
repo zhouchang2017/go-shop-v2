@@ -39,6 +39,9 @@ func registerPages() {
 		pages2.NewProductUpdatePage(),   // 产品更新页
 		pages2.NewPromotionCreatePage(), // 促销计划创建页
 		pages2.NewPromotionUpdatePage(), // 促销计划更新页
+
+		pages2.NewOrderShipmentPage(),  // 订单发货页面
+		pages2.NewOrderLogisticsPage(), // 物流详情页面
 	}
 }
 

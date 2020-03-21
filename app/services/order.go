@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
+	"go-shop-v2/pkg/auth"
 	ctx2 "go-shop-v2/pkg/ctx"
 	"go-shop-v2/pkg/db/mongodb"
 	err2 "go-shop-v2/pkg/err"
+	"go-shop-v2/pkg/qiniu"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"go-shop-v2/pkg/utils"
@@ -112,7 +114,8 @@ func (opt *CancelOption) IsValid() error {
 }
 
 type OrderService struct {
-	orderRep *repositories.OrderRep
+	orderRep   *repositories.OrderRep
+	commentRep *repositories.CommentRep
 	//orderInventoryLogRep *repositories.OrderInventoryLogRep
 	promotionSrv *PromotionService
 	productSrv   *ProductService
@@ -263,6 +266,8 @@ func (srv *OrderService) generateOrder(user *models.User, opt *OrderCreateOption
 			if info := detail.FindByItemId(item.Item.Id); info != nil {
 				item.PromotionInfo = info
 				item.Amount = item.Price - info.UnitSalePrices
+			} else {
+				item.Amount = item.Price
 			}
 		}
 	} else {
@@ -304,17 +309,14 @@ func (srv *OrderService) generateOrder(user *models.User, opt *OrderCreateOption
 
 // 发货
 func (srv *OrderService) Deliver(ctx context.Context, order *models.Order, opt *DeliverOption) (model *models.Order, err error) {
-	if order.Status == models.OrderStatusPreSend || order.Status == models.OrderStatusPartSend {
-		if err := order.Shipment(opt.Options...); err != nil {
-			return nil, err
-		}
-		saved := <-srv.orderRep.Save(ctx, order)
-		if saved.Error != nil {
-			return nil, saved.Error
-		}
-		return saved.Result.(*models.Order), nil
+	if err := order.Shipment(opt.Options...); err != nil {
+		return nil, err
 	}
-	return nil, err2.Err422.F(fmt.Sprintf("order %s can not be delivered caused of not pre send status", order.OrderNo))
+	saved := <-srv.orderRep.Save(ctx, order)
+	if saved.Error != nil {
+		return nil, saved.Error
+	}
+	return saved.Result.(*models.Order), nil
 }
 
 // 确认收货
@@ -356,6 +358,53 @@ func (srv *OrderService) Confirm(ctx context.Context, opt *ConfirmOption) error 
 	return nil
 }
 
+type OrderCommentOption struct {
+	Rate      float64        `json:"rate"`
+	ProductId string         `json:"product_id" form:"product_id"`
+	ItemId    string         `json:"item_id" form:"item_id"`
+	Content   string         `json:"content"`
+	Images    []*qiniu.Image `json:"images"`
+}
+
+// 评价
+func (srv *OrderService) Comment(ctx context.Context, order *models.Order, user *models.User, opts []*OrderCommentOption) error {
+	// 验证
+	if order.User.Id != user.GetID() {
+		return err2.Err422.F("评论失败")
+	}
+	// 状态
+	if !order.CanComment() {
+		return err2.Err422.F("评论失败")
+	}
+	var comments []*models.Comment
+	for _, opt := range opts {
+		if find := order.FindItem(opt.ItemId); find == nil {
+			return err2.Err422.F("评论失败")
+		}
+		comments = append(comments, &models.Comment{
+			ProductId: opt.ProductId,
+			ItemId:    opt.ItemId,
+			OrderId:   order.GetID(),
+			User: &models.CommentUser{
+				UserId:   user.GetID(),
+				Avatar:   user.Avatar.Src(),
+				Nickname: user.Nickname,
+			},
+			Content: opt.Content,
+			Images:  nil, // 暂时不存图片
+			Rate:    opt.Rate,
+		})
+	}
+
+	for _, com := range comments {
+		created := <-srv.commentRep.Create(ctx, com)
+		if created.Error != nil {
+			// 写日志
+		}
+	}
+	return nil
+}
+
 // 取消订单
 func (srv *OrderService) Cancel(ctx context.Context, order *models.Order) error {
 	if err := order.StatusToFailed(); err != nil {
@@ -389,4 +438,14 @@ func (srv *OrderService) Cancel(ctx context.Context, order *models.Order) error 
 	})
 	session.EndSession(ctx)
 	return err
+}
+
+// 售后工单
+func (srv *OrderService) CreateIssue(ctx context.Context, order *models.Order) {
+
+}
+
+// 评论工单
+func (srv *OrderService) CommentIssue(ctx context.Context, order *models.Order, user auth.Authenticatable) {
+
 }
