@@ -29,3 +29,8 @@ func MakeCommentRep() *CommentRep {
 	rep := NewBasicMongoRepositoryByDefault(&models.Comment{}, mongodb.GetConFn())
 	return NewCommentRep(rep)
 }
+
+func MakePaymentRep() *PaymentRep {
+	rep := NewBasicMongoRepositoryByDefault(&models.Payment{}, mongodb.GetConFn())
+	return NewPaymentRep(rep)
+}

@@ -83,6 +83,8 @@ func main() {
 
 	// 微信skd
 	wechat.NewSDK(configs.WeappConfig)
+	// 微信支付
+	wechat.NewPay(configs.WechatPayCfg)
 
 	// 地址解析
 	lbs.NewSDK(configs.LbsKey)

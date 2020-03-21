@@ -6,10 +6,12 @@ type Config struct {
 }
 
 type PayConfig struct {
-	AppId     string `json:"app_id"`
-	AppKey    string `json:"app_key"`
-	MchId     string `json:"mch_id"`
-	CertPath  string `json:"cert_path"`
-	KeyPath   string `json:"key_path"`
-	NotifyUrl string `json:"notify_url"`
+	AppId          string `json:"app_id"`
+	AppKey         string `json:"app_key"`
+	MchId          string `json:"mch_id"`
+	IsProd         bool   `json:"is_prod"`
+	CertFilePath   string `json:"cert_file_path"`
+	KeyFilePath    string `json:"key_file_path"`
+	Pkcs12FilePath string `json:"pkcs_12_file_path"`
+	NotifyUrl      string `json:"notify_url"`
 }

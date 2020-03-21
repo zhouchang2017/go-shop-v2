@@ -107,6 +107,12 @@ func Register(app *gin.Engine) {
 
 	// 删除地址
 	v1.DELETE("/addresses/:id", addressController.Delete)
+
+	// 支付
+	paymentController := &PaymentController{paymentSrv: services.MakePaymentService()}
+
+	// 统一下单
+	v1.POST("/checkouts", paymentController.CheckOut)
 }
 
 //

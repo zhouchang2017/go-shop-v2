@@ -7,8 +7,10 @@
         "app_id": "",
         "app_key": "",
         "mch_id": "",
-        "cert_path": "",
-        "key_path": "",
+        "is_prod": false,
+        "cert_file_path": "",
+        "key_file_path":"",
+        "pkcs_12_file_path":"",
         "notify_url": ""
     },
     "mongo_config": {

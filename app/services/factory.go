@@ -123,3 +123,7 @@ func MakePromotionItemService() *PromotionItemService {
 func MakePromotionService() *PromotionService {
 	return NewPromotionService(repositories.MakePromotionRep())
 }
+
+func MakePaymentService() *PaymentService {
+	return NewPaymentService(repositories.MakePaymentRep(), repositories.MakeOrderRep())
+}
