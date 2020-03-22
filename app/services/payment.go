@@ -7,6 +7,9 @@ import (
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
 	"go-shop-v2/pkg/wechat"
+	gopay_wechat "github.com/iGoogle-ink/gopay/wechat"
+	"go.mongodb.org/mongo-driver/bson"
+	"net/http"
 )
 
 type PaymentService struct {
@@ -114,6 +117,83 @@ func (srv *PaymentService) setUnifiedOrderOption(order *models.Order, openId str
 }
 
 // 支付回调
-func (srv *PaymentOption) Notify(ctx context.Context) {
+func (srv *PaymentService) PayNotify(ctx context.Context, req *http.Request) error {
+	// parse
+	notifyReq, notifyErr := gopay_wechat.ParseNotifyResult(req)
+	if notifyErr != nil {
+		return fmt.Errorf("parse notify result failed with %s", notifyErr)
+	}
+	// check sign
+	verifyOk, verifyErr := gopay_wechat.VerifySign(wechat.Pay.ApiKey, gopay_wechat.SignType_MD5, notifyReq)
+	if verifyErr != nil {
+		return fmt.Errorf("verify sign occur error %s", verifyErr)
+	}
+	if !verifyOk {
+		return errors.New("verify sign failed")
+	}
+	// deal with
+	orderNo := notifyReq.OutTradeNo
+	paymentNo := notifyReq.TransactionId
+	// get order information
+	orderRes := <-srv.orderResp.FindOne(ctx, map[string]interface{}{
+		"order_no": orderNo,
+	})
+	if orderRes.Error != nil {
+		return orderRes.Error
+	}
+	order := orderRes.Result.(*models.Order)
+	order.Payment.PaymentNo = paymentNo
+	// check status (这里更新了中间态，但是目前不保存先)
+	switch order.Status {
+	case models.OrderStatusPrePay:
+		order.Status = models.OrderStatusPaid
+	case models.OrderStatusPaid:
+		//continue
+	default:
+		//log.Println("already final status")
+		return nil
+	}
+	// check result
+	if notifyReq.ReturnCode == "SUCCESS" {
+		// if failed
+		if notifyReq.ResultCode != "SUCCESS" {
+			// update payment
+			updateRes := <-srv.orderResp.Update(ctx, order.GetID(), bson.M{
+				"$set": bson.M{
+					"status": models.OrderStatusFailed,
+					"payment.payment_no": paymentNo,
+				},
+			})
+			if updateRes.Error != nil {
+				return fmt.Errorf("update order-%s to failed status failed %s", orderNo, updateRes.Error)
+			}
+			// return
+			//log.Println("update order xxx to failed status success")
+			return nil
+		}
+		// deal with if success
+		// valid money
+		if uint64(notifyReq.TotalFee) != order.ActualAmount {
+			return fmt.Errorf("notify total fee %d is different with order actucal amount %d", notifyReq.TotalFee, order.ActualAmount)
+		}
+		// update order
+		updateRes := <-srv.orderResp.Update(ctx, order.GetID(), bson.M{
+			"$set": bson.M{
+				"status": models.OrderStatusPreSend,
+				"payment.payment_no": paymentNo,
+			},
+		})
+		if updateRes.Error != nil {
+			return fmt.Errorf("update order-%s to success status failed %s", orderNo, updateRes.Error)
+		}
+		// todo: add other case to do and remember use transaction if involving other table in db
 
+		// return
+		//log.Println("update order xxx to success status success")
+		return nil
+	} else {
+		return errors.New("return code not SUCCESS")
+	}
+	// return
+	return nil
 }
