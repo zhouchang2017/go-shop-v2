@@ -56,7 +56,7 @@ func (srv *PaymentService) Payment(ctx context.Context, userInfo *models.User, o
 	if order.OrderNo != opt.OrderNo {
 		return nil, errors.New("invalid OrderNo with different")
 	}
-	if order.User.Id != userInfo.ID.String() {
+	if order.User.Id != userInfo.GetID() {
 		return nil, errors.New("invalid permission caused of different user")
 	}
 	if order.Status != models.OrderStatusPrePay {
@@ -75,7 +75,7 @@ func (srv *PaymentService) Payment(ctx context.Context, userInfo *models.User, o
 	srv.paymentRep.Store(ctx, &models.Payment{
 		OrderNo:        order.OrderNo,
 		Platform:       opt.GetPlatform(),
-		Title:          fmt.Sprint("订单号%s", order.OrderNo),
+		Title:          fmt.Sprintf("订单号%s", order.OrderNo),
 		Amount:         order.ActualAmount,
 		ExtendedUserId: userInfo.GetID(),
 		PrePaymentNo:   wxRsp.PrepayId,
@@ -88,7 +88,7 @@ func (srv *PaymentService) Payment(ctx context.Context, userInfo *models.User, o
 func (srv *PaymentService) setUnifiedOrderOption(order *models.Order, openId string, spbillCreateIp string) (opt *wechat.PayUnifiedOrderOption) {
 
 	opt = &wechat.PayUnifiedOrderOption{
-		Body:           fmt.Sprint("订单号%s", order.OrderNo),
+		Body:           fmt.Sprintf("订单号%s", order.OrderNo),
 		Detail:         nil,
 		OutTradeNo:     order.OrderNo,
 		TotalFee:       order.ActualAmount,

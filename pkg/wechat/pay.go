@@ -1,7 +1,9 @@
 package wechat
 
 import (
+	"fmt"
 	wxpay "github.com/iGoogle-ink/gopay/wechat"
+	"net/http"
 	"strconv"
 	"sync"
 	"time"
@@ -41,12 +43,13 @@ type WechatMiniPayConfig struct {
 }
 
 func (u *unifiedOrderResponse) GetWechatMiniPayConfig() *WechatMiniPayConfig {
+	paySign := u.GetMiniPaySign()
 	return &WechatMiniPayConfig{
 		TimeStamp: u.timestamp,
 		NonceStr:  u.NonceStr,
-		Package:   u.PrepayId,
+		Package:   fmt.Sprintf("prepay_id=%s", u.PrepayId),
 		SignType:  u.signType,
-		PaySign:   u.GetMiniPaySign(),
+		PaySign:   paySign,
 	}
 }
 
@@ -72,7 +75,7 @@ func (u *unifiedOrderResponse) GetAppPaySign(partnerid string) string {
 // ====微信小程序 paySign====
 func (u *unifiedOrderResponse) GetMiniPaySign() string {
 	u.setTimeStamp()
-	prepayId := "prepay_id=" + u.PrepayId // 此处的 wxRsp.PrepayId ,统一下单成功后得到
+	prepayId := fmt.Sprintf("prepay_id=%s", u.PrepayId) // 此处的 wxRsp.PrepayId ,统一下单成功后得到
 	// 获取微信小程序支付的 paySign
 	//    appId：AppID
 	//    nonceStr：随机字符串
@@ -87,7 +90,7 @@ func (u *unifiedOrderResponse) GetMiniPaySign() string {
 // ====微信内H5支付 paySign====
 func (u *unifiedOrderResponse) GetH5PaySign() string {
 	u.setTimeStamp()
-	packages := "prepay_id=" + u.PrepayId // 此处的 wxRsp.PrepayId ,统一下单成功后得到
+	packages := fmt.Sprintf("prepay_id=%s", u.PrepayId) // 此处的 wxRsp.PrepayId ,统一下单成功后得到
 	// 获取微信内H5支付 paySign
 	//    appId：AppID
 	//    nonceStr：随机字符串
@@ -108,5 +111,28 @@ func (this pay) UnifiedOrder(opt *PayUnifiedOrderOption) (res *unifiedOrderRespo
 	if err != nil {
 		return nil, err
 	}
-	return &unifiedOrderResponse{UnifiedOrderResponse: wxRsp, signType: wxpay.SignType_MD5}, nil
+	_, err = wxpay.VerifySign(this.ApiKey, opt.signType, wxRsp)
+	if err != nil {
+		return nil, err
+	}
+	return &unifiedOrderResponse{UnifiedOrderResponse: wxRsp, signType: opt.signType}, nil
+}
+
+// 支付异步通知参数解析和验签Sign
+func (this pay) ParseNotifyResult(req *http.Request) (notifyReq *wxpay.NotifyRequest, err error) {
+	notifyReq, err = wxpay.ParseNotifyResult(req)
+	if err != nil {
+		return
+	}
+	_, err = wxpay.VerifySign(this.ApiKey, wxpay.SignType_MD5, notifyReq)
+	return
+}
+
+// 退款通知
+func (this pay) ParseRefundNotifyResult(req *http.Request) (refundNotify *wxpay.RefundNotify, err error) {
+	notifyReq, err := wxpay.ParseRefundNotifyResult(req)
+	if err != nil {
+		return nil, err
+	}
+	return wxpay.DecryptRefundNotifyReqInfo(notifyReq.ReqInfo, this.ApiKey)
 }

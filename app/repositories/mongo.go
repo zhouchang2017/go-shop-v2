@@ -160,7 +160,7 @@ func (this *mongoRep) FindByIds(ctx context.Context, ids ...string) <-chan repos
 	trashed := ctx2.GetTrashed(ctx)
 	go func() {
 		defer close(output)
-
+		models := this.newModels()
 		var objIds []primitive.ObjectID
 		for _, id := range ids {
 			objectIDS, e := primitive.ObjectIDFromHex(id)
@@ -169,7 +169,7 @@ func (this *mongoRep) FindByIds(ctx context.Context, ids ...string) <-chan repos
 			}
 		}
 		if len(objIds) == 0 {
-			output <- repository.QueryResult{Result: []interface{}{}}
+			output <- repository.QueryResult{Result: reflect.ValueOf(models).Elem().Interface()}
 			return
 		}
 		filter := bson.M{"_id": bson.M{"$in": objIds}}
@@ -183,7 +183,6 @@ func (this *mongoRep) FindByIds(ctx context.Context, ids ...string) <-chan repos
 			return
 		}
 
-		models := this.newModels()
 
 		err = cursor.All(ctx, models)
 		if err != nil {
@@ -329,7 +328,6 @@ func (this *mongoRep) Pagination(ctx context.Context, req *request.IndexRequest)
 			pagination.HasNextPage = page*req.PerPage < total
 		}
 
-		// todo 0值处理
 		i := reflect.ValueOf(entities).Elem().Interface()
 
 		result <- repository.QueryPaginationResult{Result: i, Pagination: pagination}

@@ -146,7 +146,6 @@ func (this *ShopCartService) Index(ctx context.Context, userId string, page int6
 	}
 
 	// productIdsMap := map[string][]*models.ShopCartItem{}
-
 	itemEntities := result.Result.([]*models.Item)
 	for _, item := range items {
 		// 设置默认促销活动空数组
