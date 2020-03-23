@@ -127,12 +127,3 @@ func (this pay) ParseNotifyResult(req *http.Request) (notifyReq *wxpay.NotifyReq
 	_, err = wxpay.VerifySign(this.ApiKey, wxpay.SignType_MD5, notifyReq)
 	return
 }
-
-// 退款通知
-func (this pay) ParseRefundNotifyResult(req *http.Request) (refundNotify *wxpay.RefundNotify, err error) {
-	notifyReq, err := wxpay.ParseRefundNotifyResult(req)
-	if err != nil {
-		return nil, err
-	}
-	return wxpay.DecryptRefundNotifyReqInfo(notifyReq.ReqInfo, this.ApiKey)
-}

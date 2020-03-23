@@ -48,6 +48,21 @@ func (paymentOpt *PaymentOption) IsValid() error {
 	return nil
 }
 
+type RefundOption struct {
+	OrderId        string `json:"order_id" form:"order_id" binding:"required"`
+	OrderNo        string `json:"order_no" form:"order_no" binding:"required"`
+}
+
+func (refundOpt *RefundOption) IsValid() error {
+	if refundOpt.OrderId == "" {
+		return errors.New("OrderId is empty")
+	}
+	if refundOpt.OrderNo == "" {
+		return errors.New("OrderNo is empty")
+	}
+	return nil
+}
+
 // 下单
 func (srv *PaymentService) Payment(ctx context.Context, userInfo *models.User, opt *PaymentOption) (*wechat.WechatMiniPayConfig, error) {
 	if err := opt.IsValid(); err != nil {
@@ -223,4 +238,30 @@ func (srv *PaymentService) PayNotify(ctx context.Context, req *http.Request) (er
 	session.EndSession(ctx)
 	// return
 	return err
+}
+
+// refund
+// todo: 添加返回结构，退款单号或信息（需要添加model）
+func (srv *PaymentService) Refund(ctx context.Context, opt *RefundOption) error {
+	if err := opt.IsValid(); err != nil {
+		return err
+	}
+	// get order information
+	orderRes := <-srv.orderResp.FindById(ctx, opt.OrderId)
+	if orderRes.Error != nil {
+		return orderRes.Error
+	}
+	order := orderRes.Result.(*models.Order)
+	if order.OrderNo != opt.OrderNo {
+		return errors.New("invalid OrderNo with different")
+	}
+	if order.Status != models.OrderStatusPreSend {
+		return errors.New("invalid order status not presend")
+	}
+	// refund order
+	// todo:
+	//wechat.Pay.Refund()
+
+	// return
+	return nil
 }

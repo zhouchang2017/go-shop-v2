@@ -11,7 +11,8 @@
         "cert_file_path": "",
         "key_file_path":"",
         "pkcs_12_file_path":"",
-        "notify_url": ""
+        "notify_url": "",
+        "refund_notify_url": ""
     },
     "mongo_config": {
         "host": "localhost",
