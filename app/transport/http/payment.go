@@ -2,6 +2,8 @@ package http
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/iGoogle-ink/gopay"
+	"github.com/iGoogle-ink/gopay/wechat"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/services"
 	ctx2 "go-shop-v2/pkg/ctx"
@@ -29,4 +31,20 @@ func (p *PaymentController) UnifiedOrder(ctx *gin.Context) {
 		return
 	}
 	Response(ctx, wechatMiniPayConfig, http.StatusOK)
+}
+
+// 回调
+func (p *PaymentController) PayNotify(ctx *gin.Context) {
+	err := p.paymentSrv.PayNotify(ctx, ctx.Request)
+	rsp := new(wechat.NotifyResponse) // 回复微信的数据
+	if err != nil {
+		rsp.ReturnCode = gopay.FAIL
+		rsp.ReturnMsg = gopay.FAIL
+		Response(ctx, rsp, http.StatusOK)
+		return
+	}
+	rsp.ReturnCode = gopay.SUCCESS
+	rsp.ReturnMsg = gopay.OK
+	Response(ctx, rsp, http.StatusOK)
+	return
 }
