@@ -62,7 +62,7 @@ func (t Topic) Fields(ctx *gin.Context, model interface{}) func() []interface{} 
 			fields.NewIDField(),
 			fields.NewTextField("标题", "Title"),
 			fields.NewTextField("副标题", "ShortTitle").Textarea(),
-			fields.NewAvatar("封面", "Avatar").Rounded().URL(),
+			fields.NewImageField("封面", "Avatar").Rounded().URL(),
 			fields.NewRichTextField("正文", "Content").UseQiniu(),
 			fields.NewTextField("权重", "Sort").Min(0).Max(9999).InputNumber(),
 			fields.NewRelationsField(&Product{}, "ProductIds").WithName("关联产品").Multiple().Searchable(),

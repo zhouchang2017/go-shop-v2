@@ -46,6 +46,7 @@ func (this *ProductController) Show(ctx *gin.Context) {
 		"brand":           product.Brand,
 		"category":        product.Category,
 		"attributes":      product.Attributes,
+		"avatar":          product.Avatar,
 		"options":         product.Options,
 		"items":           items,
 		"description":     product.Description,

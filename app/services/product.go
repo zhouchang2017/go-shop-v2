@@ -133,7 +133,7 @@ func (this *ProductService) FindByIds(ctx context.Context, ids []string) (produc
 
 			res = append(res, product)
 			<-sem
-			return err
+			return nil
 		})
 
 		if err := g.Wait(); err != nil {
@@ -151,14 +151,10 @@ func (this *ProductService) RelationResolveIds(ctx context.Context, ids []string
 		return
 	}
 	for _, product := range products2 {
-		var avatar string
-		if len(product.Images) > 0 {
-			avatar = product.Images[0].Src()
-		}
 		products = append(products, contracts.RelationsOption{
 			Id:     product.GetID(),
 			Name:   product.Code,
-			Avatar: avatar,
+			Avatar: product.Avatar.Src(),
 		})
 	}
 	return
