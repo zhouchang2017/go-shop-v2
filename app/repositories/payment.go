@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"go-shop-v2/app/models"
+	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/repository"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -34,6 +35,19 @@ func (this *PaymentRep) Store(ctx context.Context, payment *models.Payment) (err
 		},
 	}, options.Update().SetUpsert(true))
 	return
+}
+
+// 通过OrderNo获取支付信息
+func (this *PaymentRep) FindByOrderId(ctx context.Context, orderNo string) (payment *models.Payment, err error) {
+	result := this.Collection().FindOne(ctx, bson.M{"order_no": orderNo})
+	if result.Err() != nil {
+		return nil, err2.Err404.F("payment[order_no=%s],not found", orderNo)
+	}
+	payment = &models.Payment{}
+	if err := result.Decode(payment); err != nil {
+		return nil, err
+	}
+	return payment, nil
 }
 
 func (this *PaymentRep) index() []mongo.IndexModel {

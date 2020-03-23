@@ -17,6 +17,11 @@ type Payment struct {
 	PaymentAt        *time.Time `json:"payment_at" bson:"payment_at"` // 支付时间
 }
 
+func (p *Payment) SetPaymentAt(time2 time.Time) *Payment {
+	p.PaymentAt = &time2
+	return p
+}
+
 func (p Payment) ToAssociated() *AssociatedPayment {
 	return &AssociatedPayment{
 		Platform:  p.Platform,
@@ -29,7 +34,7 @@ func (p Payment) ToAssociated() *AssociatedPayment {
 
 type AssociatedPayment struct {
 	Platform  string     `json:"platform" name:"支付平台:微信/支付宝"`
-	Amount    uint64        `json:"amount" name:"金额，单位分"`
+	Amount    uint64     `json:"amount" name:"金额，单位分"`
 	PaymentNo string     `json:"payment_no" bson:"payment_no" name:"支付单号"`
 	CreatedAt time.Time  `json:"created_at" bson:"created_at"` // 创建时间
 	PaymentAt *time.Time `json:"payment_at" bson:"payment_at"` // 支付时间

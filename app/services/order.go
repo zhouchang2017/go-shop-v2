@@ -144,6 +144,11 @@ func (srv *OrderService) FindById(ctx context.Context, id string) (order *models
 	return results.Result.(*models.Order), nil
 }
 
+// 状态查询
+func (srv *OrderService) GetOrderStatus(ctx context.Context, id string) (status int, err error) {
+	return srv.orderRep.GetOrderStatus(ctx, id)
+}
+
 // 创建订单
 func (srv *OrderService) Create(ctx context.Context, userInfo *models.User, opt *OrderCreateOption) (order *models.Order, err error) {
 	// 校验数据: 数据有效 -> 产品有效 -> 库存充足 -> 金额匹配

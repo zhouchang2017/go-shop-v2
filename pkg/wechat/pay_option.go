@@ -11,7 +11,7 @@ import (
 
 // 单品优惠活动detail字段列表
 type PayOrderDetail struct {
-	CostPrice   uint64                  `json:"cost_price"` // 订单原价
+	CostPrice   uint64                 `json:"cost_price"` // 订单原价
 	GoodsDetail []*PayOrderGoodsDetail `json:"goods_detail"`
 }
 
@@ -141,6 +141,9 @@ func (p *PayUnifiedOrderOption) validate() error {
 	}
 	if p.OpenId == "" {
 		return err2.Err422.F("发起支付失败，缺少openId")
+	}
+	if p.notifyUrl == "" {
+		err2.Err422.F("发起支付失败，缺少notifyUrl")
 	}
 	return nil
 }

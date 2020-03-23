@@ -385,3 +385,4 @@ func (l *Logistics) addItem(itemId string, count int64, shopId string) error {
 	l.UpdatedAt = time.Now()
 	return nil
 }
+

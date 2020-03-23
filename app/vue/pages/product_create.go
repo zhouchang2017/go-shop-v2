@@ -107,6 +107,7 @@ func (this *productCreatePage) HttpHandles(router gin.IRouter) {
 			return
 		}
 
+
 		product, err := this.productService.Create(c, option)
 		if err != nil {
 			err2.ErrorEncoder(nil, err, c.Writer)

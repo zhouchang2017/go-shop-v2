@@ -1,6 +1,7 @@
 package http
 
 import (
+	"github.com/davecgh/go-spew/spew"
 	"github.com/gin-gonic/gin"
 	"github.com/iGoogle-ink/gopay"
 	"github.com/iGoogle-ink/gopay/wechat"
@@ -36,15 +37,17 @@ func (p *PaymentController) UnifiedOrder(ctx *gin.Context) {
 // 回调
 func (p *PaymentController) PayNotify(ctx *gin.Context) {
 	err := p.paymentSrv.PayNotify(ctx, ctx.Request)
+	spew.Dump("支付回调异常:")
+	spew.Dump(err)
 	rsp := new(wechat.NotifyResponse) // 回复微信的数据
 	if err != nil {
 		rsp.ReturnCode = gopay.FAIL
 		rsp.ReturnMsg = gopay.FAIL
-		Response(ctx, rsp, http.StatusOK)
+		ResponseXML(ctx, rsp, http.StatusOK)
 		return
 	}
 	rsp.ReturnCode = gopay.SUCCESS
 	rsp.ReturnMsg = gopay.OK
-	Response(ctx, rsp, http.StatusOK)
+	ResponseXML(ctx, rsp, http.StatusOK)
 	return
 }

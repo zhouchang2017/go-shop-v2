@@ -25,6 +25,12 @@ func Register(app *gin.Engine) {
 		userSrv: services.MakeUserService(),
 	}
 
+	// 支付
+	paymentController := &PaymentController{paymentSrv: services.MakePaymentService()}
+
+	// 支付通知回调
+	v1.Any("/wechat/payments/notify", paymentController.PayNotify)
+
 	// 授权
 	v1.POST("/login", authController.Login)
 
@@ -72,10 +78,12 @@ func Register(app *gin.Engine) {
 	}
 	// 订单列表
 	v1.GET("/orders", orderController.Index)
-	// 查询订单
+	// 订单详情
 	v1.GET("/orders/:id", orderController.Show)
 	// 下单
 	v1.POST("/orders", orderController.Store)
+	// 查询订单状态
+	v1.GET("/orders/:id/status", orderController.Status)
 	// 取消订单
 	v1.PUT("/orders/:id/cancel", orderController.Cancel)
 
@@ -108,16 +116,20 @@ func Register(app *gin.Engine) {
 	// 删除地址
 	v1.DELETE("/addresses/:id", addressController.Delete)
 
-	// 支付
-	paymentController := &PaymentController{paymentSrv: services.MakePaymentService()}
-
 	// 统一下单
 	v1.POST("/payments", paymentController.UnifiedOrder)
+
 }
 
 //
 func Response(ctx *gin.Context, data interface{}, code int) {
 	ctx.JSON(code, data)
+}
+
+func ResponseXML(ctx *gin.Context, data interface{ ToXmlString() string }, code int) {
+	ctx.Header("Content-Type", "application/xml; charset=utf-8")
+	ctx.Status(code)
+	ctx.Writer.Write([]byte(data.ToXmlString()))
 }
 
 // 错误响应

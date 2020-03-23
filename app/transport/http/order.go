@@ -82,6 +82,22 @@ func (ctrl *OrderController) Store(ctx *gin.Context) {
 	Response(ctx, order, http.StatusOK)
 }
 
+// 查询订单状态
+// api GET /orders/:id/status
+func (ctrl *OrderController) Status(ctx *gin.Context) {
+	id := ctx.Param("id")
+	if id == "" {
+		ResponseError(ctx, err2.Err422.F("缺少订单id参数"))
+		return
+	}
+	status, err := ctrl.orderSrv.GetOrderStatus(ctx, id)
+	if err != nil {
+		ResponseError(ctx, err)
+		return
+	}
+	Response(ctx, status, http.StatusOK)
+}
+
 // 取消订单
 // api PUT /orders/:id/cancel
 func (ctrl *OrderController) Cancel(ctx *gin.Context) {

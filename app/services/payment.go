@@ -4,12 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/davecgh/go-spew/spew"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
+	"go-shop-v2/pkg/db/mongodb"
 	"go-shop-v2/pkg/wechat"
-	gopay_wechat "github.com/iGoogle-ink/gopay/wechat"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 	"net/http"
+	"time"
 )
 
 type PaymentService struct {
@@ -117,83 +120,107 @@ func (srv *PaymentService) setUnifiedOrderOption(order *models.Order, openId str
 }
 
 // 支付回调
-func (srv *PaymentService) PayNotify(ctx context.Context, req *http.Request) error {
+func (srv *PaymentService) PayNotify(ctx context.Context, req *http.Request) (err error) {
+
 	// parse
-	notifyReq, notifyErr := gopay_wechat.ParseNotifyResult(req)
-	if notifyErr != nil {
-		return fmt.Errorf("parse notify result failed with %s", notifyErr)
+	notifyReq, err := wechat.Pay.ParseNotifyResult(req)
+	if err != nil {
+		return err
 	}
-	// check sign
-	verifyOk, verifyErr := gopay_wechat.VerifySign(wechat.Pay.ApiKey, gopay_wechat.SignType_MD5, notifyReq)
-	if verifyErr != nil {
-		return fmt.Errorf("verify sign occur error %s", verifyErr)
-	}
-	if !verifyOk {
-		return errors.New("verify sign failed")
-	}
+	spew.Dump(notifyReq)
 	// deal with
 	orderNo := notifyReq.OutTradeNo
 	paymentNo := notifyReq.TransactionId
-	// get order information
-	orderRes := <-srv.orderResp.FindOne(ctx, map[string]interface{}{
-		"order_no": orderNo,
-	})
-	if orderRes.Error != nil {
-		return orderRes.Error
+
+	// 开启事务
+	var session mongo.Session
+	if session, err = mongodb.GetConFn().Client().StartSession(); err != nil {
+		return err
 	}
-	order := orderRes.Result.(*models.Order)
-	order.Payment.PaymentNo = paymentNo
-	// check status (这里更新了中间态，但是目前不保存先)
-	switch order.Status {
-	case models.OrderStatusPrePay:
-		order.Status = models.OrderStatusPaid
-	case models.OrderStatusPaid:
-		//continue
-	default:
-		//log.Println("already final status")
-		return nil
+	if err = session.StartTransaction(); err != nil {
+		return err
 	}
-	// check result
-	if notifyReq.ReturnCode == "SUCCESS" {
-		// if failed
-		if notifyReq.ResultCode != "SUCCESS" {
+	err = mongo.WithSession(ctx, session, func(sessionContext mongo.SessionContext) error {
+		// get order information
+		order, err := srv.orderResp.FindByOrderNo(sessionContext, orderNo)
+		if err != nil {
+			session.AbortTransaction(sessionContext)
+			return err
+		}
+		// 从payments中查询order对应的payment
+		payment, err := srv.paymentRep.FindByOrderId(sessionContext, orderNo)
+		if err != nil {
+			session.AbortTransaction(sessionContext)
+			return err
+		}
+		if payment.PaymentAt != nil && order.Status == models.OrderStatusPaid {
+			// 已经标记为支付！！
+			return nil
+		}
+		payment.PaymentNo = paymentNo
+
+		// check result
+		if notifyReq.ReturnCode == "SUCCESS" {
+			// if failed
+			if notifyReq.ResultCode != "SUCCESS" {
+				// 通知结果支付失败
+				// update payment
+				order.Payment = payment.ToAssociated()
+				order.StatusToFailed()
+
+				updateRes := <-srv.orderResp.Update(sessionContext, order.GetID(), bson.M{
+					"$set": bson.M{
+						"status":  models.OrderStatusFailed,
+						"payment": payment.ToAssociated(),
+					},
+				})
+				if updateRes.Error != nil {
+					session.AbortTransaction(sessionContext)
+					return fmt.Errorf("update order-%s to failed status failed %s", orderNo, updateRes.Error)
+				}
+				// return
+				//log.Println("update order xxx to failed status success")
+				return nil
+			}
+			// deal with if success
+			// valid money
+			if uint64(notifyReq.TotalFee) != order.ActualAmount {
+				session.AbortTransaction(sessionContext)
+				return fmt.Errorf("notify total fee %d is different with order actucal amount %d", notifyReq.TotalFee, order.ActualAmount)
+			}
+			// 支付成功
 			// update payment
-			updateRes := <-srv.orderResp.Update(ctx, order.GetID(), bson.M{
+			payment.SetPaymentAt(time.Now())
+			saved := <-srv.paymentRep.Save(sessionContext, payment)
+			if saved.Error != nil {
+				session.AbortTransaction(sessionContext)
+				return fmt.Errorf("update order[%s] payment to paided failed %s", orderNo, saved.Error)
+			}
+			updatePayment := saved.Result.(*models.Payment)
+			// update order
+			updateRes := <-srv.orderResp.Update(sessionContext, order.GetID(), bson.M{
 				"$set": bson.M{
-					"status": models.OrderStatusFailed,
-					"payment.payment_no": paymentNo,
+					"status":  models.OrderStatusPreSend,
+					"payment": updatePayment.ToAssociated(),
 				},
 			})
 			if updateRes.Error != nil {
-				return fmt.Errorf("update order-%s to failed status failed %s", orderNo, updateRes.Error)
+				session.AbortTransaction(sessionContext)
+				return fmt.Errorf("update order-%s to success status failed %s", orderNo, updateRes.Error)
 			}
-			// return
-			//log.Println("update order xxx to failed status success")
-			return nil
-		}
-		// deal with if success
-		// valid money
-		if uint64(notifyReq.TotalFee) != order.ActualAmount {
-			return fmt.Errorf("notify total fee %d is different with order actucal amount %d", notifyReq.TotalFee, order.ActualAmount)
-		}
-		// update order
-		updateRes := <-srv.orderResp.Update(ctx, order.GetID(), bson.M{
-			"$set": bson.M{
-				"status": models.OrderStatusPreSend,
-				"payment.payment_no": paymentNo,
-			},
-		})
-		if updateRes.Error != nil {
-			return fmt.Errorf("update order-%s to success status failed %s", orderNo, updateRes.Error)
-		}
-		// todo: add other case to do and remember use transaction if involving other table in db
+			// todo: add other case to do and remember use transaction if involving other table in db
 
-		// return
-		//log.Println("update order xxx to success status success")
-		return nil
-	} else {
-		return errors.New("return code not SUCCESS")
-	}
+			// return
+			//log.Println("update order xxx to success status success")
+			session.CommitTransaction(sessionContext)
+			return nil
+		} else {
+			session.AbortTransaction(sessionContext)
+			return errors.New("return code not SUCCESS")
+		}
+	})
+
+	session.EndSession(ctx)
 	// return
-	return nil
+	return err
 }
