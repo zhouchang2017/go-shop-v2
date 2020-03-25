@@ -183,7 +183,6 @@ func (this *mongoRep) FindByIds(ctx context.Context, ids ...string) <-chan repos
 			return
 		}
 
-
 		err = cursor.All(ctx, models)
 		if err != nil {
 			output <- repository.QueryResult{Error: err}
@@ -517,6 +516,10 @@ func (this *mongoRep) DeleteMany(ctx context.Context, ids ...string) <-chan erro
 				objIds = append(objIds, objId)
 
 			}
+		}
+		if len(objIds) == 0 {
+			result <- nil
+			return
 		}
 
 		force := ctx2.GetForce(ctx)

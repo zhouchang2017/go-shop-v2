@@ -44,8 +44,9 @@ func MakeItemService() *ItemService {
 func MakeProductService() *ProductService {
 	mongoRep := repositories.NewBasicMongoRepositoryByDefault(&models.Product{}, mongodb.GetConFn())
 	//productCacheRep := repositories.NewRedisCache(&models.Product{}, redis.GetConFn(), mongoRep)
-	rep := repositories.NewProductRep(mongoRep, newItemRep())
-	return NewProductService(rep, repositories.MakePromotionRep())
+	itemRep := newItemRep()
+	rep := repositories.NewProductRep(mongoRep, itemRep)
+	return NewProductService(rep, repositories.MakePromotionRep(), itemRep)
 }
 
 func MakeInventoryService() *InventoryService {

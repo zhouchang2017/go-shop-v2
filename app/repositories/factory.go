@@ -5,6 +5,11 @@ import (
 	"go-shop-v2/pkg/db/mongodb"
 )
 
+func MakeProductRep() *ProductRep {
+	rep := NewBasicMongoRepositoryByDefault(&models.Product{}, mongodb.GetConFn())
+	return NewProductRep(rep, MakeItemRep())
+}
+
 func MakePromotionRep() *PromotionRep {
 	promotionItemRep := NewPromotionItemRep(NewBasicMongoRepositoryByDefault(&models.PromotionItem{}, mongodb.GetConFn()))
 	return NewPromotionRep(NewBasicMongoRepositoryByDefault(&models.Promotion{}, mongodb.GetConFn()), promotionItemRep)

@@ -221,7 +221,7 @@ func (srv *OrderService) Create(ctx context.Context, userInfo *models.User, opt 
 		//addressLocation, _ := order.UserAddress.Location()
 		for _, orderItem := range order.OrderItems {
 			// 直接扣库存
-			if err := srv.productSrv.ItemService.DecQty(sessionContext, orderItem.Item.Id, orderItem.Count); err != nil {
+			if err := srv.productSrv.itemRep.DecQty(sessionContext, orderItem.Item.Id, orderItem.Count); err != nil {
 				// 扣库存失败
 				session.AbortTransaction(sessionContext)
 				return err
@@ -427,7 +427,7 @@ func (srv *OrderService) Cancel(ctx context.Context, order *models.Order) error 
 	err = mongo.WithSession(ctx, session, func(sessionContext mongo.SessionContext) error {
 		// 退还库存
 		for _, item := range order.OrderItems {
-			if err := srv.productSrv.ItemService.IncQty(sessionContext, item.Item.Id, item.Count); err != nil {
+			if err := srv.productSrv.itemRep.IncQty(sessionContext, item.Item.Id, item.Count); err != nil {
 				session.AbortTransaction(sessionContext)
 				return err
 			}

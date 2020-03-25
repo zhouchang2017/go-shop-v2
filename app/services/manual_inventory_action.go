@@ -274,11 +274,12 @@ func (this *ManualInventoryActionService) setItems(ctx context.Context, entity *
 	if len(itemIds) > 0 {
 		// chunk
 		gubrak.From(itemIds).Chunk(50).Each(func(value []string) {
-			items2, err := this.productService.ItemService.FindByIds(ctx, value...)
-			if err != nil {
-				log.Printf("findByIds error:%s\n", err)
+			result := <-this.productService.itemRep.FindByIds(ctx, value...)
+			if result.Error != nil {
+				log.Printf("findByIds error:%s\n", result.Error)
 			}
-			productItems = append(productItems, items2...)
+
+			productItems = append(productItems, result.Result.([]*models.Item)...)
 		})
 
 		for _, item := range items {

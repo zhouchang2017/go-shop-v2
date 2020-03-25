@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"go-shop-v2/app/models"
 	"go-shop-v2/pkg/repository"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -14,6 +15,25 @@ import (
 
 type ItemRep struct {
 	repository.IRepository
+}
+
+// 批量创建
+func (this *ItemRep) CreateMany(ctx context.Context, models []*models.Item) (items []*models.Item, err error) {
+	var entities []interface{}
+	for _, item := range models {
+		item.ID = primitive.NewObjectID()
+		item.CreatedAt = time.Now()
+		item.UpdatedAt = time.Now()
+		entities = append(entities, item)
+	}
+	if len(entities) == 0 {
+		return
+	}
+	_, err = this.Collection().InsertMany(ctx, entities)
+	if err != nil {
+		return
+	}
+	return models, nil
 }
 
 // 减库存

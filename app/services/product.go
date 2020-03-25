@@ -2,27 +2,31 @@ package services
 
 import (
 	"context"
+	"github.com/davecgh/go-spew/spew"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
+	"go-shop-v2/pkg/db/mongodb"
 	"go-shop-v2/pkg/qiniu"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"go-shop-v2/pkg/vue/contracts"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 	"golang.org/x/sync/errgroup"
+	"log"
 )
 
 type ProductService struct {
 	rep          *repositories.ProductRep
 	promotionRep *repositories.PromotionRep
-	ItemService  *ItemService
+	itemRep      *repositories.ItemRep
 }
 
-func NewProductService(rep *repositories.ProductRep, promotionRep *repositories.PromotionRep) *ProductService {
+func NewProductService(rep *repositories.ProductRep, promotionRep *repositories.PromotionRep, itemRep *repositories.ItemRep) *ProductService {
 	return &ProductService{
 		rep:          rep,
 		promotionRep: promotionRep,
-		ItemService:  NewItemService(rep.GetItemRep()),
+		itemRep:      itemRep,
 	}
 }
 
@@ -197,18 +201,21 @@ func (this *ProductService) Pagination(ctx context.Context, req *request.IndexRe
 			}
 			if hasItem {
 				// 加载items
-				items := this.ItemService.FindByProductId(ctx, product.GetID())
-				for _, item := range items {
-					if promotionItem != nil {
-						itemPromotionPrice := promotionItem.FindPriceByItemId(item.GetID())
-						if itemPromotionPrice != -1 {
-							item.PromotionPrice = itemPromotionPrice
-							continue
+				result := <-this.itemRep.FindByProductId(ctx, product.GetID())
+				if result.Error == nil {
+					items := result.Result.([]*models.Item)
+					for _, item := range items {
+						if promotionItem != nil {
+							itemPromotionPrice := promotionItem.FindPriceByItemId(item.GetID())
+							if itemPromotionPrice != -1 {
+								item.PromotionPrice = itemPromotionPrice
+								continue
+							}
 						}
+						item.PromotionPrice = item.Price
 					}
-					item.PromotionPrice = item.Price
+					product.Items = items
 				}
-				product.Items = items
 			}
 
 			res = append(res, product)
@@ -225,19 +232,43 @@ func (this *ProductService) Pagination(ctx context.Context, req *request.IndexRe
 }
 
 type ProductCreateOption struct {
-	Name         string                     `json:"name" form:"name" binding:"required,max=255"`
-	Code         string                     `json:"code" form:"code" binding:"required,max=255"`
-	Brand        *models.AssociatedBrand    `json:"brand" form:"brand"`
-	Category     *models.AssociatedCategory `json:"category" form:"category"`
-	Attributes   []*models.ProductAttribute `json:"attributes" form:"attributes"`
-	Options      []*models.ProductOption    `json:"options" form:"options"`
-	Items        []*models.Item             `json:"items"`
-	Description  string                     `json:"description"`
-	Price        int64                      `json:"price"`
-	FakeSalesQty int64                      `json:"fake_sales_qty" form:"fake_sales_qty"`
-	Images       []qiniu.Image              `json:"images" form:"images"`
-	OnSale       bool                       `json:"on_sale" form:"on_sale"`
-	Sort         int64                      `json:"sort" form:"sort"`
+	Name         string                       `json:"name" form:"name" binding:"required,max=255"`
+	Code         string                       `json:"code" form:"code" binding:"required,max=255"`
+	Brand        *models.AssociatedBrand      `json:"brand" form:"brand"`
+	Category     *models.AssociatedCategory   `json:"category" form:"category"`
+	Attributes   []*models.ProductAttribute   `json:"attributes" form:"attributes"`
+	Options      []*productOptionCreateOption `json:"options" form:"options"`
+	Items        []*productItemCreateOption   `json:"items"`
+	Description  string                       `json:"description"`
+	Price        int64                        `json:"price"`
+	FakeSalesQty int64                        `json:"fake_sales_qty" form:"fake_sales_qty"`
+	Images       []qiniu.Image                `json:"images" form:"images"`
+	OnSale       bool                         `json:"on_sale" form:"on_sale"`
+	Sort         int64                        `json:"sort" form:"sort"`
+}
+
+type productOptionCreateOption struct {
+	Id     string                            `json:"id" form:"id"`
+	Uid    int                               `json:"uid" form:"uid"`
+	Name   string                            `json:"name" form:"name"`
+	Image  bool                              `json:"image" form:"image"`
+	Values []*productOptionValueCreateOption `json:"values" form:"values"`
+}
+
+type productOptionValueCreateOption struct {
+	Id    string       `json:"id" form:"id"`
+	Uid   int          `json:"uid" form:"uid"`
+	Name  string       `json:"name" form:"name"`
+	Image *qiniu.Image `json:"image" form:"image"`
+}
+
+type productItemCreateOption struct {
+	Id           string                            `json:"id"`
+	Code         string                            `json:"code"`
+	Price        int64                             `json:"price,omitempty"`
+	OptionValues []*productOptionValueCreateOption `json:"option_values" form:"option_values" `
+	OnSale       bool                              `json:"on_sale" form:"on_sale"` // 上/下架 受product影响
+	Qty          int64                             `json:"qty" `                   // 可售数量
 }
 
 // 创建
@@ -251,30 +282,90 @@ func (this *ProductService) Create(ctx context.Context, opt ProductCreateOption)
 		Code:         opt.Code,
 		Brand:        opt.Brand,
 		Category:     opt.Category,
-		Options:      opt.Options,
 		Attributes:   opt.Attributes,
 		Description:  opt.Description,
 		Price:        opt.Price,
 		FakeSalesQty: opt.FakeSalesQty,
 		Images:       images,
 		OnSale:       opt.OnSale,
-		Items:        opt.Items,
+	}
+	model.SetAvatar()
+	// uid => option
+	optionMaps := map[int]*models.ProductOption{}
+	valuesMaps := map[int]*models.OptionValue{}
+	for _, o := range opt.Options {
+		option := models.NewProductOption(o.Name)
+		option.Image = o.Image
+		for _, value := range o.Values {
+			optionValue := option.NewValue(value.Name)
+			if value.Image != nil {
+				optionValue.Image = value.Image
+			}
+			valuesMaps[value.Uid] = optionValue
+			option.AddValues(optionValue)
+		}
+		optionMaps[o.Uid] = option
+		model.Options = append(model.Options, option)
+	}
+	var items []*models.Item
+	for _, item := range opt.Items {
+		newItem := &models.Item{
+			Code:   item.Code,
+			Price:  item.Price,
+			OnSale: item.OnSale,
+			Qty:    item.Qty,
+		}
+		for _, value := range item.OptionValues {
+			if optVal, ok := valuesMaps[value.Uid]; ok {
+				newItem.OptionValues = append(newItem.OptionValues, optVal)
+			}
+		}
+		newItem.OnSale = model.OnSale
+		items = append(items, newItem)
 	}
 
-	created := <-this.rep.Create(ctx, model)
-	if created.Error != nil {
-		err = created.Error
+	// 开启事务
+	var session mongo.Session
+	if session, err = mongodb.GetConFn().Client().StartSession(); err != nil {
 		return
 	}
-	return created.Result.(*models.Product), nil
+	if err = session.StartTransaction(); err != nil {
+		return
+	}
+
+	err = mongo.WithSession(ctx, session, func(sessionContext mongo.SessionContext) error {
+		created := <-this.rep.Create(sessionContext, model)
+		if created.Error != nil {
+			spew.Dump("created Product Error", created.Error)
+			session.AbortTransaction(sessionContext)
+			return created.Error
+		}
+		product = created.Result.(*models.Product)
+
+		for _, item := range items {
+			item.Product = product.ToAssociated()
+			item.SetAvatar()
+		}
+		// 创建items
+		newItems, err := this.itemRep.CreateMany(sessionContext, items)
+		if err != nil {
+			spew.Dump("item create many error:", err)
+			session.AbortTransaction(sessionContext)
+			return err
+		}
+
+		product.Items = newItems
+		session.CommitTransaction(sessionContext)
+		return nil
+	})
+	session.EndSession(ctx)
+	return
 }
 
 // 更新
 func (this *ProductService) Update(ctx context.Context, model *models.Product, opt ProductCreateOption) (product *models.Product, err error) {
 	model.Name = opt.Name
 	model.Brand = opt.Brand
-	model.Items = opt.Items
-	model.Options = opt.Options
 	model.Attributes = opt.Attributes
 	model.Description = opt.Description
 	model.Price = opt.Price
@@ -282,12 +373,134 @@ func (this *ProductService) Update(ctx context.Context, model *models.Product, o
 	model.Images = opt.Images
 	model.OnSale = opt.OnSale
 
-	saved := <-this.rep.Save(ctx, model)
-
-	if saved.Error != nil {
-		return nil, saved.Error
+	model.Options = []*models.ProductOption{}
+	// uid => option
+	optionMaps := map[int]*models.ProductOption{}
+	valuesMaps := map[int]*models.OptionValue{}
+	for _, o := range opt.Options {
+		var option *models.ProductOption
+		if o.Id != "" {
+			option = models.MakeProductOption(o.Id, o.Name)
+		} else {
+			option = models.NewProductOption(o.Name)
+		}
+		option.Image = o.Image
+		for _, value := range o.Values {
+			var optionValue *models.OptionValue
+			if value.Id != "" {
+				optionValue = option.MakeValue(value.Id, value.Name)
+			} else {
+				optionValue = option.NewValue(value.Name)
+			}
+			if value.Image != nil {
+				optionValue.Image = value.Image
+			}
+			valuesMaps[value.Uid] = optionValue
+			option.AddValues(optionValue)
+		}
+		optionMaps[o.Uid] = option
+		model.Options = append(model.Options, option)
 	}
-	return saved.Result.(*models.Product), nil
+
+	model.SetAvatar()
+	var newItems models.Items
+
+	res := <-this.itemRep.FindByProductId(ctx, model.GetID())
+	if res.Error != nil {
+		err = res.Error
+		return
+	}
+	productItems := models.Items(res.Result.([]*models.Item))
+	for _, item := range opt.Items {
+		var newItem *models.Item
+		if item.Id != "" {
+			find := productItems.FindById(item.Id)
+			if find != nil {
+				find.OptionValues = []*models.OptionValue{}
+				newItem = find
+			} else {
+				newItem = models.NewItem()
+			}
+		} else {
+			newItem = models.NewItem()
+		}
+
+		newItem.Product = model.ToAssociated()
+		newItem.Qty = item.Qty
+		newItem.Price = item.Price
+		newItem.Code = item.Code
+
+		for _, value := range item.OptionValues {
+			if optVal, ok := valuesMaps[value.Uid]; ok {
+				newItem.OptionValues = append(newItem.OptionValues, optVal)
+			}
+		}
+		newItem.SetAvatar()
+		newItem.OnSale = model.OnSale
+		newItems = append(newItems, newItem)
+	}
+
+	// 被移除的item
+	var deleteItemIds []string
+	for _, item := range model.Items {
+		if newItems.FindById(item.GetID()) == nil {
+			deleteItemIds = append(deleteItemIds, item.GetID())
+		}
+	}
+
+	// 开启事务
+	var session mongo.Session
+	if session, err = mongodb.GetConFn().Client().StartSession(); err != nil {
+		return
+	}
+	if err = session.StartTransaction(); err != nil {
+		return
+	}
+
+	err = mongo.WithSession(ctx, session, func(sessionContext mongo.SessionContext) error {
+
+		// 更新产品
+		saved := <-this.rep.Save(sessionContext, model)
+		if saved.Error != nil {
+			session.AbortTransaction(sessionContext)
+			return saved.Error
+		}
+		product = saved.Result.(*models.Product)
+		product.Items = []*models.Item{}
+		// 更新变体
+		for _, item := range newItems {
+			if item.ID.IsZero() {
+				// 新增变体
+				created := <-this.itemRep.Create(sessionContext, item)
+				if created.Error != nil {
+					log.Printf("update product %s add item error:%s", product.GetID(), created.Error)
+					session.AbortTransaction(sessionContext)
+					return created.Error
+				}
+				product.Items = append(product.Items, created.Result.(*models.Item))
+			} else {
+				saved := <-this.itemRep.Save(sessionContext, item)
+				if saved.Error != nil {
+					log.Printf("update product %s save item[%s] error:%s", product.GetID(), item.GetID(), saved.Error)
+					session.AbortTransaction(sessionContext)
+					return saved.Error
+				}
+				product.Items = append(product.Items, saved.Result.(*models.Item))
+			}
+		}
+
+		// 删除变体
+		if err = <-this.itemRep.DeleteMany(sessionContext, deleteItemIds...); err != nil {
+			session.AbortTransaction(sessionContext)
+			return err
+		}
+
+		session.CommitTransaction(sessionContext)
+		return nil
+	})
+
+	session.EndSession(ctx)
+	return
 }
 
 // 详情
@@ -321,4 +534,9 @@ func (this *ProductService) Restore(ctx context.Context, id string) (product *mo
 		return nil, restored.Error
 	}
 	return restored.Result.(*models.Product), nil
+}
+
+// 所有OptionName
+func (this *ProductService) AvailableOptionNames(ctx context.Context) (names []string) {
+	return this.rep.AvailableOptionNames(ctx)
 }

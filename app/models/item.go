@@ -65,9 +65,9 @@ func (this Item) ToAssociated() *AssociatedItem {
 func (this *Item) OptionValueString() string {
 	var opts []string
 	for _, opt := range this.OptionValues {
-		opts = append(opts,opt.Name)
+		opts = append(opts, opt.Name)
 	}
-	return strings.Join(opts,"/")
+	return strings.Join(opts, "/")
 }
 
 // 添加销售属性值
@@ -88,4 +88,15 @@ func (this *Item) optionValueExist(ov *OptionValue) (exist bool, index int) {
 		}
 	}
 	return false, -1
+}
+
+type Items []*Item
+
+func (i Items) FindById(id string) *Item {
+	for _, item := range i {
+		if item.GetID() == id {
+			return item
+		}
+	}
+	return NewItem()
 }

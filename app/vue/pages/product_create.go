@@ -3,6 +3,7 @@ package pages
 import (
 	"context"
 	"fmt"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/gin-gonic/gin"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/services"
@@ -71,6 +72,11 @@ func (this *productCreatePage) getCategories(ctx context.Context) ([]*models.Cat
 }
 
 func (this *productCreatePage) HttpHandles(router gin.IRouter) {
+	// 可选销售属性名称
+	router.GET("creation-info/products/options", func(ctx *gin.Context) {
+		names := this.productService.AvailableOptionNames(ctx)
+		ctx.JSON(http.StatusOK, names)
+	})
 	// 创建产品关联数据
 	router.GET("creation-info/products", func(c *gin.Context) {
 		if !this.AuthorizedTo(c, ctx.GetUser(c).(auth.Authenticatable)) {
@@ -107,8 +113,8 @@ func (this *productCreatePage) HttpHandles(router gin.IRouter) {
 			return
 		}
 
-
 		product, err := this.productService.Create(c, option)
+		spew.Dump(err)
 		if err != nil {
 			err2.ErrorEncoder(nil, err, c.Writer)
 			return

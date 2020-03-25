@@ -46,6 +46,13 @@ func (this *ProductOption) NewValue(name string) *OptionValue {
 	}
 }
 
+func (this *ProductOption) MakeValue(id string, name string) *OptionValue {
+	return &OptionValue{
+		Id:   id,
+		Name: name,
+	}
+}
+
 func (this *ProductOption) AddValues(values ...*OptionValue) *ProductOption {
 	for _, value := range values {
 		if optionValue, b := this.findValueById(value.Id); b {
@@ -110,6 +117,10 @@ func (this *OptionValue) Equal(value *OptionValue) bool {
 }
 
 func (this *OptionValue) SetImage(url string) *OptionValue {
+	if url == "" {
+		this.Image = nil
+		return this
+	}
 	image := qiniu.NewImage(url)
 	this.Image = &image
 	return this

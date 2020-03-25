@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"github.com/davecgh/go-spew/spew"
 	"go-shop-v2/app/models"
 	"go-shop-v2/pkg/db/mongodb"
 	err2 "go-shop-v2/pkg/err"
@@ -58,4 +59,13 @@ func TestProductRep_Create(t *testing.T) {
 		return err2.Err401
 	})
 	session.EndSession(ctx)
+}
+
+func TestProductRep_AvailableOptionNames(t *testing.T) {
+	mongodb.TestConnect()
+	defer mongodb.Close()
+
+	productRep := MakeProductRep()
+	names := productRep.AvailableOptionNames(context.Background())
+	spew.Dump(names)
 }
