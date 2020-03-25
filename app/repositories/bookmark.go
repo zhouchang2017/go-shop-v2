@@ -40,6 +40,9 @@ func (this *BookmarkRep) Index(ctx context.Context, userId string, page int64, p
 	}))
 
 	if result.Err() != nil {
+		if result.Err() == mongo.ErrNoDocuments {
+			return
+		}
 		err = result.Err()
 		return
 	}

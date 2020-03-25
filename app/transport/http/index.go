@@ -4,8 +4,11 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/gin-gonic/gin"
 	"go-shop-v2/app/services"
+	"go-shop-v2/app/usecases"
+	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/request"
 	"math"
+	"net/http"
 	"sort"
 )
 
@@ -126,50 +129,36 @@ func (this *IndexController) Topic(ctx *gin.Context) {
 	Response(ctx, topic, 200)
 }
 
-// product detail
-func (this *IndexController) Product(ctx *gin.Context) {
+// topic relation products
+// api /topics/:id/products?page=1
+func (this *IndexController) TopicProducts(ctx *gin.Context) {
 	id := ctx.Param("id")
-	product, err := this.productSrv.FindByIdWithItems(ctx, id)
+	if id == "" {
+		ResponseError(ctx, err2.Err422.F("缺少id参数"))
+		return
+	}
+	var option request.IndexRequest
+	var page int64
+	var perPage int64 = 15
+	err := ctx.ShouldBind(&option)
+	if err == nil {
+		page = option.GetPage()
+		perPage = option.GetPerPage()
+	}
+	data, pagination, err := usecases.TopicProductPagination(ctx, id, page, perPage, this.topicSrv, this.productSrv)
 	if err != nil {
-		// err
-		spew.Dump(err)
+		ResponseError(ctx, err)
+		return
 	}
-
-	var items []map[string]interface{}
-	var qty int64
-	for _, item := range product.Items {
-		items = append(items, map[string]interface{}{
-			"id":              item.GetID(),
-			"code":            item.Code,
-			"price":           item.Price,
-			"promotion_price": item.PromotionPrice,
-			"option_values":   item.OptionValues,
-			"qty":             item.Qty,
-			"avatar":          item.GetAvatar(),
-		})
-		qty += item.Qty
+	for _, product := range data {
+		product.WithMeta("type", product.GetType())
+		product.TotalSalesQty += product.FakeSalesQty
+		product.FakeSalesQty = 0
 	}
-
-	productResponse := map[string]interface{}{
-		"id":              product.GetID(),
-		"name":            product.Name,
-		"code":            product.Code,
-		"brand":           product.Brand,
-		"category":        product.Category,
-		"attributes":      product.Attributes,
-		"options":         product.Options,
-		"items":           items,
-		"description":     product.Description,
-		"price":           product.Price,
-		"promotion_price": product.PromotionPrice,
-		"images":          product.Images,
-		"total_sales_qty": product.TotalSalesQty + product.FakeSalesQty,
-		"on_sale":         product.OnSale,
-		"sort":            product.Sort,
-		"qty":             qty,
-	}
-
-	Response(ctx, productResponse, 200)
+	Response(ctx, gin.H{
+		"data":       data,
+		"pagination": pagination,
+	}, http.StatusOK)
 }
 
 // product 简约接口，获取 主图，标题，价格，等

@@ -19,13 +19,18 @@ func NewTopicService(rep *repositories.TopicRep) *TopicService {
 }
 
 // 列表
-func (this *TopicService) Pagination(ctx context.Context, req *request.IndexRequest) (articles []*models.Topic, pagination response.Pagination, err error) {
+func (this *TopicService) Pagination(ctx context.Context, req *request.IndexRequest) (topics []*models.Topic, pagination response.Pagination, err error) {
 	results := <-this.rep.Pagination(ctx, req)
 	if results.Error != nil {
 		err = results.Error
 		return
 	}
 	return results.Result.([]*models.Topic), results.Pagination, nil
+}
+
+// 话题产品分页
+func (this *TopicService) ProductsPagination(ctx context.Context, id string, page int64, perPage int64) (ids []string, pagination response.Pagination, err error) {
+	return this.rep.Products(ctx, id, page, perPage)
 }
 
 // 总计数量
@@ -38,7 +43,7 @@ func (this *TopicService) Count(ctx context.Context) int64 {
 }
 
 // 简单列表
-func (this *TopicService) SimplePagination(ctx context.Context, page int64, perPage int64) (articles []*models.Topic, pagination response.Pagination, err error) {
+func (this *TopicService) SimplePagination(ctx context.Context, page int64, perPage int64) (topics []*models.Topic, pagination response.Pagination, err error) {
 	results := <-this.rep.Pagination(ctx, &request.IndexRequest{
 		Page:           page,
 		PerPage:        perPage,
@@ -54,12 +59,12 @@ func (this *TopicService) SimplePagination(ctx context.Context, page int64, perP
 
 // 表单结构
 type TopicOption struct {
-	Title      string   `json:"title"`
-	ShortTitle string   `json:"short_title" mapstructure:"short_title"`
-	Avatar     qiniu.Image   `json:"avatar"`
-	Content    string   `json:"content"`
-	ProductIds []string `json:"product_ids" mapstructure:"product_ids"`
-	Sort       int64    `json:"sort"`
+	Title      string      `json:"title"`
+	ShortTitle string      `json:"short_title" mapstructure:"short_title"`
+	Avatar     qiniu.Image `json:"avatar"`
+	Content    string      `json:"content"`
+	ProductIds []string    `json:"product_ids" mapstructure:"product_ids"`
+	Sort       int64       `json:"sort"`
 }
 
 // 创建话题
@@ -110,7 +115,7 @@ func (this *TopicService) Delete(ctx context.Context, id string) (err error) {
 }
 
 // 还原
-func (this *TopicService) Restore(ctx context.Context, id string) (article *models.Topic, err error) {
+func (this *TopicService) Restore(ctx context.Context, id string) (topic *models.Topic, err error) {
 	restored := <-this.rep.Restore(ctx, id)
 	if restored.Error != nil {
 		return nil, restored.Error

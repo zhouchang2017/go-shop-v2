@@ -43,6 +43,9 @@ func Register(app *gin.Engine) {
 	// 话题详情
 	v1.GET("/topics/:id", indexController.Topic)
 
+	// 话题产品分页
+	v1.GET("/topics/:id/products", indexController.TopicProducts)
+
 	productController := &ProductController{
 		productSrv:   services.MakeProductService(),
 		promotionSrv: services.MakePromotionService(),
