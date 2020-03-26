@@ -38,6 +38,7 @@ require (
 	golang.org/x/sys v0.0.0-20191210023423-ac6580df4449 // indirect
 	gopkg.in/go-playground/assert.v1 v1.2.1
 	gopkg.in/go-playground/validator.v9 v9.30.2
+	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df
 	gopkg.in/yaml.v2 v2.2.7 // indirect
 	qiniupkg.com/x v7.0.8+incompatible // indirect
 )

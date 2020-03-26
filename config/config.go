@@ -1,6 +1,7 @@
 package config
 
 import (
+	"go-shop-v2/app/email"
 	"go-shop-v2/pkg/cache/redis"
 	"go-shop-v2/pkg/db/mongodb"
 	"go-shop-v2/pkg/db/mysql"
@@ -27,6 +28,7 @@ type config struct {
 	MysqlCfg     mysql.Config     `json:"mysql_config"`
 	RedisCfg     redis.Config     `json:"redis_config"`
 	QiniuCfg     qiniu.Config     `json:"qiniu_config"`
+	EmailCfg     email.Config     `json:"email_config"`
 }
 
 func NewConfig() *config {

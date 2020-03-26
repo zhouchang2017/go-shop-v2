@@ -6,7 +6,9 @@ import (
 	"flag"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"go-shop-v2/app/email"
 	"go-shop-v2/app/lbs"
+	"go-shop-v2/app/listeners"
 	"go-shop-v2/app/services"
 	http2 "go-shop-v2/app/transport/http"
 	"go-shop-v2/config"
@@ -28,6 +30,7 @@ var configPathFlag = flag.String("c", ".config", "get the file path for config t
 const PORT = 8081
 
 func main() {
+
 	// parse flag
 	flag.Parse()
 
@@ -69,6 +72,9 @@ func main() {
 	redis.Connect(configs.RedisConfig())
 	defer redis.Close()
 
+	// 邮件服务
+	email.New(configs.EmailCfg)
+
 	// 微信skd
 	wechat.NewSDK(configs.WeappConfig)
 	// 微信支付
@@ -89,6 +95,9 @@ func main() {
 			services.MakeUserService(),
 		)
 	})
+
+	// 注册事件监听者
+	listeners.FrontEndBoot(mq)
 
 	app := gin.New()
 	app.Use(gin.Logger())
@@ -114,6 +123,9 @@ func main() {
 		}
 	}()
 
+	ctx2, cancelFunc := context.WithCancel(context.Background())
+	mq.Run(ctx2)
+
 	// 等待中断信号以优雅地关闭服务器（设置 5 秒的超时时间）
 	quit := make(chan os.Signal)
 	signal.Notify(quit, os.Interrupt)
@@ -122,6 +134,7 @@ func main() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+	defer cancelFunc()
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Fatal("Server Shutdown:", err)
 	}

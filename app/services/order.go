@@ -144,6 +144,11 @@ func (srv *OrderService) FindById(ctx context.Context, id string) (order *models
 	return results.Result.(*models.Order), nil
 }
 
+// 通过订单号查询订单
+func (srv *OrderService) FindByNo(ctx context.Context, no string) (order *models.Order, err error) {
+	return srv.orderRep.FindByOrderNo(ctx, no)
+}
+
 // 状态查询
 func (srv *OrderService) GetOrderStatus(ctx context.Context, id string) (status int, err error) {
 	return srv.orderRep.GetOrderStatus(ctx, id)

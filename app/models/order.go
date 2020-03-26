@@ -251,6 +251,10 @@ type OrderItem struct {
 	PromotionInfo *ItemPromotionInfo `json:"promotion_info" bson:"promotion_info"` // 冗余促销信息
 }
 
+func (o *OrderItem) TotalAmount() int64 {
+	return o.Amount * o.Count
+}
+
 // 发货选项结构
 type LogisticsOption struct {
 	NoDelivery bool             `json:"no_delivery" form:"no_delivery"` // 无需物流
@@ -385,4 +389,3 @@ func (l *Logistics) addItem(itemId string, count int64, shopId string) error {
 	l.UpdatedAt = time.Now()
 	return nil
 }
-

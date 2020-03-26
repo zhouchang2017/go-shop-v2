@@ -19,6 +19,10 @@ type UserAddress struct {
 	IsDefault        bool   `json:"is_default" bson:"is_default"`
 }
 
+func (this UserAddress) String() string {
+	return fmt.Sprintf("%s %s %s%s%s%s", this.ContactName, this.ContactPhone, this.Province, this.City, this.Areas, this.Addr)
+}
+
 func (this UserAddress) AddressString() string {
 	return fmt.Sprintf("%s%s%s%s", this.Province, this.City, this.Areas, this.Addr)
 }

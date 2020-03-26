@@ -49,8 +49,8 @@ func (paymentOpt *PaymentOption) IsValid() error {
 }
 
 type RefundOption struct {
-	OrderId        string `json:"order_id" form:"order_id" binding:"required"`
-	OrderNo        string `json:"order_no" form:"order_no" binding:"required"`
+	OrderId string `json:"order_id" form:"order_id" binding:"required"`
+	OrderNo string `json:"order_no" form:"order_no" binding:"required"`
 }
 
 func (refundOpt *RefundOption) IsValid() error {
@@ -135,12 +135,12 @@ func (srv *PaymentService) setUnifiedOrderOption(order *models.Order, openId str
 }
 
 // 支付回调
-func (srv *PaymentService) PayNotify(ctx context.Context, req *http.Request) (err error) {
+func (srv *PaymentService) PayNotify(ctx context.Context, req *http.Request) (orderNumber string, err error) {
 
 	// parse
 	notifyReq, err := wechat.Pay.ParseNotifyResult(req)
 	if err != nil {
-		return err
+		return "", err
 	}
 	spew.Dump(notifyReq)
 	// deal with
@@ -150,10 +150,10 @@ func (srv *PaymentService) PayNotify(ctx context.Context, req *http.Request) (er
 	// 开启事务
 	var session mongo.Session
 	if session, err = mongodb.GetConFn().Client().StartSession(); err != nil {
-		return err
+		return "", err
 	}
 	if err = session.StartTransaction(); err != nil {
-		return err
+		return "", err
 	}
 	err = mongo.WithSession(ctx, session, func(sessionContext mongo.SessionContext) error {
 		// get order information
@@ -228,6 +228,9 @@ func (srv *PaymentService) PayNotify(ctx context.Context, req *http.Request) (er
 			// return
 			//log.Println("update order xxx to success status success")
 			session.CommitTransaction(sessionContext)
+
+			// 新标记订单为支付状态，返回订单号
+			orderNumber = orderNo
 			return nil
 		} else {
 			session.AbortTransaction(sessionContext)
@@ -237,7 +240,7 @@ func (srv *PaymentService) PayNotify(ctx context.Context, req *http.Request) (er
 
 	session.EndSession(ctx)
 	// return
-	return err
+	return orderNumber, err
 }
 
 // refund

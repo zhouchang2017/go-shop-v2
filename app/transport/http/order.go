@@ -3,10 +3,12 @@ package http
 import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/gin-gonic/gin"
+	"go-shop-v2/app/events"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/services"
 	ctx2 "go-shop-v2/pkg/ctx"
 	err2 "go-shop-v2/pkg/err"
+	"go-shop-v2/pkg/message"
 	"go-shop-v2/pkg/request"
 	"net/http"
 	"strconv"
@@ -79,6 +81,8 @@ func (ctrl *OrderController) Store(ctx *gin.Context) {
 		ResponseError(ctx, err)
 		return
 	}
+
+	message.Dispatch(events.NewOrderCreatedEvent(order))
 	Response(ctx, order, http.StatusOK)
 }
 

@@ -62,7 +62,15 @@ func (this Item) ToAssociated() *AssociatedItem {
 	}
 }
 
-func (this *Item) OptionValueString() string {
+func (this AssociatedItem) OptionValueString() string {
+	var opts []string
+	for _, opt := range this.OptionValues {
+		opts = append(opts, opt.Name)
+	}
+	return strings.Join(opts, "/")
+}
+
+func (this Item) OptionValueString() string {
 	var opts []string
 	for _, opt := range this.OptionValues {
 		opts = append(opts, opt.Name)

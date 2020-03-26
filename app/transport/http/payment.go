@@ -5,9 +5,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/iGoogle-ink/gopay"
 	"github.com/iGoogle-ink/gopay/wechat"
+	"go-shop-v2/app/events"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/services"
 	ctx2 "go-shop-v2/pkg/ctx"
+	"go-shop-v2/pkg/message"
 	"net/http"
 )
 
@@ -36,7 +38,7 @@ func (p *PaymentController) UnifiedOrder(ctx *gin.Context) {
 
 // 回调
 func (p *PaymentController) PayNotify(ctx *gin.Context) {
-	err := p.paymentSrv.PayNotify(ctx, ctx.Request)
+	orderOn, err := p.paymentSrv.PayNotify(ctx, ctx.Request)
 	spew.Dump("支付回调异常:")
 	spew.Dump(err)
 	rsp := new(wechat.NotifyResponse) // 回复微信的数据
@@ -46,6 +48,13 @@ func (p *PaymentController) PayNotify(ctx *gin.Context) {
 		ResponseXML(ctx, rsp, http.StatusOK)
 		return
 	}
+
+	// 支付成功，如果该订单已经被标记为支付状态，则不返回订单号
+	if orderOn != "" {
+		// 订单支付成功事件
+		message.Dispatch(events.NewOrderPaidEvent(orderOn))
+	}
+
 	rsp.ReturnCode = gopay.SUCCESS
 	rsp.ReturnMsg = gopay.OK
 	ResponseXML(ctx, rsp, http.StatusOK)

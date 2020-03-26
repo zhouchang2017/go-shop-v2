@@ -11,3 +11,9 @@ func Boot(mq *message.RabbitMQ) {
 	mq.Register(NewShopUpdatedSyncAssociatedAdmin())
 	//mq.Register(NewTimeOutCloseInventoryAction())
 }
+
+// 前端事件注册
+func FrontEndBoot(mq *message.RabbitMQ) {
+	mq.Register(NewOnOrderCreatedListener()) // 新订单
+	mq.Register(NewOnOrderPaidListener())    // 订单已付款
+}
