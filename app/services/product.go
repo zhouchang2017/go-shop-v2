@@ -440,9 +440,11 @@ func (this *ProductService) Update(ctx context.Context, model *models.Product, o
 		newItems = append(newItems, newItem)
 	}
 
+
+
 	// 被移除的item
 	var deleteItemIds []string
-	for _, item := range model.Items {
+	for _, item := range productItems {
 		if newItems.FindById(item.GetID()) == nil {
 			deleteItemIds = append(deleteItemIds, item.GetID())
 		}

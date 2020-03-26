@@ -98,5 +98,5 @@ func (i Items) FindById(id string) *Item {
 			return item
 		}
 	}
-	return NewItem()
+	return nil
 }

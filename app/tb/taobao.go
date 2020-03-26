@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"go-shop-v2/app/models"
 	err2 "go-shop-v2/pkg/err"
+	"go-shop-v2/pkg/qiniu"
 	"go-shop-v2/pkg/utils"
 	"io/ioutil"
 	"net/http"
@@ -81,7 +82,7 @@ func (this *tbResponseBody) GetProductOptions() []*models.ProductOption {
 				var hasImage bool
 				for _, value := range prop.Values {
 					image := value.Image
-					if (image != "") {
+					if image != "" {
 						if parse, err := url.Parse(image); err == nil {
 							hasImage = true
 							parse.Scheme = "https"
@@ -338,7 +339,9 @@ func (this *TaobaoSdkService) Detail(id string) (data *models.Product, err error
 
 		product.Name = res.Data.GetName()
 		// 图集
-		product.WithMeta("images", res.Data.GetImages())
+		for _, image := range res.Data.GetImages() {
+			product.Images = append(product.Images,qiniu.NewImage(image))
+		}
 		// 描述
 		if s, err := this.Description(id); err == nil {
 			product.Description = imgReg.ReplaceAllString(s, "src=\"https://img")
