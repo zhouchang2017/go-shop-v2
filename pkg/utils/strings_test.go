@@ -4,7 +4,6 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/inflection"
 	"testing"
-	"time"
 )
 
 func TestStructToName(t *testing.T) {
@@ -17,6 +16,8 @@ func TestStructToName(t *testing.T) {
 
 func TestStrToPlural(t *testing.T) {
 
-	spew.Dump(time.Now().Format("20060102150405"))
+	spew.Dump(StrPoint("orderCreated"))
+	spew.Dump(TodayEnd())
 }
+
 

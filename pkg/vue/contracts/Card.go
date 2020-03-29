@@ -5,4 +5,9 @@ type Card interface {
 	Width() string
 	ShowOnIndex() bool
 	ShowOnDetail() bool
+	Grid() bool
+}
+
+type MoreLink interface {
+	Link() VueRouterOption
 }

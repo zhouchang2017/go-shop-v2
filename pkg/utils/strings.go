@@ -30,6 +30,24 @@ func StrSlug(str string) string {
 	return string(bytes)
 }
 
+func StrPoint(str string) string  {
+	bytes := make([]byte, 0, len(str))
+	for index, ch := range str {
+		if unicode.IsUpper(ch) {
+			lower := unicode.ToLower(ch)
+			if index == 0 {
+				bytes = append(bytes, byte(lower))
+			} else {
+				bytes = append(bytes, '.')
+				bytes = append(bytes, byte(lower))
+			}
+		} else {
+			bytes = append(bytes, byte(ch))
+		}
+	}
+	return string(bytes)
+}
+
 func StrToSingular(str string) string {
 	return inflection.Singular(str)
 }
@@ -54,3 +72,20 @@ func StructToName(i interface{}) string {
 	return name
 }
 
+
+func SubString(str string, begin, length int) string {
+	rs := []rune(str)
+	lth := len(rs)
+	if begin < 0 {
+		begin = 0
+	}
+	if begin >= lth {
+		begin = lth
+	}
+	end := begin + length
+
+	if end > lth {
+		end = lth
+	}
+	return string(rs[begin:end])
+}

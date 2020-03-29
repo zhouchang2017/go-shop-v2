@@ -4,10 +4,8 @@ import (
 	"context"
 	"github.com/gin-gonic/gin"
 	"github.com/mitchellh/mapstructure"
-	"go-shop-v2/app/events"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/services"
-	"go-shop-v2/pkg/message"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"go-shop-v2/pkg/vue/contracts"
@@ -60,7 +58,7 @@ func (a *Admin) Store(ctx *gin.Context, data map[string]interface{}) (redirect s
 
 	// 同步门店
 	defer func() {
-		message.Dispatch(events.AdminCreated{Admin: admin})
+		// message.Dispatch(events.AdminCreated{Admin: admin})
 	}()
 
 	return core.CreatedRedirect(a, admin.GetID()), nil
@@ -94,7 +92,7 @@ func (a *Admin) Update(ctx *gin.Context, model interface{}, data map[string]inte
 	}
 
 	defer func() {
-		message.Dispatch(events.AdminUpdated{Admin: admin2})
+		// message.Dispatch(events.AdminUpdated{Admin: admin2})
 	}()
 
 	return core.UpdatedRedirect(a, admin2.GetID()), nil

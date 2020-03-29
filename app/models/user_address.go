@@ -51,6 +51,10 @@ type AssociatedUserAddress struct {
 	Addr         string `json:"addr"`
 }
 
+func (this AssociatedUserAddress) String() string {
+	return fmt.Sprintf("%s %s %s%s%s%s", this.ContactName, this.ContactPhone, this.Province, this.City, this.Areas, this.Addr)
+}
+
 func (this AssociatedUserAddress) AddressString() string {
 	return fmt.Sprintf("%s%s%s%s", this.Province, this.City, this.Areas, this.Addr)
 }

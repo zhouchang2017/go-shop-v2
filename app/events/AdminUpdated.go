@@ -10,17 +10,6 @@ type AdminUpdated struct {
 	Admin *models.Admin
 }
 
-func (AdminUpdated) ExchangeName() string {
-	return "admin.updated"
-}
-
-func (AdminUpdated) ExchangeType() string {
-	return "fanout"
-}
-
-func (AdminUpdated) RoutingKey() string {
-	return "admin.updated"
-}
 
 func (this AdminUpdated) Body() []byte {
 	bytes, _ := json.Marshal(this.Admin)

@@ -96,7 +96,7 @@ func (this *RabbitMQ) Dispatch(event Event) {
 	log.Println("=========Dispatch Event=========")
 	log.Printf("Event Name:%s\n", this.eventName(event))
 	log.Printf("Delay:%s\n", event.Delay())
-	log.Printf("Exchange Name:%s\n", exchangeName)
+	log.Printf("exchange Name:%s\n", exchangeName)
 	log.Printf("Routing Key:%s\n", routingKey)
 	log.Printf("Payload:%s\n", event.Body())
 	log.Printf("\n")
@@ -152,8 +152,8 @@ func (this *RabbitMQ) initialize(ctx context.Context) {
 		failOnError(err, "Failed to declare an exchange")
 
 		log.Println("=========Queue Declare=========")
-		log.Printf("Exchange Name:%s\n", event.ExchangeName())
-		log.Printf("Exchange Type:%s\n", event.ExchangeType())
+		log.Printf("exchange Name:%s\n", event.ExchangeName())
+		log.Printf("exchange Type:%s\n", event.ExchangeType())
 		log.Printf("\n")
 
 		// 注册延时队列

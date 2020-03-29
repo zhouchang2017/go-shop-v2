@@ -5,8 +5,11 @@ import (
 	"go-shop-v2/pkg/db/model"
 	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/utils"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"reflect"
+	"strconv"
 	"time"
+	"unicode/utf8"
 )
 
 const (
@@ -35,9 +38,91 @@ type Order struct {
 	Logistics        []*Logistics           `json:"logistics" name:"物流信息"`
 	Payment          *AssociatedPayment     `json:"payment" name:"支付信息"`
 	Status           int                    `json:"status" name:"订单状态"`
-	PromotionInfo    *PromotionOverView     `json:"promotion_info" bson:"promotion_info"` // 促销信息
-	ShipmentsAt      *time.Time             `json:"shipments_at" bson:"shipments_at"`     // 发货时间
-	CommentedAt      *time.Time             `json:"commented_at" bson:"commented_at"`     // 评价时间
+	PromotionInfo    *PromotionOverView     `json:"promotion_info" bson:"promotion_info"`                 // 促销信息
+	ShipmentsAt      *time.Time             `json:"shipments_at" bson:"shipments_at"`                     // 发货时间
+	CommentedAt      *time.Time             `json:"commented_at" bson:"commented_at"`                     // 评价时间
+	CloseReason      *string                `json:"close_reason,omitempty" bson:"close_reason,omitempty"` // 订单取消原因
+}
+
+type AggregateOrderItem struct {
+	OrderId       primitive.ObjectID `json:"order_id" bson:"order_id"`
+	CreatedAt     time.Time          `json:"created_at" bson:"created_at"`
+	UpdatedAt     time.Time          `json:"updated_at" bson:"updated_at"`
+	OrderNo       string             `json:"order_no" bson:"order_no" name:"订单号"`
+	ItemCount     int64              `json:"item_count" bson:"item_count" name:"订单商品数量"`
+	OrderAmount   uint64             `json:"order_amount" bson:"order_amount" name:"订单金额,单位分"`
+	ActualAmount  uint64             `json:"actual_amount" bson:"actual_amount" name:"实付金额,单"`
+	OrderItem     *OrderItem         `json:"order_item" bson:"order_item"`
+	Logistics     *Logistics         `json:"logistics" name:"物流信息"`
+	Payment       *AssociatedPayment `json:"payment" name:"支付信息"`
+	Status        int                `json:"status" name:"订单状态"`
+	PromotionInfo *PromotionOverView `json:"promotion_info" bson:"promotion_info"` // 促销信息
+	ShipmentsAt   *time.Time         `json:"shipments_at" bson:"shipments_at"`     // 发货时间
+	CommentedAt   *time.Time         `json:"commented_at" bson:"commented_at"`     // 评价时间
+}
+
+// 订单状态
+func (o Order) StatusText() string {
+	switch o.Status {
+	case OrderStatusFailed:
+		return "已关闭"
+	case OrderStatusPrePay:
+		return "待付款"
+	case OrderStatusPaid:
+		return "支付成功"
+	case OrderStatusPreSend:
+		return "等待发货"
+	case OrderStatusPreConfirm:
+		return "已发货"
+	case OrderStatusDone:
+		return "交易完成"
+	case OrderStatusPreEvaluate:
+		return "待评价"
+	}
+	return "N/A"
+}
+
+// 设置关闭理由
+func (o *Order) SetCloseReason(reason string) {
+	if reason == "" {
+		reason = "交易超时自动关闭"
+	}
+	o.CloseReason = &reason
+}
+
+// 获取订单支付金额
+func (o Order) GetActualAmount() string {
+	amount := float64(o.ActualAmount) / 100
+	float := strconv.FormatFloat(amount, 'f', 2, 64)
+	return fmt.Sprintf("￥%s", float)
+}
+
+// 获取订单商品名称
+func (o Order) GoodsName(limit int) string {
+	if len(o.OrderItems) > 1 {
+		name := o.OrderItems[0].Item.Product.Name
+		if limit == -1 {
+			return fmt.Sprintf("%s(等商品)", name)
+		}
+		if utf8.RuneCountInString(name) > limit-8 {
+			subString := utils.SubString(name, 0, limit-8)
+			return fmt.Sprintf("%s...(等商品)", subString)
+		}
+		return fmt.Sprintf("%s(等商品)", name)
+	}
+	name := o.OrderItems[0].Item.Product.Name
+	if limit == -1 {
+		return fmt.Sprintf("%s", name)
+	}
+	if utf8.RuneCountInString(name) > limit-3 {
+		subString := utils.SubString(name, 0, limit-3)
+		return fmt.Sprintf("%s...", subString)
+	}
+	return fmt.Sprintf("%s", name)
+}
+
+func (o *Order) StatusIsFailed() bool {
+	return o.Status == OrderStatusFailed
 }
 
 // 状态设置为取消
@@ -388,4 +473,9 @@ func (l *Logistics) addItem(itemId string, count int64, shopId string) error {
 	})
 	l.UpdatedAt = time.Now()
 	return nil
+}
+
+type OrderCountByStatus struct {
+	Status int   `json:"status" bson:"_id"`
+	Count  int64 `json:"count"`
 }

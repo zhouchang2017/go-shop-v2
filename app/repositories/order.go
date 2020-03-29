@@ -18,6 +18,37 @@ type OrderRep struct {
 	repository.IRepository
 }
 
+// 根据状态统计
+func (this *OrderRep) CountByStatus(ctx context.Context, status int) (count int64, err error) {
+	result := <-this.Count(ctx,
+		bson.M{
+			"status": status,
+		})
+	if result.Error != nil {
+		return 0, result.Error
+	}
+	return result.Result, nil
+}
+
+// 根据状态聚合统计数量
+func (this *OrderRep) AggregateCountByStatus(ctx context.Context, statusList ...int) (response []*models.OrderCountByStatus, err error) {
+	response = make([]*models.OrderCountByStatus, 0)
+	if len(statusList) == 0 {
+		return
+	}
+	aggregate, err := this.Collection().Aggregate(ctx, mongo.Pipeline{
+		bson.D{{"$match", bson.M{"status": bson.M{"$in": statusList}}}},
+		bson.D{{"$group", bson.M{"_id": "$status", "count": bson.M{"$sum": 1}}}},
+	})
+	if err != nil {
+		return response, err
+	}
+	if err := aggregate.All(ctx, &response); err != nil {
+		return response, err
+	}
+	return
+}
+
 // 通过订单号查询订单
 func (this *OrderRep) FindByOrderNo(ctx context.Context, orderNo string) (order *models.Order, err error) {
 	result := this.Collection().FindOne(ctx, bson.M{"order_no": orderNo})
@@ -48,6 +79,47 @@ func (this *OrderRep) GetOrderStatus(ctx context.Context, id string) (status int
 		return -1, err
 	}
 	return order.Status, nil
+}
+
+// 展开订单，订单中每件发货商品对应的门店信息
+func (this *OrderRep) AggregateOrderItem(ctx context.Context) (res []*models.AggregateOrderItem, err error) {
+	pipeline := mongo.Pipeline{
+		bson.D{{"$unwind", "$logistics"}},
+		bson.D{{"$unwind", "$logistics.items"}},
+		bson.D{{"$unwind", "$order_items"}},
+		bson.D{{"$replaceRoot", bson.M{
+			"newRoot": bson.M{"$mergeObjects": bson.A{
+				bson.M{
+					"order_id":       "$_id",
+					"created_at":     "$created_at",
+					"updated_at":     "$updated_at",
+					"order_no":       "$order_no",
+					"item_count":     "$item_count",
+					"order_amount":   "$order_amount",
+					"actual_amount":  "$actual_amount",
+					"order_item":     "$order_items",
+					"user":           "$user",
+					"user_address":   "$user_address",
+					"take_good_type": "$take_good_type",
+					"logistics":      "$logistics",
+					"payment":        "$payment",
+					"status":         "$status",
+					"promotion_info": "$promotion_info",
+					"shipments_at":   "$shipments_at",
+					"commented_at":   "$commented_at",
+				},
+			}},
+		}}},
+	}
+	res = make([]*models.AggregateOrderItem, 1)
+	aggregate, err := this.Collection().Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, err
+	}
+	if err := aggregate.All(ctx, &res); err != nil {
+		return nil, err
+	}
+	return
 }
 
 func (this *OrderRep) index() []mongo.IndexModel {

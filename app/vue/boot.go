@@ -1,6 +1,7 @@
 package vue
 
 import (
+	"go-shop-v2/app/vue/charts"
 	pages2 "go-shop-v2/app/vue/pages"
 	resources2 "go-shop-v2/app/vue/resources"
 	"go-shop-v2/pkg/vue/contracts"
@@ -57,4 +58,12 @@ func Boot(vue *core.Vue) {
 	for _, page := range pages {
 		vue.RegisterPage(page)
 	}
+
+	// dashboard页面cards注册
+	vue.RegisterCard(charts.NewNewUserValue())
+	vue.RegisterCard(charts.NewNewOrderValue())
+	vue.RegisterCard(charts.NewNewPaymentValue())
+	vue.RegisterCard(charts.NewCountOrderPrePayValue())
+	vue.RegisterCard(charts.NewCountOrderPreSendValue())
+	vue.RegisterCard(charts.NewPaymentLine())
 }

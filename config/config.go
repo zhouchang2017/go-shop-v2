@@ -6,6 +6,7 @@ import (
 	"go-shop-v2/pkg/db/mongodb"
 	"go-shop-v2/pkg/db/mysql"
 	"go-shop-v2/pkg/qiniu"
+	"go-shop-v2/pkg/rabbitmq"
 	"go-shop-v2/pkg/vue/fields"
 	"go-shop-v2/pkg/wechat"
 )
@@ -29,6 +30,7 @@ type config struct {
 	RedisCfg     redis.Config     `json:"redis_config"`
 	QiniuCfg     qiniu.Config     `json:"qiniu_config"`
 	EmailCfg     email.Config     `json:"email_config"`
+	RabbitmqCfg  rabbitmq.Config  `json:"rabbitmq_config"`
 }
 
 func NewConfig() *config {
@@ -37,7 +39,7 @@ func NewConfig() *config {
 
 // rabbitMQ uri
 func (c *config) RabbitMQUri() string {
-	return "amqp://guest:guest@localhost:5672/"
+	return "amqp://root:12345678@localhost:5672/"
 }
 
 // wechat payment config

@@ -46,11 +46,19 @@ docker-compose exec mongodb-primary mongo --port 30000 -uroot -p12345678 /root/0
 /api/v1/index
 ```
 
+推送通知模板
+- 订单号
+- 商品名称
+- 订单金额
+- 时间
 
-产品删除
-  - 删除items
-  - 删除购物车中相关产品
-
+dashboard
+- 当日新订单
+- 当日付款金额
+- 当日付款订单笔数
+- 待发货订单数
+- 待付款订单数
+- 当日新增用户数
 
 #### ChangeLog 
 - 2020-02-16

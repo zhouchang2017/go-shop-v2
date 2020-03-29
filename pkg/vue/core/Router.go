@@ -18,6 +18,38 @@ type Router struct {
 	Hidden          bool                   `json:"hidden"`
 }
 
+type VueRouterOption struct {
+	name   string
+	params map[string]string
+	query  map[string]interface{}
+}
+
+func NewVueRouterOption(name string) *VueRouterOption {
+	return &VueRouterOption{name: name, params: map[string]string{}, query: map[string]interface{}{}}
+}
+
+func (v *VueRouterOption) SetParams(params map[string]string) *VueRouterOption {
+	v.params = params
+	return v
+}
+
+func (v *VueRouterOption) SetQuery(query map[string]interface{}) *VueRouterOption {
+	v.query = query
+	return v
+}
+
+func (v VueRouterOption) Name() string {
+	return v.name
+}
+
+func (v VueRouterOption) Params() map[string]string {
+	return v.params
+}
+
+func (v VueRouterOption) Query() map[string]interface{} {
+	return v.query
+}
+
 func NewRouter() *Router {
 	return &Router{Meta: map[string]interface{}{}}
 }
@@ -184,6 +216,10 @@ func (this *vueRouterFactory) vueIndexRouter() contracts.Router {
 		router.WithMeta("AuthorizedToCreate", this.authorizedToCreate)
 		router.WithMeta("Title", this.resource.Title())
 		router.WithMeta("ResourceName", this.resourceName)
+
+		if _, ok := this.resource.(contracts.ResourceForceDestroyable); ok {
+			router.WithMeta("Trashed", true)
+		}
 
 		router.WithMeta("CreateButtonText", fmt.Sprintf("创建%s", this.resource.Title()))
 		router.WithMeta("CreateRouterName", this.createRouteName)

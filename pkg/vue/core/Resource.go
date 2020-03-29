@@ -73,8 +73,6 @@ func resolveDetailFields(ctx *gin.Context, resource contracts.Resource) ([]contr
 					hasDetailComponent.DetailComponent()
 				}
 
-
-
 				// panel包裹字段
 				if asPanel, ok := isField.(contracts.AsPanel); ok {
 					warpPanel := asPanel.WarpPanel()
