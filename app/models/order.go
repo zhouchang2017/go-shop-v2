@@ -20,7 +20,7 @@ const (
 	OrderStatusPreConfirm             // 等待收货
 	OrderStatusDone                   // 交易完成
 	OrderStatusPreEvaluate            // 待评价
-	OrderStatusRefund                 // 订单退款	//todo:目前没用，退款统一先设置成关闭状态
+	OrderStatusRefund                 // 订单申请退款(具体退款状态看refund)
 
 	OrderTakeGoodTypeOnline  = 1
 	OrderTakeGoodTypeOffline = 2

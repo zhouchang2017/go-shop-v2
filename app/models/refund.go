@@ -9,6 +9,7 @@ const (
 	RefundStatusFinished          // 退款完成
 	RefundStatusRefused           // 拒绝
 	RefundStatusCancel            // 取消
+	RefundStatusFailed            // 失败
 )
 
 // 退款

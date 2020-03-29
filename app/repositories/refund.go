@@ -2,7 +2,10 @@ package repositories
 
 import (
 	"context"
+	"go-shop-v2/app/models"
+	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/repository"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/x/bsonx"
@@ -32,4 +35,17 @@ func NewRefundRep(rep repository.IRepository) *RefundRep {
 		panic(err)
 	}
 	return repository
+}
+
+// 通过退款单号查询订单
+func (this *RefundRep) FindByRefundOrderNo(ctx context.Context, refundOrderNo string) (order *models.Refund, err error) {
+	result := this.Collection().FindOne(ctx, bson.M{"refund_order_no": refundOrderNo})
+	if result.Err() != nil {
+		return nil, err2.Err404.F("refund order[%s] not fond", refundOrderNo)
+	}
+	order = &models.Refund{}
+	if err := result.Decode(order); err != nil {
+		return nil, err
+	}
+	return
 }

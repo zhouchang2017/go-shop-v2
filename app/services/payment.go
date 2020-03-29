@@ -209,8 +209,6 @@ func (srv *PaymentService) PayNotify(ctx context.Context, req *http.Request) (or
 				session.AbortTransaction(sessionContext)
 				return fmt.Errorf("update order-%s to success status failed %s", orderNo, updateRes.Error)
 			}
-			// todo: add other case to do and remember use transaction if involving other table in db
-
 			// return
 			//log.Println("update order xxx to success status success")
 			session.CommitTransaction(sessionContext)
