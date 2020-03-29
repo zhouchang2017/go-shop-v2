@@ -27,7 +27,6 @@ func Register(app *gin.Engine) {
 
 	// 支付
 	paymentController := &PaymentController{paymentSrv: services.MakePaymentService()}
-
 	// 支付通知回调
 	v1.Any("/wechat/payments/notify", paymentController.PayNotify)
 

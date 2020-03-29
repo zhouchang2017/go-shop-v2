@@ -30,6 +30,11 @@ func MakeOrderRep() *OrderRep {
 	return NewOrderRep(orderMongoRep)
 }
 
+func MakeRefundRep() *RefundRep {
+	refundMongoRep := NewBasicMongoRepositoryByDefault(&models.Refund{}, mongodb.GetConFn())
+	return NewRefundRep(refundMongoRep)
+}
+
 func MakeCommentRep() *CommentRep {
 	rep := NewBasicMongoRepositoryByDefault(&models.Comment{}, mongodb.GetConFn())
 	return NewCommentRep(rep)

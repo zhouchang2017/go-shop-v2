@@ -8,6 +8,7 @@ import (
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
 	"go-shop-v2/pkg/db/mongodb"
+	"go-shop-v2/pkg/utils"
 	"go-shop-v2/pkg/wechat"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -15,41 +16,32 @@ import (
 	"time"
 )
 
-type PaymentService struct {
-	paymentRep *repositories.PaymentRep
+type RefundService struct {
+	refundResp *repositories.RefundRep
 	orderResp  *repositories.OrderRep
 }
 
-func NewPaymentService(paymentRep *repositories.PaymentRep, orderResp *repositories.OrderRep) *PaymentService {
-	return &PaymentService{paymentRep: paymentRep, orderResp: orderResp}
+func NewRefundService(refundResp *repositories.RefundRep, orderResp *repositories.OrderRep) *RefundService {
+	return &RefundService{refundResp: refundResp, orderResp: orderResp}
 }
 
-type PaymentOption struct {
-	OrderId        string `json:"order_id" form:"order_id" binding:"required"`
-	OrderNo        string `json:"order_no" form:"order_no" binding:"required"`
-	SpbillCreateIp string // 用户ip
-	Platform       string `json:"platform"` // 支付平台:微信/支付宝
+type RefundOption struct {
+	OrderId string `json:"order_id" form:"order_id" binding:"required"`
+	OrderNo string `json:"order_no" form:"order_no" binding:"required"`
 }
 
-func (p PaymentOption) GetPlatform() string {
-	if p.Platform == "" {
-		return "wechat"
-	}
-	return p.Platform
-}
-
-func (paymentOpt *PaymentOption) IsValid() error {
-	if paymentOpt.OrderId == "" {
+func (refundOpt *RefundOption) IsValid() error {
+	if refundOpt.OrderId == "" {
 		return errors.New("OrderId is empty")
 	}
-	if paymentOpt.OrderNo == "" {
+	if refundOpt.OrderNo == "" {
 		return errors.New("OrderNo is empty")
 	}
 	return nil
 }
 
-// 下单
-func (srv *PaymentService) Payment(ctx context.Context, userInfo *models.User, opt *PaymentOption) (*wechat.WechatMiniPayConfig, error) {
+// refund todo: 目前做的整单退，如果要做单个的话需要调整RefundOption添加item
+func (srv *RefundService) Refund(ctx context.Context, opt *RefundOption) (*models.Refund, error) {
 	if err := opt.IsValid(); err != nil {
 		return nil, err
 	}
@@ -62,74 +54,37 @@ func (srv *PaymentService) Payment(ctx context.Context, userInfo *models.User, o
 	if order.OrderNo != opt.OrderNo {
 		return nil, errors.New("invalid OrderNo with different")
 	}
-	if order.User.Id != userInfo.GetID() {
-		return nil, errors.New("invalid permission caused of different user")
+	if order.Status != models.OrderStatusPreSend {
+		return nil, errors.New("invalid order status not presend")
 	}
-	if order.Status != models.OrderStatusPrePay {
-		return nil, errors.New("invalid order status not prepay")
+	// generate refund order information
+	refundOrder := srv.buildRefund(order, order.ActualAmount)
+	// add refund order into db
+	created := <-srv.refundResp.Create(ctx, refundOrder)
+	if created.Error != nil {
+		return nil, created.Error
 	}
-
-	// unify order
-	option := srv.setUnifiedOrderOption(order, userInfo.WechatMiniId, opt.SpbillCreateIp)
-	wxRsp, wcErr := wechat.Pay.UnifiedOrder(option)
-
+	// refund order
+	option := srv.buildRefundOption(order, refundOrder.RefundOrderNo)
+	_, wcErr := wechat.Pay.Refund(option)
 	if wcErr != nil {
 		return nil, wcErr
 	}
-
-	// update payment information in db
-	srv.paymentRep.Store(ctx, &models.Payment{
-		OrderNo:        order.OrderNo,
-		Platform:       opt.GetPlatform(),
-		Title:          fmt.Sprintf("订单号%s", order.OrderNo),
-		Amount:         order.ActualAmount,
-		ExtendedUserId: userInfo.GetID(),
-		PrePaymentNo:   wxRsp.PrepayId,
-		PaymentNo:      "",
-		PaymentAt:      nil,
-	})
-	return wxRsp.GetWechatMiniPayConfig(), nil
+	return created.Result.(*models.Refund), nil
 }
 
-func (srv *PaymentService) setUnifiedOrderOption(order *models.Order, openId string, spbillCreateIp string) (opt *wechat.PayUnifiedOrderOption) {
-
-	opt = &wechat.PayUnifiedOrderOption{
-		Body:           fmt.Sprintf("订单号%s", order.OrderNo),
-		Detail:         nil,
-		OutTradeNo:     order.OrderNo,
-		TotalFee:       order.ActualAmount,
-		SpbillCreateIp: spbillCreateIp,
-		OpenId:         openId,
-	}
-	if len(order.OrderItems) > 1 {
-		detail := &wechat.PayOrderDetail{
-			CostPrice:   order.ActualAmount,
-			GoodsDetail: nil,
-		}
-		for _, item := range order.OrderItems {
-			detail.GoodsDetail = append(detail.GoodsDetail, &wechat.PayOrderGoodsDetail{
-				GoodsId:   item.Item.Id,
-				GoodsName: item.Item.Product.Name,
-				Quantity:  item.Count,
-				Price:     item.Amount,
-			})
-		}
-		opt.Detail = detail
-	}
-	return opt
-}
-
-// 支付回调
-func (srv *PaymentService) PayNotify(ctx context.Context, req *http.Request) (orderNumber string, err error) {
+// 退款回调
+func (srv *RefundService) RefundNotify(ctx context.Context, req *http.Request) (orderNumber string, err error) {
 
 	// parse
-	notifyReq, err := wechat.Pay.ParseNotifyResult(req)
+	notifyReq, err := wechat.Pay.ParseRefundNotifyResult(req)
 	if err != nil {
 		return "", err
 	}
 	spew.Dump(notifyReq)
 	// deal with
 	orderNo := notifyReq.OutTradeNo
+	refundOrderNo := notifyReq.OutRefundNo
 	paymentNo := notifyReq.TransactionId
 
 	// 开启事务
@@ -226,4 +181,37 @@ func (srv *PaymentService) PayNotify(ctx context.Context, req *http.Request) (or
 	session.EndSession(ctx)
 	// return
 	return orderNumber, err
+}
+
+func (srv *RefundService) buildRefundOption(order *models.Order, refundOrderNo string) (opt *wechat.RefundOption) {
+	opt = &wechat.RefundOption{
+		OutTradeNo:  order.OrderNo,
+		OutRefundNo: refundOrderNo,
+		TotalFee:    order.ActualAmount,
+		RefundFee:   order.ActualAmount,
+		RefundDesc:  "整单退款",
+	}
+	// return
+	return opt
+}
+
+func (srv *RefundService) buildRefund(order *models.Order, refundFee uint64) (refund *models.Refund) {
+	refundItems := make([]*models.RefundItem, 0)
+	for _, item := range order.OrderItems {
+		refundItem := &models.RefundItem{
+			ItemId: item.Item.Id,
+			Qty:    item.Count,
+			Amount: uint64(item.Price),
+		}
+		refundItems = append(refundItems, refundItem)
+	}
+	refundOrder := &models.Refund{
+		OrderNo:       order.OrderNo,
+		RefundOrderNo: utils.RandomRefundOrderNo(""),
+		PaymentNo:     "",
+		TotalAmount:   refundFee,
+		Items:         refundItems,
+		Status:        models.RefundStatusPending,
+	}
+	return refundOrder
 }
