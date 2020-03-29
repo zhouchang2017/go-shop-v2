@@ -10,17 +10,6 @@ type ShopUpdated struct {
 	Shop *models.Shop
 }
 
-func (ShopUpdated) ExchangeName() string {
-	return "shop.updated"
-}
-
-func (ShopUpdated) ExchangeType() string {
-	return "fanout"
-}
-
-func (ShopUpdated) RoutingKey() string {
-	return "shop.updated"
-}
 
 func (this ShopUpdated) Body() []byte {
 	bytes, _ := json.Marshal(this.Shop)

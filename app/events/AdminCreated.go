@@ -10,18 +10,6 @@ type AdminCreated struct {
 	Admin *models.Admin
 }
 
-func (AdminCreated) ExchangeName() string {
-	return "admin.created"
-}
-
-func (AdminCreated) ExchangeType() string {
-	return "fanout"
-}
-
-func (AdminCreated) RoutingKey() string {
-	return "admin.created"
-}
-
 func (this AdminCreated) Body() []byte {
 	bytes, _ := json.Marshal(this.Admin)
 	return bytes

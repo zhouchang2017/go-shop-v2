@@ -15,18 +15,6 @@ func NewOrderCreatedEvent(order *models.Order) *OrderCreated {
 	return &OrderCreated{Order: order}
 }
 
-func (o OrderCreated) ExchangeName() string {
-	return "order.created"
-}
-
-func (o OrderCreated) ExchangeType() string {
-	return "fanout"
-}
-
-func (o OrderCreated) RoutingKey() string {
-	return "order.created"
-}
-
 func (o OrderCreated) Body() []byte {
 	bytes, _ := json.Marshal(o.Order)
 	return bytes

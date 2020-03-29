@@ -2,10 +2,14 @@ package resources
 
 import (
 	"github.com/gin-gonic/gin"
+	"go-shop-v2/app/events"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/services"
+	"go-shop-v2/app/vue/charts"
 	fields2 "go-shop-v2/app/vue/fields"
+	"go-shop-v2/app/vue/filters"
 	err2 "go-shop-v2/pkg/err"
+	"go-shop-v2/pkg/rabbitmq"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"go-shop-v2/pkg/vue/contracts"
@@ -104,7 +108,15 @@ func NewOrderResource() *Order {
 func (this *Order) CustomHttpHandle(router gin.IRouter) {
 	// 关闭订单
 	router.PUT("/api/orders/:Order/cancel", func(ctx *gin.Context) {
+		type cancelForm struct {
+			Reason string `json:"reason"`
+		}
 		id := ctx.Param("Order")
+		var form cancelForm
+		reason := "暂时缺货"
+		if err := ctx.ShouldBind(&form); err == nil {
+			reason = form.Reason
+		}
 		if id == "" {
 			err2.ErrorEncoder(ctx, err2.Err422.F("订单号异常"), ctx.Writer)
 			return
@@ -116,10 +128,27 @@ func (this *Order) CustomHttpHandle(router gin.IRouter) {
 			return
 		}
 
-		if err := this.srv.Cancel(ctx, order); err != nil {
+		updatedOrder, err := this.srv.Cancel(ctx, order, reason)
+		if err != nil {
 			err2.ErrorEncoder(ctx, err, ctx.Writer)
 			return
 		}
+		// 管理员取消订单事件推送
+		rabbitmq.Dispatch(events.NewOrderClosedByAdminEvent(updatedOrder))
 		ctx.JSON(http.StatusNoContent, nil)
 	})
+}
+
+func (this *Order) Filters(ctx *gin.Context) []contracts.Filter {
+	return []contracts.Filter{
+		filters.NewOrderStatusFilter(),
+	}
+}
+
+
+func (a Order) Cards(ctx *gin.Context) []contracts.Card {
+	return []contracts.Card{
+		charts.NewCountOrderPrePayValue(),
+		charts.NewCountOrderPreSendValue(),
+	}
 }

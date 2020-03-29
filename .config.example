@@ -14,7 +14,15 @@
         "notify_url": "",
         "refund_notify_url": ""
     },
-    "email":{
+    "rabbitmq_config":{
+        "username":"",
+        "password":"",
+        "host":"",
+        "port":"",
+        "vhost":"",
+        "exchange":""
+    },
+    "email_config":{
         "host":"",
         "port":587,
         "username":"",

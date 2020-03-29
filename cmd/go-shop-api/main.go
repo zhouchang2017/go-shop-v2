@@ -6,19 +6,18 @@ import (
 	"flag"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	log "github.com/sirupsen/logrus"
 	"go-shop-v2/app/email"
 	"go-shop-v2/app/lbs"
-	"go-shop-v2/app/listeners"
 	"go-shop-v2/app/services"
 	http2 "go-shop-v2/app/transport/http"
 	"go-shop-v2/config"
 	"go-shop-v2/pkg/auth"
 	"go-shop-v2/pkg/cache/redis"
 	"go-shop-v2/pkg/db/mongodb"
-	"go-shop-v2/pkg/message"
 	"go-shop-v2/pkg/qiniu"
+	"go-shop-v2/pkg/rabbitmq"
 	"go-shop-v2/pkg/wechat"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -28,7 +27,9 @@ import (
 var configPathFlag = flag.String("c", ".config", "get the file path for config to parsed")
 
 const PORT = 8081
-
+func init() {
+	log.SetFormatter(&log.JSONFormatter{})
+}
 func main() {
 
 	// parse flag
@@ -36,13 +37,13 @@ func main() {
 
 	// get config path
 	if *configPathFlag == "" {
-		fmt.Println("please use -c to set the config file path or use -h to see more")
+		log.Errorf("please use -c to set the config file path or use -h to see more")
 		return
 	}
 	// open file
 	file, openErr := os.Open(*configPathFlag)
 	if openErr != nil {
-		fmt.Println("open config file failed caused of %s", openErr.Error())
+		log.Errorf("open config file failed caused of %s", openErr.Error())
 		return
 	}
 	// decode json
@@ -53,14 +54,14 @@ func main() {
 	file.Close()
 
 	if decodeErr != nil {
-		fmt.Printf("decode config file failed caused of %s", decodeErr.Error())
+		log.Errorf("decode config file failed caused of %s", decodeErr.Error())
 		return
 	}
 
 	configs := config.NewConfig()
 	// 消息队列
-	mq := message.New(configs.RabbitMQUri())
-	defer mq.Close()
+	mq := rabbitmq.New(configs.RabbitmqCfg)
+
 	// 七牛云存储
 	qiniu.NewQiniu(configs.QiniuConfig())
 	// newQiniu := qiniu.NewQiniu(configs.QiniuConfig())
@@ -77,6 +78,7 @@ func main() {
 
 	// 微信skd
 	wechat.NewSDK(configs.WeappConfig)
+	wechat.ClearCache() // 清除缓存
 	// 微信支付
 	wechat.NewPay(configs.WechatPayCfg)
 
@@ -96,9 +98,6 @@ func main() {
 		)
 	})
 
-	// 注册事件监听者
-	listeners.FrontEndBoot(mq)
-
 	app := gin.New()
 	app.Use(gin.Logger())
 	app.Use(gin.Recovery())
@@ -114,7 +113,7 @@ func main() {
 		WriteTimeout:   time.Second * 30,
 		MaxHeaderBytes: 1 << 20,
 	}
-	log.Printf("[info] start http server listening %d", PORT)
+	log.Infof("[info] start http server listening %d", PORT)
 
 	go func() {
 		// 服务连接
@@ -124,13 +123,14 @@ func main() {
 	}()
 
 	ctx2, cancelFunc := context.WithCancel(context.Background())
-	mq.Run(ctx2)
+	mq.RunProducer(ctx2)
+	defer mq.Shutdown()
 
 	// 等待中断信号以优雅地关闭服务器（设置 5 秒的超时时间）
 	quit := make(chan os.Signal)
 	signal.Notify(quit, os.Interrupt)
 	<-quit
-	log.Println("Shutdown Server ...")
+	log.Infof("Shutdown Server ...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -138,5 +138,5 @@ func main() {
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Fatal("Server Shutdown:", err)
 	}
-	log.Println("Server exiting")
+	log.Infof("Server exiting")
 }

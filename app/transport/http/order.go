@@ -8,7 +8,7 @@ import (
 	"go-shop-v2/app/services"
 	ctx2 "go-shop-v2/pkg/ctx"
 	err2 "go-shop-v2/pkg/err"
-	"go-shop-v2/pkg/message"
+	"go-shop-v2/pkg/rabbitmq"
 	"go-shop-v2/pkg/request"
 	"net/http"
 	"strconv"
@@ -81,8 +81,10 @@ func (ctrl *OrderController) Store(ctx *gin.Context) {
 		ResponseError(ctx, err)
 		return
 	}
-
-	message.Dispatch(events.NewOrderCreatedEvent(order))
+	// 新订单事件
+	rabbitmq.Dispatch(events.NewOrderCreatedEvent(order))
+	// 订单延时关闭
+	rabbitmq.Dispatch(events.NewOrderTimeOutEvent(order.OrderNo))
 	Response(ctx, order, http.StatusOK)
 }
 
@@ -122,9 +124,11 @@ func (ctrl *OrderController) Cancel(ctx *gin.Context) {
 		return
 	}
 
-	if err := ctrl.orderSrv.Cancel(ctx, order); err != nil {
+	if _, err := ctrl.orderSrv.Cancel(ctx, order, "用户取消"); err != nil {
 		ResponseError(ctx, err)
 		return
 	}
+	// 用户取消订单
+	rabbitmq.Dispatch(events.NewOrderClosedByUserEvent(order.OrderNo))
 	Response(ctx, nil, http.StatusNoContent)
 }

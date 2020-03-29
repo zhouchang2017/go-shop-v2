@@ -17,6 +17,67 @@ type PaymentRep struct {
 	repository.IRepository
 }
 
+// 获取某天收款总额
+func (this *PaymentRep) GetRangePaymentCount(ctx context.Context, start time.Time, end time.Time) (response *models.DayPaymentCount, err error) {
+	response = &models.DayPaymentCount{
+		TotalAmount: 0,
+		Count:       0,
+	}
+	pipeline := mongo.Pipeline{
+		bson.D{{"$match", bson.M{
+			"payment_at": bson.M{"$gte": start, "$lte": end},
+		}}},
+		bson.D{{"$group",
+			bson.M{
+				"_id":          nil,
+				"total_amount": bson.M{"$sum": "$amount"},
+				"count":        bson.M{"$sum": 1},
+			},
+		}},
+	}
+	aggregate, err := this.Collection().Aggregate(ctx, pipeline)
+	if err != nil {
+		return response, err
+	}
+	var res []*models.DayPaymentCount
+	if err := aggregate.All(ctx, &res); err != nil {
+		return response, err
+	}
+	if len(res) == 1 {
+		return res[0], nil
+	}
+	return response, nil
+}
+
+// 获取一段时间收款统计
+func (this *PaymentRep) GetRangePaymentCounts(ctx context.Context, start time.Time, end time.Time) (response []*models.DayPaymentCount, err error) {
+	pipeline := mongo.Pipeline{
+		bson.D{{"$match", bson.M{
+			"payment_at": bson.M{"$gte": start, "$lte": end},
+		}}},
+		bson.D{{"$group",
+			bson.M{
+				"_id": bson.M{"$dateToString": bson.M{
+					"format": "%Y-%m-%d",
+					"date":   "$payment_at",
+				}},
+				"total_amount": bson.M{"$sum": "$amount"},
+				"count":        bson.M{"$sum": 1},
+			},
+		}},
+		bson.D{{"$sort", bson.M{"_id": 1}}},
+	}
+	aggregate, err := this.Collection().Aggregate(ctx, pipeline)
+	if err != nil {
+		return response, err
+	}
+	response = make([]*models.DayPaymentCount, 0)
+	if err := aggregate.All(ctx, &response); err != nil {
+		return response, err
+	}
+	return response, nil
+}
+
 // 储存下单信息，一笔订单对应一个下单信息
 func (this *PaymentRep) Store(ctx context.Context, payment *models.Payment) (err error) {
 	_, err = this.Collection().UpdateOne(ctx, bson.M{"order_no": payment.OrderNo}, bson.M{

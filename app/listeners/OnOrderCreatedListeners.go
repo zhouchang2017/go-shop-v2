@@ -2,14 +2,22 @@ package listeners
 
 import (
 	"encoding/json"
+	log "github.com/sirupsen/logrus"
 	"go-shop-v2/app/email"
 	"go-shop-v2/app/events"
 	"go-shop-v2/app/models"
-	"go-shop-v2/pkg/message"
-	"log"
+	"go-shop-v2/pkg/rabbitmq"
 )
 
 type OnOrderCreatedListener struct {
+}
+
+func (o OnOrderCreatedListener) Make() rabbitmq.Listener {
+	return &OnOrderCreatedListener{}
+}
+
+func (o OnOrderCreatedListener) OnError(payload []byte, err error) {
+	log.Errorf("OnOrderCreatedListener Error:%s\n", err)
 }
 
 func NewOnOrderCreatedListener() *OnOrderCreatedListener {
@@ -17,18 +25,8 @@ func NewOnOrderCreatedListener() *OnOrderCreatedListener {
 }
 
 // 对应的触发事件
-func (o OnOrderCreatedListener) Event() message.Event {
+func (o OnOrderCreatedListener) Event() rabbitmq.Event {
 	return events.OrderCreated{}
-}
-
-// 队列名称
-func (o OnOrderCreatedListener) QueueName() string {
-	return "OnOrderCreatedListener"
-}
-
-// 错误处理
-func (o OnOrderCreatedListener) OnError(err error) {
-	log.Printf("OnOrderCreatedListener Error:%s\n", err)
 }
 
 // 处理逻辑

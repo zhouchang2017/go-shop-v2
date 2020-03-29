@@ -4,10 +4,8 @@ import (
 	"context"
 	"github.com/gin-gonic/gin"
 	"github.com/mitchellh/mapstructure"
-	"go-shop-v2/app/events"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/services"
-	"go-shop-v2/pkg/message"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"go-shop-v2/pkg/vue/contracts"
@@ -53,7 +51,7 @@ func (s *Shop) Store(ctx *gin.Context, data map[string]interface{}) (redirect st
 
 	entity, err := s.service.Create(ctx, form, members...)
 	// 门店创建事件
-	message.Dispatch(events.ShopCreated{Shop: entity})
+	// message.Dispatch(events.ShopCreated{Shop: entity})
 
 	return core.CreatedRedirect(s, entity.GetID()), nil
 }
@@ -78,7 +76,7 @@ func (s *Shop) Update(ctx *gin.Context, model interface{}, data map[string]inter
 	entity, err := s.service.Update(ctx, model.(*models.Shop), form, members...)
 
 	// 门店更新事件
-	message.Dispatch(events.ShopUpdated{Shop: entity})
+	// message.Dispatch(events.ShopUpdated{Shop: entity})
 
 	return core.UpdatedRedirect(s, entity.GetID()), nil
 }

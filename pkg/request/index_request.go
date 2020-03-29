@@ -201,3 +201,14 @@ func (f Filters) Decode() (filters interface{}) {
 
 	return
 }
+
+func StructToFilterString(res interface{}) (filter string, err error) {
+	marshal, err := json.Marshal(res)
+	if err != nil {
+		return "", err
+	}
+
+	escape := url.PathEscape(string(marshal))
+
+	return base64.StdEncoding.EncodeToString([]byte(escape)), nil
+}

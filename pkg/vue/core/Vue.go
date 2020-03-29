@@ -18,6 +18,7 @@ type Vue struct {
 	resources        []contracts.Resource
 	pages            []contracts.Page
 	cards            map[string]contracts.Card
+	cardlist         []contracts.Card
 	guard            string
 	httpHandle       *httpHandle
 	warps            map[string]*warp
@@ -25,14 +26,17 @@ type Vue struct {
 	config           map[string]interface{}
 }
 
+var instance *Vue
+
 func New() *Vue {
 	engine := gin.New()
-	return &Vue{
+	instance = &Vue{
 		app:    engine,
 		prefix: "app",
 		warps:  map[string]*warp{},
 		cards:  map[string]contracts.Card{},
 	}
+	return instance
 }
 
 func (this *Vue) WithConfig(key string, value interface{}) *Vue {
@@ -139,4 +143,5 @@ func (this *Vue) RegisterPage(page contracts.Page) {
 // 注册Dashboard页面Cards
 func (this *Vue) RegisterCard(card contracts.Card) {
 	this.cards[CardUriKey(card)] = card
+	this.cardlist = append(this.cardlist, card)
 }

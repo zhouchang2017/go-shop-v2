@@ -9,7 +9,7 @@ import (
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/services"
 	ctx2 "go-shop-v2/pkg/ctx"
-	"go-shop-v2/pkg/message"
+	"go-shop-v2/pkg/rabbitmq"
 	"net/http"
 )
 
@@ -52,7 +52,7 @@ func (p *PaymentController) PayNotify(ctx *gin.Context) {
 	// 支付成功，如果该订单已经被标记为支付状态，则不返回订单号
 	if orderOn != "" {
 		// 订单支付成功事件
-		message.Dispatch(events.NewOrderPaidEvent(orderOn))
+		rabbitmq.Dispatch(events.NewOrderPaidEvent(orderOn))
 	}
 
 	rsp.ReturnCode = gopay.SUCCESS

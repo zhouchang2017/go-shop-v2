@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"github.com/davecgh/go-spew/spew"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
 	"go-shop-v2/pkg/auth"
@@ -127,6 +128,7 @@ func NewOrderService(orderRep *repositories.OrderRep, promotionSrv *PromotionSer
 
 // 列表
 func (srv *OrderService) Pagination(ctx context.Context, req *request.IndexRequest) (orders []*models.Order, pagination response.Pagination, err error) {
+	spew.Dump(req)
 	results := <-srv.orderRep.Pagination(ctx, req)
 	if results.Error != nil {
 		err = results.Error
@@ -416,18 +418,18 @@ func (srv *OrderService) Comment(ctx context.Context, order *models.Order, user 
 }
 
 // 取消订单
-func (srv *OrderService) Cancel(ctx context.Context, order *models.Order) error {
+func (srv *OrderService) Cancel(ctx context.Context, order *models.Order, reason string) (model *models.Order, err error) {
 	if err := order.StatusToFailed(); err != nil {
-		return err
+		return nil, err
 	}
+	order.SetCloseReason(reason)
 	// 开启事务
 	var session mongo.Session
-	var err error
 	if session, err = mongodb.GetConFn().Client().StartSession(); err != nil {
-		return err
+		return nil, err
 	}
 	if err = session.StartTransaction(); err != nil {
-		return err
+		return nil, err
 	}
 	err = mongo.WithSession(ctx, session, func(sessionContext mongo.SessionContext) error {
 		// 退还库存
@@ -443,11 +445,12 @@ func (srv *OrderService) Cancel(ctx context.Context, order *models.Order) error 
 			sessionContext.AbortTransaction(sessionContext)
 			return saved.Error
 		}
+		order = saved.Result.(*models.Order)
 		session.CommitTransaction(sessionContext)
 		return nil
 	})
 	session.EndSession(ctx)
-	return err
+	return order, err
 }
 
 // 售后工单
@@ -458,4 +461,25 @@ func (srv *OrderService) CreateIssue(ctx context.Context, order *models.Order) {
 // 评论工单
 func (srv *OrderService) CommentIssue(ctx context.Context, order *models.Order, user auth.Authenticatable) {
 
+}
+
+// 当天新订单数量
+func (srv *OrderService) TodayNewOrderCount(ctx context.Context) int64 {
+	result := <-srv.orderRep.Count(ctx,
+		bson.M{
+			"created_at": bson.M{"$gte": utils.TodayStart(), "$lte": utils.TodayEnd()},
+		})
+	if result.Error != nil {
+		return 0
+	}
+	return result.Result
+}
+
+// 待付款/待发货订单数量
+func (srv *OrderService) CountByStatus(ctx context.Context, status int) (count int64, err error) {
+	return srv.orderRep.CountByStatus(ctx, status)
+}
+
+func (srv *OrderService) AggregateOrderItem(ctx context.Context) (res []*models.AggregateOrderItem, err error) {
+	return srv.orderRep.AggregateOrderItem(ctx)
 }

@@ -17,6 +17,16 @@ func CardUriKey(card contracts.Card) string {
 	}
 }
 
+// Dashboard页显示
+func resolverDashboardCards(ctx *gin.Context) []contracts.Card {
+	cards := make([]contracts.Card, 0)
+	for _, card := range instance.cardlist {
+		if card.ShowOnIndex() && card.AuthorizedTo(ctx, ctx2.GetUser(ctx).(auth.Authenticatable)) {
+			cards = append(cards, card)
+		}
+	}
+	return cards
+}
 
 // 列表页显示
 func resolverIndexCards(ctx *gin.Context, resource contracts.Resource) []contracts.Card {
@@ -59,11 +69,35 @@ func serializeCharts(ctx *gin.Context, charts contracts.Charts) map[string]inter
 	res["extend"] = charts.Extend()
 	res["columns"] = charts.Columns()
 	res["width"] = charts.Width()
-
+	res["grid"] = charts.Grid()
 	for key, value := range charts.Meta() {
 		res[key] = value
 	}
+	if linkable, ok := charts.(contracts.MoreLink); ok {
+		linkable.Link()
+		link := make(map[string]interface{})
+		link["name"] = linkable.Link().Name()
+		link["params"] = linkable.Link().Params()
+		link["query"] = linkable.Link().Query()
+		res["router"] = link
+	}
+	if refresh, ok := charts.(contracts.ChartsRefresh); ok {
+		duration := 15000
+		if refresh.Refresh() > 0 {
+			duration = int(refresh.Refresh().Seconds() * 1000)
+		}
+		res["duration"] = duration
+	}
 	return res
+}
+
+// Dashboard cards 序列化
+func serializeDashboardCards(ctx *gin.Context) []interface{} {
+	data := make([]interface{}, 0)
+	for _, card := range resolverDashboardCards(ctx) {
+		data = append(data, SerializeCard(ctx, card))
+	}
+	return data
 }
 
 // 列表页cards 序列化

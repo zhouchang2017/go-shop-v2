@@ -47,6 +47,9 @@ func (this *httpHandle) exec() {
 	// charts api
 	this.resourceChartsHttpHandle()
 
+	// dashboard页面cards
+	this.dashboardCardsHandle()
+
 	// 资源api
 	this.resourcesHttpHandle()
 
@@ -230,6 +233,12 @@ func (this *httpHandle) resourceChartsHttpHandle() {
 
 }
 
+func (this *httpHandle) dashboardCardsHandle() {
+	this.router.GET("/cards", func(ctx *gin.Context) {
+		ctx.JSON(http.StatusOK, serializeDashboardCards(ctx))
+	})
+}
+
 type adminCredentials struct {
 	Username string `json:"username" form:"username"`
 	Password string `json:"password" form:"password"`
@@ -275,7 +284,7 @@ func (this *httpHandle) resourcesConfigHttpHandle() {
 		}
 		c.JSON(http.StatusOK, gin.H{
 			"resources": res,
-			"config":       this.vue.config,
+			"config":    this.vue.config,
 		})
 	})
 }

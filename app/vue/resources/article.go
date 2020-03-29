@@ -90,6 +90,6 @@ func (a *Article) SetModel(model interface{}) {
 	a.model = model
 }
 
-func (order *Article) Icon() string {
+func (a Article) Icon() string {
 	return "icons-exclamation"
 }

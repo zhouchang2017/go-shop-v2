@@ -8,6 +8,7 @@ import (
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
 	"go-shop-v2/pkg/db/mongodb"
+	"go-shop-v2/pkg/utils"
 	"go-shop-v2/pkg/wechat"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -226,4 +227,14 @@ func (srv *PaymentService) PayNotify(ctx context.Context, req *http.Request) (or
 	session.EndSession(ctx)
 	// return
 	return orderNumber, err
+}
+
+// 当然收款总金额
+func (srv *PaymentService) TodayPaymentCount(ctx context.Context) (response *models.DayPaymentCount, err error) {
+	return srv.paymentRep.GetRangePaymentCount(ctx, utils.TodayStart(), utils.TodayEnd())
+}
+
+// 一段时间收款聚合
+func (srv *PaymentService) RangePaymentCounts(ctx context.Context, start time.Time, end time.Time) (response []*models.DayPaymentCount, err error) {
+	return srv.paymentRep.GetRangePaymentCounts(ctx, start, end)
 }

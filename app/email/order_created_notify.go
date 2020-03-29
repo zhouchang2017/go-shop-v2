@@ -2,7 +2,6 @@ package email
 
 import (
 	"bytes"
-	"github.com/davecgh/go-spew/spew"
 	"go-shop-v2/app/models"
 	"html/template"
 	"os"
@@ -21,9 +20,9 @@ func (this *orderCreatedNotify) To() string {
 
 func (this *orderCreatedNotify) Body() (string, error) {
 	getwd, _ := os.Getwd()
-	filePath := path.Join(getwd, "app", "email", "template", "order_created_notify.html")
-	spew.Dump(filePath)
-	content, err := template.New("order_created_notify.html").Funcs(this.funcMap()).ParseFiles(filePath)
+	fileName := "order_created_notify.html"
+	filePath := path.Join(getwd, "app", "email", "template", fileName)
+	content, err := template.New(fileName).Funcs(this.funcMap()).ParseFiles(filePath)
 	if err != nil {
 		return "", err
 	}
@@ -52,7 +51,6 @@ func (this *orderCreatedNotify) Subject() string {
 
 func (this *orderCreatedNotify) funcMap() template.FuncMap {
 	return template.FuncMap{
-		// 注册函数title, strings.Title会将单词首字母大写
 		"timeStr": timeStr,
 		"money":   money,
 	}

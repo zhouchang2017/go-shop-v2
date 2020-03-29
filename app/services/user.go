@@ -7,6 +7,8 @@ import (
 	"go-shop-v2/app/repositories"
 	"go-shop-v2/pkg/auth"
 	"go-shop-v2/pkg/qiniu"
+	"go-shop-v2/pkg/utils"
+	"go.mongodb.org/mongo-driver/bson"
 	"time"
 )
 
@@ -47,4 +49,16 @@ func (this *UserService) RegisterByWechat(ctx context.Context, info *weapp.UserI
 		return nil, created.Error
 	}
 	return created.Result.(*models.User), nil
+}
+
+// 获取当天新注册用户数
+func (this *UserService) TodayNewUserCount(ctx context.Context) (count int64) {
+	result := <-this.rep.Count(ctx,
+		bson.M{
+			"created_at": bson.M{"$gte": utils.TodayStart(), "$lte": utils.TodayEnd()},
+		})
+	if result.Error != nil {
+		return 0
+	}
+	return result.Result
 }

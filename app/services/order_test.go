@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"github.com/davecgh/go-spew/spew"
 	"go-shop-v2/app/models"
 	"go-shop-v2/pkg/db/mongodb"
 	"go-shop-v2/tests"
@@ -19,14 +20,14 @@ func TestOrderService_Create(t *testing.T) {
 	authUser := tests.GenerateUser()
 	// test case
 	situations := []struct {
-		name string
-		param *OrderCreateOption
+		name    string
+		param   *OrderCreateOption
 		wantErr bool
 	}{
 		{
 			"normal case",
 			&OrderCreateOption{
-				UserAddress:  orderUserAddress{
+				UserAddress: orderUserAddress{
 					Id:           "123",
 					ContactName:  "张三",
 					ContactPhone: "13800138000",
@@ -36,15 +37,15 @@ func TestOrderService_Create(t *testing.T) {
 					Addr:         "科苑天桥下",
 				},
 				TakeGoodType: models.OrderTakeGoodTypeOnline,
-				OrderItems:   []*OrderItemCreateOption{
+				OrderItems: []*OrderItemCreateOption{
 					{
 						ItemId: "5e51e253ecbe820cbd5f6d77",
-						Qty:  1,
+						Qty:    1,
 						Price:  109000,
 					},
 					{
 						ItemId: "5e51e253ecbe820cbd5f6d80",
-						Qty:  2,
+						Qty:    2,
 						Price:  109000,
 					},
 				},
@@ -79,4 +80,19 @@ func TestOrderService_Create(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestOrderService_FindById(t *testing.T) {
+	mongodb.TestConnect()
+	defer mongodb.Close()
+	service := MakeOrderService()
+	count := service.TodayNewOrderCount(context.Background())
+	spew.Dump(count)
+
+	payCount, err := service.AggregateOrderItem(context.Background())
+	if err != nil {
+		panic(err)
+	}
+	spew.Dump(payCount)
+
 }

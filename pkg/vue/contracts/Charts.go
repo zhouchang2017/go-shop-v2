@@ -2,6 +2,7 @@ package contracts
 
 import (
 	"github.com/gin-gonic/gin"
+	"time"
 )
 
 // 图表
@@ -15,4 +16,8 @@ type Charts interface {
 	// resourceName
 	// resourceId
 	HttpHandle(ctx *gin.Context) (rows interface{}, err error)
+}
+
+type ChartsRefresh interface {
+	Refresh() time.Duration
 }
