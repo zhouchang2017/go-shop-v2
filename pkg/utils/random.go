@@ -43,3 +43,8 @@ func RandomOrderNo(prefix string) string {
 	snowflakeId := SnowflakeId()
 	return fmt.Sprintf("%s%s", prefix, snowflakeId.String())
 }
+
+func RandomRefundOrderNo(prefix string) string {
+	snowflakeId := SnowflakeId()
+	return fmt.Sprintf("%s%s", prefix, snowflakeId.String())
+}

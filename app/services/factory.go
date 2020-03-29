@@ -128,3 +128,7 @@ func MakePromotionService() *PromotionService {
 func MakePaymentService() *PaymentService {
 	return NewPaymentService(repositories.MakePaymentRep(), repositories.MakeOrderRep())
 }
+
+func MakeRefundService() *RefundService {
+	return NewRefundService(repositories.MakeRefundRep(), repositories.MakeOrderRep())
+}
