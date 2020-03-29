@@ -44,21 +44,31 @@ type Order struct {
 	CloseReason      *string                `json:"close_reason,omitempty" bson:"close_reason,omitempty"` // 订单取消原因
 }
 
+type AggregateUnitLogistics struct {
+	Items        *LogisticsItem `json:"items"`
+	NoDelivery   bool           `json:"no_delivery" bson:"no_delivery"`     // 是否无需物流
+	DeliveryName string         `json:"delivery_name" bson:"delivery_name"` // 物流公司名称
+	DeliveryId   string         `json:"delivery_id" bson:"delivery_id"`     // 物流公司标识
+	TrackNo      string         `json:"track_no" bson:"track_no"`           // 物流单号
+	CreatedAt    time.Time      `json:"created_at" bson:"created_at"`
+	UpdatedAt    time.Time      `json:"updated_at" bson:"updated_at"`
+}
+
 type AggregateOrderItem struct {
-	OrderId       primitive.ObjectID `json:"order_id" bson:"order_id"`
-	CreatedAt     time.Time          `json:"created_at" bson:"created_at"`
-	UpdatedAt     time.Time          `json:"updated_at" bson:"updated_at"`
-	OrderNo       string             `json:"order_no" bson:"order_no" name:"订单号"`
-	ItemCount     int64              `json:"item_count" bson:"item_count" name:"订单商品数量"`
-	OrderAmount   uint64             `json:"order_amount" bson:"order_amount" name:"订单金额,单位分"`
-	ActualAmount  uint64             `json:"actual_amount" bson:"actual_amount" name:"实付金额,单"`
-	OrderItem     *OrderItem         `json:"order_item" bson:"order_item"`
-	Logistics     *Logistics         `json:"logistics" name:"物流信息"`
-	Payment       *AssociatedPayment `json:"payment" name:"支付信息"`
-	Status        int                `json:"status" name:"订单状态"`
-	PromotionInfo *PromotionOverView `json:"promotion_info" bson:"promotion_info"` // 促销信息
-	ShipmentsAt   *time.Time         `json:"shipments_at" bson:"shipments_at"`     // 发货时间
-	CommentedAt   *time.Time         `json:"commented_at" bson:"commented_at"`     // 评价时间
+	OrderId       primitive.ObjectID      `json:"order_id" bson:"order_id"`
+	CreatedAt     time.Time               `json:"created_at" bson:"created_at"`
+	UpdatedAt     time.Time               `json:"updated_at" bson:"updated_at"`
+	OrderNo       string                  `json:"order_no" bson:"order_no" name:"订单号"`
+	ItemCount     int64                   `json:"item_count" bson:"item_count" name:"订单商品数量"`
+	OrderAmount   uint64                  `json:"order_amount" bson:"order_amount" name:"订单金额,单位分"`
+	ActualAmount  uint64                  `json:"actual_amount" bson:"actual_amount" name:"实付金额,单"`
+	OrderItem     *OrderItem              `json:"order_item" bson:"order_item"`
+	Logistics     *AggregateUnitLogistics `json:"logistics" name:"物流信息"`
+	Payment       *AssociatedPayment      `json:"payment" name:"支付信息"`
+	Status        int                     `json:"status" name:"订单状态"`
+	PromotionInfo *PromotionOverView      `json:"promotion_info" bson:"promotion_info"` // 促销信息
+	ShipmentsAt   *time.Time              `json:"shipments_at" bson:"shipments_at"`     // 发货时间
+	CommentedAt   *time.Time              `json:"commented_at" bson:"commented_at"`     // 评价时间
 }
 
 // 订单状态

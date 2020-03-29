@@ -8,6 +8,7 @@ import (
 	"go-shop-v2/app/vue/charts"
 	fields2 "go-shop-v2/app/vue/fields"
 	"go-shop-v2/app/vue/filters"
+	"go-shop-v2/app/vue/pages"
 	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/rabbitmq"
 	"go-shop-v2/pkg/request"
@@ -145,10 +146,15 @@ func (this *Order) Filters(ctx *gin.Context) []contracts.Filter {
 	}
 }
 
-
-func (a Order) Cards(ctx *gin.Context) []contracts.Card {
+func (this Order) Cards(ctx *gin.Context) []contracts.Card {
 	return []contracts.Card{
 		charts.NewCountOrderPrePayValue(),
 		charts.NewCountOrderPreSendValue(),
+	}
+}
+
+func (this Order) Pages() []contracts.Page {
+	return []contracts.Page{
+		pages.NewOrderItemAggregatePage(),
 	}
 }

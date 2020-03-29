@@ -15,6 +15,7 @@ import (
 	"go-shop-v2/pkg/response"
 	"go-shop-v2/pkg/utils"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -480,6 +481,16 @@ func (srv *OrderService) CountByStatus(ctx context.Context, status int) (count i
 	return srv.orderRep.CountByStatus(ctx, status)
 }
 
-func (srv *OrderService) AggregateOrderItem(ctx context.Context) (res []*models.AggregateOrderItem, err error) {
-	return srv.orderRep.AggregateOrderItem(ctx)
+func (srv *OrderService) AggregateOrderItem(ctx context.Context, req *request.IndexRequest) (res []*models.AggregateOrderItem, pagination response.Pagination, err error) {
+	if req.Search != "" {
+		req.AppendFilter("order_items", bson.M{"$elemMatch": bson.M{"item.code": primitive.Regex{Pattern: req.Search, Options: "i"}}})
+	}
+	filters := req.Filters.Unmarshal()
+	if shops, ok := filters["shops"]; ok {
+		if len(shops.([]interface{})) > 0 {
+			req.AppendFilter("logistics.items.shop_id", bson.M{"$in": shops})
+		}
+
+	}
+	return srv.orderRep.AggregateOrderItem(ctx, req)
 }

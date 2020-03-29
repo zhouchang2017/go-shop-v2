@@ -5,6 +5,7 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"go-shop-v2/app/models"
 	"go-shop-v2/pkg/db/mongodb"
+	"go-shop-v2/pkg/request"
 	"go-shop-v2/tests"
 	"gopkg.in/go-playground/assert.v1"
 	"testing"
@@ -88,11 +89,12 @@ func TestOrderService_FindById(t *testing.T) {
 	service := MakeOrderService()
 	count := service.TodayNewOrderCount(context.Background())
 	spew.Dump(count)
-
-	payCount, err := service.AggregateOrderItem(context.Background())
+	indexRequest := &request.IndexRequest{}
+	payCount,pagination, err := service.AggregateOrderItem(context.Background(), indexRequest)
 	if err != nil {
 		panic(err)
 	}
+	spew.Dump(pagination)
 	spew.Dump(payCount)
 
 }

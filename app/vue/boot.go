@@ -43,6 +43,8 @@ func registerPages() {
 
 		pages2.NewOrderShipmentPage(),  // 订单发货页面
 		pages2.NewOrderLogisticsPage(), // 物流详情页面
+
+		pages2.NewOrderItemAggregatePage(), // 订单明细聚合
 	}
 }
 

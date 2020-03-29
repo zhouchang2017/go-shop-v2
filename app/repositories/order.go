@@ -5,6 +5,8 @@ import (
 	"go-shop-v2/app/models"
 	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/repository"
+	"go-shop-v2/pkg/request"
+	"go-shop-v2/pkg/response"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -82,7 +84,7 @@ func (this *OrderRep) GetOrderStatus(ctx context.Context, id string) (status int
 }
 
 // 展开订单，订单中每件发货商品对应的门店信息
-func (this *OrderRep) AggregateOrderItem(ctx context.Context) (res []*models.AggregateOrderItem, err error) {
+func (this *OrderRep) AggregateOrderItem(ctx context.Context, req *request.IndexRequest) (res []*models.AggregateOrderItem, pagination response.Pagination, err error) {
 	pipeline := mongo.Pipeline{
 		bson.D{{"$unwind", "$logistics"}},
 		bson.D{{"$unwind", "$logistics.items"}},
@@ -112,13 +114,12 @@ func (this *OrderRep) AggregateOrderItem(ctx context.Context) (res []*models.Agg
 		}}},
 	}
 	res = make([]*models.AggregateOrderItem, 1)
-	aggregate, err := this.Collection().Aggregate(ctx, pipeline)
-	if err != nil {
-		return nil, err
+	result := <-this.IRepository.AggregatePagination(ctx, &res, req, pipeline...)
+	if result.Error != nil {
+		return nil, pagination, result.Error
 	}
-	if err := aggregate.All(ctx, &res); err != nil {
-		return nil, err
-	}
+	data := result.Result.(*[]*models.AggregateOrderItem)
+	res = *data
 	return
 }
 
