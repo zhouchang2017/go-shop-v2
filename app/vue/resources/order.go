@@ -22,8 +22,9 @@ import (
 
 type Order struct {
 	core.AbstractResource
-	srv   *services.OrderService
-	model interface{}
+	srv       *services.OrderService
+	refundSrv *services.RefundService
+	model     interface{}
 }
 
 func (order *Order) Show(ctx *gin.Context, id string) (res interface{}, err error) {
@@ -93,8 +94,9 @@ func (order *Order) Model() interface{} {
 
 func (order *Order) Make(mode interface{}) contracts.Resource {
 	return &Order{
-		srv:   order.srv,
-		model: mode,
+		srv:       order.srv,
+		model:     mode,
+		refundSrv: order.refundSrv,
 	}
 }
 
@@ -103,7 +105,7 @@ func (order *Order) SetModel(model interface{}) {
 }
 
 func NewOrderResource() *Order {
-	return &Order{srv: services.MakeOrderService(), model: &models.Order{}}
+	return &Order{srv: services.MakeOrderService(), model: &models.Order{}, refundSrv: services.MakeRefundService()}
 }
 
 func (this *Order) CustomHttpHandle(router gin.IRouter) {
@@ -137,6 +139,49 @@ func (this *Order) CustomHttpHandle(router gin.IRouter) {
 		// 管理员取消订单事件推送
 		rabbitmq.Dispatch(events.NewOrderClosedByAdminEvent(updatedOrder))
 		ctx.JSON(http.StatusNoContent, nil)
+	})
+
+	// 同意退款
+	router.POST("/api/orders/:Order/refund/agree", func(ctx *gin.Context) {
+		orderId := ctx.Param("Order")
+		if orderId == "" {
+			err2.ErrorEncoder(ctx, err2.Err422.F("缺少order_id"), ctx.Writer)
+			return
+		}
+		form := services.RefundOption{
+			OrderId: orderId,
+		}
+		if err := ctx.ShouldBind(&form); err != nil {
+			err2.ErrorEncoder(ctx, err, ctx.Writer)
+			return
+		}
+		refund, err := this.refundSrv.AgreeRefund(ctx, &form)
+		if err != nil {
+			err2.ErrorEncoder(ctx, err, ctx.Writer)
+			return
+		}
+		ctx.JSON(http.StatusOK, refund)
+	})
+	// 拒绝退款
+	router.POST("/api/orders/:Order/refund/reject", func(ctx *gin.Context) {
+		orderId := ctx.Param("Order")
+		if orderId == "" {
+			err2.ErrorEncoder(ctx, err2.Err422.F("缺少order_id"), ctx.Writer)
+			return
+		}
+		form := services.RefundOption{
+			OrderId: orderId,
+		}
+		if err := ctx.ShouldBind(&form); err != nil {
+			err2.ErrorEncoder(ctx, err, ctx.Writer)
+			return
+		}
+		order, err := this.refundSrv.RejectRefund(ctx, &form)
+		if err != nil {
+			err2.ErrorEncoder(ctx, err, ctx.Writer)
+			return
+		}
+		ctx.JSON(http.StatusOK, order)
 	})
 }
 

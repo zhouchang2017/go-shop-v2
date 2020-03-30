@@ -5,6 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/iGoogle-ink/gopay"
 	"github.com/iGoogle-ink/gopay/wechat"
+	log "github.com/sirupsen/logrus"
 	"go-shop-v2/app/events"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/services"
@@ -15,6 +16,7 @@ import (
 
 type PaymentController struct {
 	paymentSrv *services.PaymentService
+	refundSrv  *services.RefundService
 }
 
 // 统一下单
@@ -36,7 +38,8 @@ func (p *PaymentController) UnifiedOrder(ctx *gin.Context) {
 	Response(ctx, wechatMiniPayConfig, http.StatusOK)
 }
 
-// 回调
+// 付款成功回调
+// api /wechat/payments/paid/notify
 func (p *PaymentController) PayNotify(ctx *gin.Context) {
 	orderOn, err := p.paymentSrv.PayNotify(ctx, ctx.Request)
 	spew.Dump("支付回调异常:")
@@ -53,6 +56,31 @@ func (p *PaymentController) PayNotify(ctx *gin.Context) {
 	if orderOn != "" {
 		// 订单支付成功事件
 		rabbitmq.Dispatch(events.NewOrderPaidEvent(orderOn))
+	}
+
+	rsp.ReturnCode = gopay.SUCCESS
+	rsp.ReturnMsg = gopay.OK
+	ResponseXML(ctx, rsp, http.StatusOK)
+	return
+}
+
+// 退款回调
+// api /wechat/payments/refund/notify
+func (p *PaymentController) RefundNotify(ctx *gin.Context) {
+	log.Print("退款回调")
+	orderOn, err := p.refundSrv.RefundNotify(ctx, ctx.Request)
+	rsp := new(wechat.NotifyResponse) // 回复微信的数据
+	if err != nil {
+		rsp.ReturnCode = gopay.FAIL
+		rsp.ReturnMsg = gopay.FAIL
+		ResponseXML(ctx, rsp, http.StatusOK)
+		return
+	}
+
+	// 退款成功
+	if orderOn != "" {
+		// 订单退款成功事件
+		// rabbitmq.Dispatch(events.NewOrderPaidEvent(orderOn))
 	}
 
 	rsp.ReturnCode = gopay.SUCCESS

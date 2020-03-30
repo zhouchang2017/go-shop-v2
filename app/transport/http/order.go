@@ -132,3 +132,31 @@ func (ctrl *OrderController) Cancel(ctx *gin.Context) {
 	rabbitmq.Dispatch(events.NewOrderClosedByUserEvent(order.OrderNo))
 	Response(ctx, nil, http.StatusNoContent)
 }
+
+// 未发货订单申请退款
+// api PUT /orders/:id/refund
+func (ctrl *OrderController) ApplyRefund(ctx *gin.Context) {
+	id := ctx.Param("id")
+	if id == "" {
+		ResponseError(ctx, err2.Err422.F("订单号异常"))
+		return
+	}
+
+	order, err := ctrl.orderSrv.FindById(ctx, id)
+	if err != nil {
+		ResponseError(ctx, err2.Err422.F("订单不存在"))
+		return
+	}
+	user := ctx2.GetUser(ctx).(*models.User)
+	if order.User.Id != user.GetID() {
+		ResponseError(ctx, err2.Err422.F("订单不存在"))
+		return
+	}
+	refund, err := ctrl.orderSrv.ApplyRefund(ctx, order)
+	if err != nil {
+		ResponseError(ctx, err)
+		return
+	}
+	// todo 申请退款成功，推送邮件通知管理员
+	Response(ctx, refund, http.StatusOK)
+}

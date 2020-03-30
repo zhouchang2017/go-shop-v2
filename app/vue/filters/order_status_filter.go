@@ -46,5 +46,10 @@ func (this OrderStatusFilter) Options(ctx *gin.Context) []contracts.FilterOption
 		filters.NewSelectOption("待收货", models.OrderStatusPreConfirm),
 		filters.NewSelectOption("已完成", models.OrderStatusDone),
 		filters.NewSelectOption("待评价", models.OrderStatusPreEvaluate),
+		filters.NewSelectOption("订单申请退款", models.OrderStatusRefundApply),
+		filters.NewSelectOption("同意退款", models.OrderStatusRefundAgreed),
+		filters.NewSelectOption("拒绝退款", models.OrderStatusRefundReject),
+		filters.NewSelectOption("退款中", models.OrderStatusRefunding),
+		filters.NewSelectOption("退款已完成", models.OrderStatusRefundDone),
 	}
 }

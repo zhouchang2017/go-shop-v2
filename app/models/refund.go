@@ -16,7 +16,7 @@ type Refund struct {
 }
 
 type RefundItem struct {
-	ItemId string `json:"item_id"` // 退款
-	Qty    int64  `json:"qty"`     // 数量
-	Amount uint64 `json:"amount"`  // 退款金额
+	ItemId string `json:"item_id" bson:"item_id"` // 退款
+	Qty    int64  `json:"qty"`                    // 数量
+	Amount uint64 `json:"amount"`                 // 退款金额
 }

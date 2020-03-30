@@ -26,9 +26,11 @@ func Register(app *gin.Engine) {
 	}
 
 	// 支付
-	paymentController := &PaymentController{paymentSrv: services.MakePaymentService()}
+	paymentController := &PaymentController{paymentSrv: services.MakePaymentService(), refundSrv: services.MakeRefundService()}
 	// 支付通知回调
-	v1.Any("/wechat/payments/notify", paymentController.PayNotify)
+	v1.Any("/wechat/payments/paid/notify", paymentController.PayNotify)
+	// 退款通知回调
+	v1.Any("/wechat/payments/refund/notify", paymentController.RefundNotify)
 
 	// 授权
 	v1.POST("/login", authController.Login)
@@ -87,7 +89,8 @@ func Register(app *gin.Engine) {
 	v1.GET("/orders/:id/status", orderController.Status)
 	// 取消订单
 	v1.PUT("/orders/:id/cancel", orderController.Cancel)
-
+	// 订单申请退款
+	v1.PUT("/orders/:id/refund", orderController.ApplyRefund)
 	bookmarkSrv := services.MakeBookmarkService()
 	bookmarkController := &BookmarkController{
 		bookmarkSrv: bookmarkSrv,
