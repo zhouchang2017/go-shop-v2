@@ -11,8 +11,8 @@ func TestSdk_GetAllDelivery(t *testing.T) {
 	defer redis.Close()
 
 	config := Config{
-		AppId:     "wxc55788a7da4b4bfc",
-		AppSecret: "4e6f4527564ccee6ef3ea278dc2fc8ef",
+		AppId:     "",
+		AppSecret: "",
 	}
 	newSDK := NewSDK(config)
 	delivery, err := newSDK.GetAllDelivery()
@@ -27,8 +27,8 @@ func TestSdk_GetAllAccount(t *testing.T) {
 	defer redis.Close()
 
 	config := Config{
-		AppId:     "wxc55788a7da4b4bfc",
-		AppSecret: "4e6f4527564ccee6ef3ea278dc2fc8ef",
+		AppId:     "",
+		AppSecret: "",
 	}
 	newSDK := NewSDK(config)
 	accounts, err := newSDK.GetAllAccount()
