@@ -3,6 +3,7 @@ package auth
 import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
+	ctx2 "go-shop-v2/pkg/ctx"
 	err2 "go-shop-v2/pkg/err"
 	"log"
 	"net/http"
@@ -21,6 +22,7 @@ type JWTGuard struct {
 
 func (this *JWTGuard) SetContext(ctx *gin.Context) {
 	this.ctx = ctx
+	this.jwt.SetContext(ctx)
 }
 
 func (this *JWTGuard) GetContext() *gin.Context {
@@ -35,6 +37,12 @@ func (this *JWTGuard) Check() bool {
 }
 
 func (this *JWTGuard) authenticate() (user Authenticatable, err error) {
+	ctxUser := ctx2.GetUser(this.ctx)
+	if ctxUser != nil {
+		if authenticatable, ok := ctxUser.(Authenticatable); ok {
+			return authenticatable, nil
+		}
+	}
 	if this.user != nil {
 		return this.user, nil
 	}
@@ -45,12 +53,40 @@ func (this *JWTGuard) setUser(user Authenticatable) {
 	this.user = user
 }
 
+func (this *JWTGuard) expThenNow(duration time.Duration) bool {
+	if token, err := this.jwt.GetToken(); err == nil {
+		payload := token.Claims.(jwt.MapClaims)
+		if expTime, ok := payload["exp"]; ok {
+			now := time.Now().Unix()
+			expTime := int64(expTime.(float64))
+			if expTime-now < int64(duration.Seconds()) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (this *JWTGuard) Refresh(duration time.Duration) {
+	if user, err := this.authenticate(); err == nil {
+		if this.expThenNow(duration) {
+			// 写入刷新token
+			token, err := this.jwt.Refresh(user)
+			response := loginResponse{AccessToken: token, TokenType: "Bearer"}
+			if err == nil {
+				this.GetContext().Header("refresh-token", response.String())
+			}
+		}
+	}
+}
+
 func (this *JWTGuard) User() (user Authenticatable, err error) {
 	user, err = this.authenticate()
 	if err == nil {
 		return user, nil
 	}
-	token, err := this.jwt.SetContext(this.ctx).GetToken()
+	token, err := this.jwt.GetToken()
+
 	if err != nil && !this.jwt.Check() {
 		if validationError, ok := err.(*jwt.ValidationError); ok {
 			if validationError.Errors == jwt.ValidationErrorExpired {

@@ -47,8 +47,13 @@ type ShopAddress struct {
 	Province string `json:"province"`
 	Name     string `json:"name"`
 	Phone    string `json:"phone"`
+	Tel      string `json:"tel"`
 }
 
 func (this ShopAddress) String() string {
-	return fmt.Sprintf("%s，%s，%s %s %s %s %s", this.Name, this.Phone, this.Province, this.City, this.Areas, this.Addr)
+	tel := this.Phone
+	if this.Tel != "" {
+		tel = this.Tel
+	}
+	return fmt.Sprintf("%s，%s，%s %s %s %s %s", this.Name, tel, this.Province, this.City, this.Areas, this.Addr)
 }

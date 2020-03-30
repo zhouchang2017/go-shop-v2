@@ -1,6 +1,9 @@
 package auth
 
-import "github.com/gin-gonic/gin"
+import (
+	"github.com/gin-gonic/gin"
+	"time"
+)
 
 type Guard interface {
 	// 确定当前用户是否经过身份验证
@@ -15,4 +18,8 @@ type Guard interface {
 	SetContext(ctx *gin.Context)
 	// 获取上下文
 	GetContext() *gin.Context
+}
+
+type RefreshToken interface {
+	Refresh(duration time.Duration)
 }

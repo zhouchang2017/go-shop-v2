@@ -61,7 +61,6 @@ func (this *JWT) Refresh(user Authenticatable) (string, error) {
 	if err := this.requireToken(); err != nil {
 		return "", err
 	}
-
 	payload := this.MakePayload(user, time.Now().Add(time.Hour*24*7))
 	return this.encode(payload)
 }

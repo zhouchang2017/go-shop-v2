@@ -58,7 +58,6 @@ func Register(app *gin.Engine) {
 
 	// 需要授权路由
 	v1.Use(auth.AuthMiddleware(guard))
-
 	shopCartController := &ShopCartController{
 		srv: services.MakeShopCartService(),
 	}

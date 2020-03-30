@@ -18,6 +18,7 @@ type Config struct {
 	Port     string `json:"port"`
 	Password string `json:"password"`
 	Database int    `json:"database"`
+	//Prefix   string `json:"prefix"`
 }
 
 func (config Config) Options() *redis.Options {

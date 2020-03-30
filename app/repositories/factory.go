@@ -44,3 +44,8 @@ func MakePaymentRep() *PaymentRep {
 	rep := NewBasicMongoRepositoryByDefault(&models.Payment{}, mongodb.GetConFn())
 	return NewPaymentRep(rep)
 }
+
+func MakeTraceRep() *TraceRep {
+	rep := NewBasicMongoRepositoryByDefault(&models.Trace{}, mongodb.GetConFn())
+	return NewTraceRep(rep)
+}

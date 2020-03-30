@@ -262,8 +262,9 @@ func (this *httpHandle) loginHttpHandle() {
 			"password": form.Password,
 		}
 		if res, ok := jwtGuard.Attempt(credentials, true); ok {
-			c.Header("token", fmt.Sprintf("%s", res))
-			c.JSON(http.StatusOK, res)
+			token := fmt.Sprintf("%s", res)
+			c.Header("token", token)
+			c.JSON(http.StatusOK, token)
 			return
 		}
 		err2.ErrorEncoder(nil,

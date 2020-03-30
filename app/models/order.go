@@ -45,6 +45,13 @@ type Order struct {
 	CloseReason      *string                `json:"close_reason,omitempty" bson:"close_reason,omitempty"` // 订单取消原因
 }
 
+// 订单缩略图
+func (o Order) GetAvatar() string {
+	return o.OrderItems[0].Item.Avatar.Src()
+}
+
+// 订单第一件
+
 type AggregateUnitLogistics struct {
 	Items        *LogisticsItem `json:"items"`
 	NoDelivery   bool           `json:"no_delivery" bson:"no_delivery"`     // 是否无需物流
@@ -253,6 +260,11 @@ func (this *Order) Shipment(opts ...*LogisticsOption) error {
 			logistics.DeliveryId = opt.DeliveryId
 			logistics.DeliveryName = info.DeliveryName
 			logistics.TrackNo = opt.TrackNo
+			if opt.WaybillID != "" {
+				logistics.TrackNo = opt.WaybillID
+				logistics.WaybillID = opt.WaybillID
+				logistics.WaybillData = opt.WaybillData
+			}
 		}
 
 		for _, i := range opt.Items {
@@ -353,11 +365,13 @@ func (o *OrderItem) TotalAmount() int64 {
 
 // 发货选项结构
 type LogisticsOption struct {
-	NoDelivery bool             `json:"no_delivery" form:"no_delivery"` // 无需物流
-	DeliveryId string           `json:"delivery_id" form:"delivery_id"` // 物流公司编号
-	TrackNo    string           `json:"track_no" form:"track_no"`       // 物流单号
-	ShopId     string           `json:"shop_id" form:"shop_id"`
-	Items      []*LogisticsItem `json:"items"`
+	NoDelivery  bool               `json:"no_delivery" form:"no_delivery"` // 无需物流
+	DeliveryId  string             `json:"delivery_id" form:"delivery_id"` // 物流公司编号
+	TrackNo     string             `json:"track_no" form:"track_no"`       // 物流单号
+	ShopId      string             `json:"shop_id" form:"shop_id"`
+	Items       []*LogisticsItem   `json:"items"`
+	WaybillID   string             `json:"-" form:"-"` // 小程序物流助手，运单ID，下单成功时返回
+	WaybillData []*WaybillDataItem `json:"-" form:"-"` // 小程序物流助手，运单信息，下单成功时返回
 }
 
 func (l LogisticsOption) isValid() error {
@@ -384,9 +398,13 @@ func (l LogisticsOption) isValid() error {
 	if l.DeliveryId == "" {
 		return err2.Err422.F("缺少物流公司")
 	}
-	if l.TrackNo == "" {
+	if l.WaybillID != "" && l.TrackNo == "" {
 		return err2.Err422.F("缺少物流单号")
 	}
+	if l.WaybillID == "" && l.TrackNo == "" {
+		return err2.Err422.F("缺少物流单号")
+	}
+
 	return nil
 }
 
@@ -405,14 +423,36 @@ func (l LogisticsItem) equal(item LogisticsItem) bool {
 }
 
 var LogisticsInfos = []LogisticsInfo{
-	{"百世快递", "BEST"},
-	{"中国邮政速递物流(EMS)", "EMS"},
-	{"品骏物流", "PJ"},
-	{"顺丰速运", "SF"},
-	{"圆通速递", "YTO"},
-	{"韵达快递", "YUNDA"},
-	{"中通快递", "ZTO"},
-	{"申通快递", "STO"},
+	{DeliveryName: "百世快递", DeliveryId: "BEST", Services: []LogisticsInfoService{
+		{Type: 1, Name: "普通快递"},
+	}},
+	{DeliveryName: "中国邮政速递物流(EMS)", DeliveryId: "EMS", Services: []LogisticsInfoService{
+		{Type: 6, Name: "标准快递"},
+		{Type: 9, Name: "快递包裹"},
+	}},
+	{DeliveryName: "品骏物流", DeliveryId: "PJ", Services: []LogisticsInfoService{
+		{Type: 1, Name: "普通快递"},
+	}},
+	{DeliveryName: "顺丰速运", DeliveryId: "SF", Services: []LogisticsInfoService{
+		{Type: 0, Name: "标准快递"},
+		{Type: 1, Name: "顺丰即日"},
+		{Type: 2, Name: "顺丰次晨"},
+		{Type: 3, Name: "顺丰标快"},
+		{Type: 4, Name: "顺丰特惠"},
+	}},
+	{DeliveryName: "圆通速递", DeliveryId: "YTO", Services: []LogisticsInfoService{
+		{Type: 0, Name: "普通快递"},
+		{Type: 1, Name: "圆准达"},
+	}},
+	{DeliveryName: "韵达快递", DeliveryId: "YUNDA", Services: []LogisticsInfoService{
+		{Type: 0, Name: "标准快件"},
+	}},
+	{DeliveryName: "中通快递", DeliveryId: "ZTO", Services: []LogisticsInfoService{
+		{Type: 0, Name: "标准快件"},
+	}},
+	{DeliveryName: "申通快递", DeliveryId: "STO", Services: []LogisticsInfoService{
+		{Type: 1, Name: "标准快递"},
+	}},
 }
 
 func FindLogisticsInfo(id string) LogisticsInfo {
@@ -425,19 +465,33 @@ func FindLogisticsInfo(id string) LogisticsInfo {
 }
 
 type LogisticsInfo struct {
-	DeliveryName string `json:"delivery_name"` // 快递公司
-	DeliveryId   string `json:"delivery_id"`   // 快递公司id
+	DeliveryName string                 `json:"delivery_name"` // 快递公司
+	DeliveryId   string                 `json:"delivery_id"`   // 快递公司id
+	BizID        string                 `json:"biz_id"`
+	Services     []LogisticsInfoService `json:"services"`
+}
+
+type LogisticsInfoService struct {
+	Type uint8  `json:"type"`
+	Name string `json:"name"`
 }
 
 // 物流
 type Logistics struct {
-	Items        []*LogisticsItem `json:"items"`
-	NoDelivery   bool             `json:"no_delivery" bson:"no_delivery"`     // 是否无需物流
-	DeliveryName string           `json:"delivery_name" bson:"delivery_name"` // 物流公司名称
-	DeliveryId   string           `json:"delivery_id" bson:"delivery_id"`     // 物流公司标识
-	TrackNo      string           `json:"track_no" bson:"track_no"`           // 物流单号
-	CreatedAt    time.Time        `json:"created_at" bson:"created_at"`
-	UpdatedAt    time.Time        `json:"updated_at" bson:"updated_at"`
+	Items        []*LogisticsItem   `json:"items"`
+	NoDelivery   bool               `json:"no_delivery" bson:"no_delivery"`                   // 是否无需物流
+	DeliveryName string             `json:"delivery_name" bson:"delivery_name"`               // 物流公司名称
+	DeliveryId   string             `json:"delivery_id" bson:"delivery_id"`                   // 物流公司标识
+	TrackNo      string             `json:"track_no" bson:"track_no"`                         // 物流单号
+	WaybillID    string             `json:"waybill_id,omitempty" bson:"waybill_id,omitempty"` // 小程序物流助手下单单号
+	WaybillData  []*WaybillDataItem `json:"waybill_data,omitempty" bson:"waybill_data,omitempty"`
+	CreatedAt    time.Time          `json:"created_at" bson:"created_at"`
+	UpdatedAt    time.Time          `json:"updated_at" bson:"updated_at"`
+}
+
+type WaybillDataItem struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
 }
 
 func (l Logistics) Equal(logistics Logistics) bool {

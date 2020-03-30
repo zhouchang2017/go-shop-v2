@@ -120,6 +120,7 @@ func (this *OrderRep) AggregateOrderItem(ctx context.Context, req *request.Index
 	}
 	data := result.Result.(*[]*models.AggregateOrderItem)
 	res = *data
+	pagination = result.Pagination
 	return
 }
 

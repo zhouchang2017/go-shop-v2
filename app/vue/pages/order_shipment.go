@@ -14,11 +14,12 @@ var OrderShipmentPage *orderShipmentPage
 
 // 订单发货页面
 type orderShipmentPage struct {
-	srv *services.OrderService
+	srv          *services.OrderService
+	logisticsSrv *services.LogisticsService
 }
 
 func NewOrderShipmentPage() *orderShipmentPage {
-	return &orderShipmentPage{srv: services.MakeOrderService()}
+	return &orderShipmentPage{srv: services.MakeOrderService(), logisticsSrv: services.MakeLogisticsService()}
 }
 
 func (o orderShipmentPage) AuthorizedTo(ctx *gin.Context, user auth.Authenticatable) bool {
@@ -37,6 +38,24 @@ func (o *orderShipmentPage) VueRouter() contracts.Router {
 }
 
 func (o *orderShipmentPage) HttpHandles(router gin.IRouter) {
+	// 获取微信小程序可用物流
+	router.GET("mp/logistics", func(ctx *gin.Context) {
+		delivery, _ := o.logisticsSrv.GetAllDelivery()
+		ctx.JSON(http.StatusOK, delivery)
+	})
+	// 小程序物流助手下单
+	router.POST("mp/logistics", func(ctx *gin.Context) {
+		var form services.CreateExpressOrderOption
+		if err := ctx.ShouldBind(&form); err != nil {
+			err2.ErrorEncoder(nil,err, ctx.Writer)
+			return
+		}
+		if err := form.IsValid();err!=nil {
+			err2.ErrorEncoder(nil,err, ctx.Writer)
+			return
+		}
+		o.logisticsSrv.AddOrder(ctx,form)
+	})
 	// 发货
 	router.POST("orders/:Order/shipment", func(ctx *gin.Context) {
 		id := ctx.Param("Order")
