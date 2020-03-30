@@ -39,8 +39,8 @@ func (refundOpt *RefundOption) IsValid() error {
 	return nil
 }
 
-// 进行退款  目前做的整单退，如果要做单个的话需要调整RefundOption添加item
-func (srv *RefundService) Refund(ctx context.Context, opt *RefundOption) (*models.Refund, error) {
+// 同意退款/进行退款(目前做的整单退，如果要做单个的话需要调整RefundOption添加item)
+func (srv *RefundService) AgreeRefund(ctx context.Context, opt *RefundOption) (refundOrder *models.Refund, err error) {
 	if err := opt.IsValid(); err != nil {
 		return nil, err
 	}
@@ -53,23 +53,81 @@ func (srv *RefundService) Refund(ctx context.Context, opt *RefundOption) (*model
 	if order.OrderNo != opt.OrderNo {
 		return nil, errors.New("invalid OrderNo with different")
 	}
-	if order.Status != models.OrderStatusRefund {
-		return nil, errors.New("invalid order status not refund")
+	if order.Status != models.OrderStatusRefundApply {
+		return nil, errors.New("invalid order status not refund apply")
 	}
 	// generate refund order information
-	refundOrder := srv.buildRefund(order, order.ActualAmount)
-	// add refund order into db
-	created := <-srv.refundResp.Create(ctx, refundOrder)
-	if created.Error != nil {
-		return nil, created.Error
+	refundOrder = srv.buildRefund(order, order.ActualAmount)
+	// 开启事务
+	var session mongo.Session
+	if session, err = mongodb.GetConFn().Client().StartSession(); err != nil {
+		return nil, err
 	}
-	// refund order
-	option := srv.buildRefundOption(order, refundOrder.RefundOrderNo)
-	_, wcErr := wechat.Pay.Refund(option)
-	if wcErr != nil {
-		return nil, wcErr
+	if err := session.StartTransaction(); err != nil {
+		return nil, err
 	}
-	return created.Result.(*models.Refund), nil
+	err = mongo.WithSession(ctx, session, func(sessionContext mongo.SessionContext) error {
+		// add refund order into db
+		created := <-srv.refundResp.Create(sessionContext, refundOrder)
+		if created.Error != nil {
+			session.AbortTransaction(sessionContext)
+			return created.Error
+		}
+		// update order status into db
+		updated := <-srv.orderResp.Update(sessionContext, order.GetID(), bson.M{
+			"$set": bson.M{
+				"status": models.OrderStatusRefunding,
+			},
+		})
+		if updated.Error != nil {
+			session.AbortTransaction(sessionContext)
+			return updated.Error
+		}
+		// refund order
+		option := srv.buildRefundOption(refundOrder)
+		_, wcErr := wechat.Pay.Refund(option)
+		if wcErr != nil {
+			session.AbortTransaction(sessionContext)
+			return wcErr
+		}
+		// return
+		session.CommitTransaction(sessionContext)
+		refundOrder = created.Result.(*models.Refund)
+		return nil
+	})
+	// return
+	session.EndSession(ctx)
+	return refundOrder, err
+}
+
+// 拒绝退款
+func (srv *RefundService) RejectRefund(ctx context.Context, opt *RefundOption) (refundOrder *models.Order, err error) {
+	if err := opt.IsValid(); err != nil {
+		return nil, err
+	}
+	// get order information
+	orderRes := <-srv.orderResp.FindById(ctx, opt.OrderId)
+	if orderRes.Error != nil {
+		return nil, orderRes.Error
+	}
+	order := orderRes.Result.(*models.Order)
+	if order.OrderNo != opt.OrderNo {
+		return nil, errors.New("invalid OrderNo with different")
+	}
+	if order.Status != models.OrderStatusRefundApply {
+		return nil, errors.New("invalid order status not refund apply")
+	}
+	// update order status to reject
+	updated := <-srv.orderResp.Update(ctx, order.GetID(), bson.M{
+		"$set": bson.M{
+			"status": models.OrderStatusRefundReject,
+		},
+	})
+	if updated.Error != nil {
+		return nil, updated.Error
+	}
+	// return
+	return updated.Result.(*models.Order), nil
 }
 
 // 退款回调
@@ -81,7 +139,7 @@ func (srv *RefundService) RefundNotify(ctx context.Context, req *http.Request) (
 	}
 	spew.Dump(notifyReq)
 	// deal with
-	//orderNo := notifyReq.OutTradeNo
+	orderNo := notifyReq.OutTradeNo
 	refundOrderNo := notifyReq.OutRefundNo
 	paymentNo := notifyReq.TransactionId
 
@@ -94,31 +152,32 @@ func (srv *RefundService) RefundNotify(ctx context.Context, req *http.Request) (
 		return "", err
 	}
 	err = mongo.WithSession(ctx, session, func(sessionContext mongo.SessionContext) error {
-		//// get order information
-		//order, err := srv.orderResp.FindByOrderNo(sessionContext, orderNo)
-		//if err != nil {
-		//	session.AbortTransaction(sessionContext)
-		//	return err
-		//}
+		// get order information
+		order, err := srv.orderResp.FindByOrderNo(sessionContext, orderNo)
+		if err != nil {
+			session.AbortTransaction(sessionContext)
+			return err
+		}
 		// get refund order information
 		refund, err := srv.refundResp.FindByRefundOrderNo(sessionContext, refundOrderNo)
 		if err != nil {
 			session.AbortTransaction(sessionContext)
 			return err
 		}
-		if refund.Status == models.RefundStatusFinished {
-			// 已经标记为支付！！
+		if order.Status != models.OrderStatusRefunding {
+			return fmt.Errorf("order %s status %d not refunding", order.OrderNo, order.Status)
+		}
+		if refund.PaymentStatus == "SUCCESS" {
+			// 标记为已成功
 			return nil
 		}
-		refund.PaymentNo = paymentNo
-
 		// check result
 		if notifyReq.RefundStatus != "SUCCESS" {
 			// 通知结果支付失败
 			updateRes := <-srv.refundResp.Update(sessionContext, refund.GetID(), bson.M{
 				"$set": bson.M{
-					"status":  models.RefundStatusFailed,
-					"payment_no": paymentNo,
+					"payment_status": notifyReq.RefundStatus,
+					"payment_no":     paymentNo,
 				},
 			})
 			if updateRes.Error != nil {
@@ -126,7 +185,7 @@ func (srv *RefundService) RefundNotify(ctx context.Context, req *http.Request) (
 				return fmt.Errorf("update refund order-%s to failed status failed %s", refundOrderNo, updateRes.Error)
 			}
 			// return
-			//log.Println("update order xxx to failed status success")
+			session.CommitTransaction(sessionContext)
 			return nil
 		}
 		// deal with if success
@@ -137,22 +196,29 @@ func (srv *RefundService) RefundNotify(ctx context.Context, req *http.Request) (
 		}
 		// 支付成功
 		// update refund order
-		updateRes := <-srv.orderResp.Update(sessionContext, refund.GetID(), bson.M{
+		updateRefund := <-srv.refundResp.Update(sessionContext, refund.GetID(), bson.M{
 			"$set": bson.M{
-				"status":  models.RefundStatusFinished,
-				"payment_no": paymentNo,
+				"payment_status": notifyReq.RefundStatus,
+				"payment_no":     paymentNo,
 			},
 		})
-		if updateRes.Error != nil {
+		if updateRefund.Error != nil {
 			session.AbortTransaction(sessionContext)
-			return fmt.Errorf("update refund order-%s to success status failed %s", refundOrderNo, updateRes.Error)
+			return fmt.Errorf("update refund order-%s to success status failed %s", refundOrderNo, updateRefund.Error)
+		}
+		// update order status
+		updateOrder := <-srv.orderResp.Update(sessionContext, order.GetID(), bson.M{
+			"$set": bson.M{
+				"status": models.OrderStatusRefundDone,
+			},
+		})
+		if updateOrder.Error != nil {
+			session.AbortTransaction(sessionContext)
+			return fmt.Errorf("update order-%s to refund success status failed %s", orderNo, updateOrder.Error)
 		}
 		// return
-		//log.Println("update order xxx to success status success")
 		session.CommitTransaction(sessionContext)
-
-		// 新标记订单为完成状态，返回退款订单号
-		refundOrderNumber = refundOrderNo
+		refundOrderNumber = refundOrderNo // 新标记订单为完成状态，返回退款订单号
 		return nil
 	})
 
@@ -161,12 +227,12 @@ func (srv *RefundService) RefundNotify(ctx context.Context, req *http.Request) (
 	return refundOrderNumber, err
 }
 
-func (srv *RefundService) buildRefundOption(order *models.Order, refundOrderNo string) (opt *wechat.RefundOption) {
+func (srv *RefundService) buildRefundOption(refundOrder *models.Refund) (opt *wechat.RefundOption) {
 	opt = &wechat.RefundOption{
-		OutTradeNo:  order.OrderNo,
-		OutRefundNo: refundOrderNo,
-		TotalFee:    order.ActualAmount,
-		RefundFee:   order.ActualAmount,
+		OutTradeNo:  refundOrder.OrderNo,
+		OutRefundNo: refundOrder.RefundOrderNo,
+		TotalFee:    refundOrder.TotalAmount,
+		RefundFee:   refundOrder.TotalAmount,
 		RefundDesc:  "整单退款",
 	}
 	// return
@@ -189,7 +255,7 @@ func (srv *RefundService) buildRefund(order *models.Order, refundFee uint64) (re
 		PaymentNo:     "",
 		TotalAmount:   refundFee,
 		Items:         refundItems,
-		Status:        models.RefundStatusProcessing,
+		PaymentStatus: "",
 	}
 	return refundOrder
 }

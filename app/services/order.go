@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/davecgh/go-spew/spew"
 	"go-shop-v2/app/models"
@@ -318,6 +319,21 @@ func (srv *OrderService) generateOrder(user *models.User, opt *OrderCreateOption
 	}
 	// return
 	return resOrder
+}
+
+// 申请退款
+func (srv *OrderService) ApplyRefund(ctx context.Context, order *models.Order) (model *models.Order, err error) {
+	if order.Status != models.OrderStatusPreSend {
+		err = errors.New("invalid order status which not pre send")
+		return nil, err
+	}
+	// 保存状态
+	order.Status = models.OrderStatusRefundApply
+	saved := <-srv.orderRep.Save(ctx, order)
+	if saved.Error != nil {
+		return nil, saved.Error
+	}
+	return saved.Result.(*models.Order), nil
 }
 
 // 发货
