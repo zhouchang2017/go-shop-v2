@@ -13,14 +13,18 @@ import (
 )
 
 const (
-	OrderStatusFailed      = iota - 1 // 订单关闭
-	OrderStatusPrePay                 // 等待付款
-	OrderStatusPaid                   // 支付成功
-	OrderStatusPreSend                // 等待发货
-	OrderStatusPreConfirm             // 等待收货
-	OrderStatusDone                   // 交易完成
-	OrderStatusPreEvaluate            // 待评价
-	OrderStatusRefund                 // 订单申请退款(具体退款状态看refund)
+	OrderStatusFailed       = iota - 1 // 订单关闭
+	OrderStatusPrePay                  // 等待付款
+	OrderStatusPaid                    // 支付成功
+	OrderStatusPreSend                 // 等待发货
+	OrderStatusPreConfirm              // 等待收货
+	OrderStatusDone                    // 交易完成
+	OrderStatusPreEvaluate             // 待评价
+	OrderStatusRefundApply             // 订单申请退款
+	OrderStatusRefundAgreed            // 同意退款
+	OrderStatusRefundReject            // 拒绝退款
+	OrderStatusRefunding               // 退款中
+	OrderStatusRefundDone              // 退款已完成
 
 	OrderTakeGoodTypeOnline  = 1
 	OrderTakeGoodTypeOffline = 2
