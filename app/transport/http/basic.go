@@ -77,7 +77,8 @@ func Register(app *gin.Engine) {
 	v1.PUT("/shopping-cart", shopCartController.GetCheckedItemsDetail)
 
 	orderController := &OrderController{
-		orderSrv: services.MakeOrderService(),
+		orderSrv:  services.MakeOrderService(),
+		refundSrv: services.MakeRefundService(),
 	}
 	// 订单列表
 	v1.GET("/orders", orderController.Index)
@@ -90,7 +91,10 @@ func Register(app *gin.Engine) {
 	// 取消订单
 	v1.PUT("/orders/:id/cancel", orderController.Cancel)
 	// 订单申请退款
-	v1.PUT("/orders/:id/refund", orderController.ApplyRefund)
+	v1.PUT("/orders/:id/refunds", orderController.ApplyRefund)
+	// 取消申请退款
+	v1.PUT("/orders/:id/refunds/:refundId/cancel", orderController.CancelRefund)
+
 	bookmarkSrv := services.MakeBookmarkService()
 	bookmarkController := &BookmarkController{
 		bookmarkSrv: bookmarkSrv,

@@ -6,19 +6,17 @@ import (
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/services"
 	"go-shop-v2/app/tb"
+	"go-shop-v2/app/usecases"
 	fields2 "go-shop-v2/app/vue/fields"
 	"go-shop-v2/app/vue/pages"
 	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/qiniu"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
-	"go-shop-v2/pkg/utils"
 	"go-shop-v2/pkg/vue/contracts"
 	"go-shop-v2/pkg/vue/core"
 	"go-shop-v2/pkg/vue/fields"
 	"regexp"
-	"strings"
-	"sync"
 )
 
 type Product struct {
@@ -102,86 +100,15 @@ func (this *Product) CustomHttpHandle(router gin.IRouter) {
 		ctx.JSON(200, data)
 	})
 
-	qiniuService := qiniu.GetQiniu()
 	// 第三方外部图片转存七牛
 	router.POST("taobao/products/parse-url", func(ctx *gin.Context) {
-		var form parseUrlForm
+		var form usecases.ParseUrlOption
 		if err := ctx.ShouldBind(&form); err != nil {
 			err2.ErrorEncoder(ctx, err, ctx.Writer)
 			return
 		}
-
-		// TODO 通过id 创建 ttl 缓存
-		// https://github.com/patrickmn/go-cache
-
-		if res, ok := paserCache[form.Id]; ok {
-			ctx.JSON(200, res)
-			return
-		}
-
-		var images []qiniu.Image
-		var description = form.Description
-		var optionValues = []*models.OptionValue{}
-
-		for _, image := range form.Images {
-
-			res, err := qiniuService.PutByUrl(ctx, image.Src(), utils.RandomString(32))
-
-			if err == nil {
-				images = append(images, res)
-			}
-		}
-
-		submatch := imgRE.FindAllStringSubmatch(description, -1)
-
-		matchImages := map[string]string{}
-		wg := sync.WaitGroup{}
-		for _, value := range form.OptionValues {
-			wg.Add(1)
-			go func(ov *models.OptionValue) {
-				if ov.Image.IsUrl() {
-					res, err := qiniuService.PutByUrl(ctx, ov.Image.Src(), utils.RandomString(32))
-					if err == nil {
-						optionValues = append(optionValues, &models.OptionValue{
-							Id:    ov.Id,
-							Name:  ov.Name,
-							Image: &res,
-						})
-					}
-				}
-				wg.Done()
-			}(value)
-		}
-
-		for _, match := range submatch {
-			wg.Add(1)
-			go func(ma []string) {
-				if len(ma) >= 2 {
-					res, err := qiniuService.PutByUrl(ctx, ma[1], utils.RandomString(32))
-					if err == nil {
-						matchImages[ma[1]] = res.Src()
-					}
-				}
-				wg.Done()
-			}(match)
-		}
-
-		wg.Wait()
-		for key, value := range matchImages {
-			description = strings.ReplaceAll(description, key, value)
-		}
-
-		paserCache[form.Id] = map[string]interface{}{
-			"images":        images,
-			"description":   description,
-			"option_values": optionValues,
-		}
-
-		ctx.JSON(200, gin.H{
-			"images":        images,
-			"description":   description,
-			"option_values": optionValues,
-		})
+		url := usecases.ParseTaobaoUrl(ctx, &form)
+		ctx.JSON(200, url)
 	})
 }
 

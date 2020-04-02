@@ -44,6 +44,10 @@ type (
 		Cards(ctx *gin.Context) []Card
 	}
 
+	IndexSearchPlaceholder interface {
+		SearchPlaceholder() string
+	}
+
 	// 可展示icon图标
 	Iconable interface {
 		Icon() string

@@ -130,7 +130,7 @@ func MakePaymentService() *PaymentService {
 }
 
 func MakeRefundService() *RefundService {
-	return NewRefundService(repositories.MakeRefundRep(), repositories.MakeOrderRep())
+	return NewRefundService(repositories.MakeFailedRefundRep(), repositories.MakeOrderRep())
 }
 
 func MakeLogisticsService() *LogisticsService {

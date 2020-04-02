@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/davecgh/go-spew/spew"
 	"go-shop-v2/app/models"
@@ -126,6 +125,14 @@ type OrderService struct {
 
 func NewOrderService(orderRep *repositories.OrderRep, promotionSrv *PromotionService, productSrv *ProductService) *OrderService {
 	return &OrderService{orderRep: orderRep, promotionSrv: promotionSrv, productSrv: productSrv}
+}
+
+func (srv *OrderService) Save(ctx context.Context, entity *models.Order) (order *models.Order, err error) {
+	saved := <-srv.orderRep.Save(ctx, entity)
+	if saved.Error != nil {
+		return nil, saved.Error
+	}
+	return saved.Result.(*models.Order), nil
 }
 
 // 列表
@@ -321,19 +328,32 @@ func (srv *OrderService) generateOrder(user *models.User, opt *OrderCreateOption
 	return resOrder
 }
 
-// 申请退款
-func (srv *OrderService) ApplyRefund(ctx context.Context, order *models.Order) (model *models.Order, err error) {
-	if order.Status != models.OrderStatusPreSend {
-		err = errors.New("invalid order status which not pre send")
-		return nil, err
+// 整单申请退款
+func (srv *OrderService) ApplyRefund(ctx context.Context, order *models.Order, desc string) (refund *models.Refund, model *models.Order, err error) {
+	if err = order.CanApplyRefund(); err != nil {
+		return nil, nil, err
 	}
-	// 保存状态
-	order.Status = models.OrderStatusRefundApply
+	// 生成退款单
+	opt := models.RefundOption{Desc: desc}
+	var items []*models.RefundItem
+	for _, item := range order.OrderItems {
+		items = append(items, &models.RefundItem{
+			ItemId: item.Item.Id,
+			Qty:    uint64(item.Count),
+			Amount: uint64(item.Amount),
+		})
+	}
+	opt.Items = items
+
+	refund, err = order.MakeRefund(opt)
+	if err != nil {
+		return nil, nil, err
+	}
 	saved := <-srv.orderRep.Save(ctx, order)
 	if saved.Error != nil {
-		return nil, saved.Error
+		return nil, nil, saved.Error
 	}
-	return saved.Result.(*models.Order), nil
+	return refund, saved.Result.(*models.Order), nil
 }
 
 // 发货

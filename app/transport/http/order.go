@@ -15,7 +15,8 @@ import (
 )
 
 type OrderController struct {
-	orderSrv *services.OrderService
+	orderSrv  *services.OrderService
+	refundSrv *services.RefundService
 }
 
 // 订单列表
@@ -133,9 +134,46 @@ func (ctrl *OrderController) Cancel(ctx *gin.Context) {
 	Response(ctx, nil, http.StatusNoContent)
 }
 
+type refundOption struct {
+	Desc string `json:"desc"`
+}
+
 // 未发货订单申请退款
 // api PUT /orders/:id/refund
 func (ctrl *OrderController) ApplyRefund(ctx *gin.Context) {
+	id := ctx.Param("id")
+	if id == "" {
+		ResponseError(ctx, err2.Err422.F("订单号异常"))
+		return
+	}
+	var form refundOption
+	if err := ctx.ShouldBind(&form); err != nil {
+		ResponseError(ctx, err)
+		return
+	}
+	order, err := ctrl.orderSrv.FindById(ctx, id)
+	if err != nil {
+		ResponseError(ctx, err2.Err422.F("订单不存在"))
+		return
+	}
+	user := ctx2.GetUser(ctx).(*models.User)
+	if order.User.Id != user.GetID() {
+		ResponseError(ctx, err2.Err422.F("订单不存在"))
+		return
+	}
+	refund, order, err := ctrl.orderSrv.ApplyRefund(ctx, order, form.Desc)
+	if err != nil {
+		ResponseError(ctx, err)
+		return
+	}
+	// todo 申请退款成功，推送邮件通知管理员
+	rabbitmq.Dispatch(events.NewOrderApplyRefundEvent(order, refund.Id))
+	Response(ctx, refund, http.StatusOK)
+}
+
+// 取消退款
+// api PUT /orders/:id/refund/:refundId/cancel
+func (ctrl *OrderController) CancelRefund(ctx *gin.Context) {
 	id := ctx.Param("id")
 	if id == "" {
 		ResponseError(ctx, err2.Err422.F("订单号异常"))
@@ -152,11 +190,21 @@ func (ctrl *OrderController) ApplyRefund(ctx *gin.Context) {
 		ResponseError(ctx, err2.Err422.F("订单不存在"))
 		return
 	}
-	refund, err := ctrl.orderSrv.ApplyRefund(ctx, order)
+	refundId := ctx.Param("refundId")
+	if refundId == "" {
+		ResponseError(ctx, err2.Err422.F("退款单号异常"))
+		return
+	}
+	refund, order, err := ctrl.refundSrv.CancelRefund(ctx, &services.RefundOption{
+		OrderId:  id,
+		OrderNo:  order.OrderNo,
+		RefundNo: refundId,
+	}, user, true)
+
 	if err != nil {
 		ResponseError(ctx, err)
 		return
 	}
-	// todo 申请退款成功，推送邮件通知管理员
+
 	Response(ctx, refund, http.StatusOK)
 }

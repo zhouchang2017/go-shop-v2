@@ -90,11 +90,27 @@ func TestOrderService_FindById(t *testing.T) {
 	count := service.TodayNewOrderCount(context.Background())
 	spew.Dump(count)
 	indexRequest := &request.IndexRequest{}
-	payCount,pagination, err := service.AggregateOrderItem(context.Background(), indexRequest)
+	payCount, pagination, err := service.AggregateOrderItem(context.Background(), indexRequest)
 	if err != nil {
 		panic(err)
 	}
 	spew.Dump(pagination)
 	spew.Dump(payCount)
 
+}
+
+func TestOrderService_ApplyRefund(t *testing.T) {
+	mongodb.TestConnect()
+	defer mongodb.Close()
+	service := MakeOrderService()
+	order, err := service.FindById(context.Background(), "5e785904ea0651a8b4c68196")
+	if err != nil {
+		panic(err)
+	}
+	refund, err := service.ApplyRefund(context.Background(), order,"我不想要了")
+	if err != nil {
+		panic(err)
+	}
+
+	spew.Dump(refund)
 }

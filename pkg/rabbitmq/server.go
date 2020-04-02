@@ -315,6 +315,7 @@ func (rmq *RabbitMQ) listen(listener Listener, ds <-chan amqp.Delivery) (err err
 				if err = msg.Ack(false); err != nil {
 					log.Errorf("确认消息完成异常:%s \n", err)
 				}
+				return err
 			}
 			err = msg.Ack(true)
 			if err != nil {

@@ -34,6 +34,14 @@ func (this *PaymentRep) GetRangePaymentCount(ctx context.Context, start time.Tim
 				"count":        bson.M{"$sum": 1},
 			},
 		}},
+		bson.D{{"$replaceRoot", bson.M{
+			"newRoot": bson.M{"$mergeObjects": bson.A{
+				bson.M{
+					"total_amount": "$total_amount",
+					"count":        "$count",
+				},
+			}},
+		}}},
 	}
 	aggregate, err := this.Collection().Aggregate(ctx, pipeline)
 	if err != nil {

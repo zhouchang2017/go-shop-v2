@@ -37,6 +37,10 @@ func (o OnOrderTimeOutListener) Handler(data []byte) error {
 		// 订单已经被关闭,不做处理
 		return nil
 	}
+	if order.StatusIsFailed() {
+		// 已关闭订单，不做处理
+		return nil
+	}
 	// 关闭订单
 	updatedOrder, err := o.orderSrv.Cancel(context.Background(), order, "")
 	if err != nil {

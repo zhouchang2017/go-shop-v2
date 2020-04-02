@@ -9,6 +9,7 @@ import (
 	fields2 "go-shop-v2/app/vue/fields"
 	"go-shop-v2/app/vue/filters"
 	"go-shop-v2/app/vue/pages"
+	ctx2 "go-shop-v2/pkg/ctx"
 	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/rabbitmq"
 	"go-shop-v2/pkg/request"
@@ -27,11 +28,16 @@ type Order struct {
 	model     interface{}
 }
 
+func (order *Order) SearchPlaceholder() string {
+	return "请输入订单号"
+}
+
 func (order *Order) Show(ctx *gin.Context, id string) (res interface{}, err error) {
 	return order.srv.FindById(ctx, id)
 }
 
 func (order *Order) Pagination(ctx *gin.Context, req *request.IndexRequest) (res interface{}, pagination response.Pagination, err error) {
+	req.SetSearchField("order_no")
 	return order.srv.Pagination(ctx, req)
 }
 
@@ -140,7 +146,6 @@ func (this *Order) CustomHttpHandle(router gin.IRouter) {
 		rabbitmq.Dispatch(events.NewOrderClosedByAdminEvent(updatedOrder))
 		ctx.JSON(http.StatusNoContent, nil)
 	})
-
 	// 同意退款
 	router.POST("/api/orders/:Order/refund/agree", func(ctx *gin.Context) {
 		orderId := ctx.Param("Order")
@@ -155,11 +160,12 @@ func (this *Order) CustomHttpHandle(router gin.IRouter) {
 			err2.ErrorEncoder(ctx, err, ctx.Writer)
 			return
 		}
-		refund, err := this.refundSrv.AgreeRefund(ctx, &form)
+		refund, order, err := this.refundSrv.AgreeRefund(ctx, &form)
 		if err != nil {
 			err2.ErrorEncoder(ctx, err, ctx.Writer)
 			return
 		}
+		rabbitmq.Dispatch(events.NewOrderRefundChangeEvent(order, refund.Id))
 		ctx.JSON(http.StatusOK, refund)
 	})
 	// 拒绝退款
@@ -176,12 +182,46 @@ func (this *Order) CustomHttpHandle(router gin.IRouter) {
 			err2.ErrorEncoder(ctx, err, ctx.Writer)
 			return
 		}
-		order, err := this.refundSrv.RejectRefund(ctx, &form)
+		refund, order, err := this.refundSrv.RejectRefund(ctx, &form)
 		if err != nil {
 			err2.ErrorEncoder(ctx, err, ctx.Writer)
 			return
 		}
+		rabbitmq.Dispatch(events.NewOrderRefundChangeEvent(order, refund.Id))
 		ctx.JSON(http.StatusOK, order)
+	})
+	// 关闭退款
+	router.PUT("/api/orders/:Order/refund/cancel", func(ctx *gin.Context) {
+		orderId := ctx.Param("Order")
+		if orderId == "" {
+			err2.ErrorEncoder(ctx, err2.Err422.F("缺少order_id"), ctx.Writer)
+			return
+		}
+		form := services.RefundOption{
+			OrderId: orderId,
+		}
+		if err := ctx.ShouldBind(&form); err != nil {
+			err2.ErrorEncoder(ctx, err, ctx.Writer)
+			return
+		}
+		admin := ctx2.GetUser(ctx).(*models.Admin)
+		refund, order, err := this.refundSrv.CancelRefund(ctx, &form, admin, false)
+		if err != nil {
+			err2.ErrorEncoder(ctx, err, ctx.Writer)
+			return
+		}
+		rabbitmq.Dispatch(events.NewOrderRefundChangeEvent(order, refund.Id))
+		ctx.JSON(http.StatusOK, refund)
+	})
+	// 获取退款失败原因
+	router.GET("/api/failed-refunds/:RefundNo", func(ctx *gin.Context) {
+		refundNo := ctx.Param("RefundNo")
+		if refundNo == "" {
+			err2.ErrorEncoder(ctx, err2.Err422.F("缺少refund_no"), ctx.Writer)
+			return
+		}
+		failed, _ := this.refundSrv.FindFailedByRefundNo(ctx, refundNo)
+		ctx.JSON(http.StatusOK, failed)
 	})
 }
 

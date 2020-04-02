@@ -201,8 +201,9 @@ func (srv *PaymentService) PayNotify(ctx context.Context, req *http.Request) (or
 			// update order
 			updateRes := <-srv.orderResp.Update(sessionContext, order.GetID(), bson.M{
 				"$set": bson.M{
-					"status":  models.OrderStatusPreSend,
-					"payment": updatePayment.ToAssociated(),
+					"status":         models.OrderStatusPreSend,
+					"payment":        updatePayment.ToAssociated(),
+					"refund_channel": true,
 				},
 			})
 			if updateRes.Error != nil {

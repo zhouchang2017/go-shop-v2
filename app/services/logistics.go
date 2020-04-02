@@ -162,7 +162,7 @@ func (this *LogisticsService) AddOrder(ctx context.Context, opt CreateExpressOrd
 	}
 	if deliveryService == nil {
 		// 物流公司服务不匹配
-		return nil, err2.Err422.F("DeliveryServiceType[%s],不合法", opt.DeliveryServiceType)
+		return nil, err2.Err422.F("DeliveryServiceType[%d],不合法", opt.DeliveryServiceType)
 	}
 	if delivery.BizID == "" {
 		// 缺少物流结账号

@@ -86,7 +86,6 @@ func main() {
 	// 微信skd
 	wechat.NewSDK(configs.WeappConfig)
 	wechat.ClearCache() // 清除缓存
-
 	// 微信支付
 	wechat.NewPay(configs.WechatPayCfg)
 
@@ -118,6 +117,8 @@ func main() {
 	vue.WithConfig("qiniu_upload_action", newQiniu.FileUploadAction())
 	vue.WithConfig("qiniu_cdn_domain", newQiniu.Domain())
 	vue.WithConfig("logistics", models.LogisticsInfos)
+	vue.WithConfig("order_status", models.OrderStatus)
+	vue.WithConfig("refund_status", models.RefundStatus)
 	// vue相关启动项
 	vue2.Boot(vue)
 	// 启动vue后台组件框架

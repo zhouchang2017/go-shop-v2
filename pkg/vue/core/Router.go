@@ -229,6 +229,9 @@ func (this *vueRouterFactory) vueIndexRouter() contracts.Router {
 		if iconable, ok := this.resource.(contracts.Iconable); ok {
 			router.WithMeta("icon", iconable.Icon())
 		}
+		if indexSearchPlaceholder, ok := this.resource.(contracts.IndexSearchPlaceholder); ok {
+			router.WithMeta("SearchPlaceholder", indexSearchPlaceholder.SearchPlaceholder())
+		}
 		// 追加列
 		router.WithMeta("Headings", resolveIndexFields(this.ctx, this.resource))
 		return router

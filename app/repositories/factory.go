@@ -35,6 +35,11 @@ func MakeRefundRep() *RefundRep {
 	return NewRefundRep(refundMongoRep)
 }
 
+func MakeFailedRefundRep() *FailedRefundRep {
+	rep := NewBasicMongoRepositoryByDefault(&models.FailedRefund{}, mongodb.GetConFn())
+	return NewFailedRefundRep(rep)
+}
+
 func MakeCommentRep() *CommentRep {
 	rep := NewBasicMongoRepositoryByDefault(&models.Comment{}, mongodb.GetConFn())
 	return NewCommentRep(rep)

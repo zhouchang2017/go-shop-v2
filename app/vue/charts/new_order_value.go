@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go-shop-v2/app/services"
 	"go-shop-v2/pkg/vue/charts"
+	"time"
 )
 
 var NewOrderValue *newOrderValue
@@ -21,6 +22,10 @@ func NewNewOrderValue() *newOrderValue {
 		}
 	}
 	return NewOrderValue
+}
+
+func (v newOrderValue) Refresh() time.Duration {
+	return time.Second * 10
 }
 
 func (v newOrderValue) Columns() []string {

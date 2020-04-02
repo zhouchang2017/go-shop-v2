@@ -13,22 +13,41 @@ import (
 )
 
 const (
-	OrderStatusFailed       = iota - 1 // 订单关闭
-	OrderStatusPrePay                  // 等待付款
-	OrderStatusPaid                    // 支付成功
-	OrderStatusPreSend                 // 等待发货
-	OrderStatusPreConfirm              // 等待收货
-	OrderStatusDone                    // 交易完成
-	OrderStatusPreEvaluate             // 待评价
-	OrderStatusRefundApply             // 订单申请退款
-	OrderStatusRefundAgreed            // 同意退款
-	OrderStatusRefundReject            // 拒绝退款
-	OrderStatusRefunding               // 退款中
-	OrderStatusRefundDone              // 退款已完成
+	OrderStatusFailed      = iota - 1 // 订单关闭
+	OrderStatusPrePay                 // 等待付款
+	OrderStatusPaid                   // 支付成功
+	OrderStatusPreSend                // 等待发货
+	OrderStatusPreConfirm             // 等待收货
+	OrderStatusConfirm                // 确认收货
+	OrderStatusPreEvaluate            // 待评价
+	OrderStatusDone                   // 交易成功
 
 	OrderTakeGoodTypeOnline  = 1
 	OrderTakeGoodTypeOffline = 2
 )
+
+var OrderStatus []struct {
+	Name  string `json:"name"`
+	Value int    `json:"value"`
+	Class string `json:"class"`
+	Type  string `json:"type"`
+	Step  bool   `json:"step"`
+} = []struct {
+	Name  string `json:"name"`
+	Value int    `json:"value"`
+	Class string `json:"class"`
+	Type  string `json:"type"`
+	Step  bool   `json:"step"`
+}{
+	{Name: "已取消", Value: OrderStatusFailed, Class: "bg-gray-400"},
+	{Name: "待付款", Value: OrderStatusPrePay, Class: "bg-yellow-400", Type: "order", Step: true},
+	{Name: "已付款", Value: OrderStatusPaid, Class: "bg-blue-400", Type: "order", Step: true},
+	{Name: "待发货", Value: OrderStatusPreSend, Class: "bg-red-400", Type: "order", Step: true},
+	{Name: "待收货", Value: OrderStatusPreConfirm, Class: "bg-green-200", Type: "order", Step: true},
+	{Name: "已收货", Value: OrderStatusConfirm, Class: "bg-green-300", Type: "order", Step: true},
+	{Name: "待评价", Value: OrderStatusPreEvaluate, Class: "bg-green-400", Type: "order", Step: true},
+	{Name: "交易完成", Value: OrderStatusDone, Class: "bg-green-400", Type: "order", Step: true},
+}
 
 type Order struct {
 	model.MongoModel `inline`
@@ -41,12 +60,26 @@ type Order struct {
 	UserAddress      *AssociatedUserAddress `json:"user_address" bson:"user_address" name:"收货信息"`
 	TakeGoodType     int                    `json:"take_good_type" bson:"take_good_type" name:"物流类型"`
 	Logistics        []*Logistics           `json:"logistics" name:"物流信息"`
+	Refunds          []*Refund              `json:"refunds"` // 退款信息
 	Payment          *AssociatedPayment     `json:"payment" name:"支付信息"`
 	Status           int                    `json:"status" name:"订单状态"`
+	RefundChannel    bool                   `json:"refund_channel" bson:"refund_channel"`                 // 是否关闭退款通道
+	CommentChannel   bool                   `json:"comment_channel" bson:"comment_channel"`               // 是否关闭评价通道
 	PromotionInfo    *PromotionOverView     `json:"promotion_info" bson:"promotion_info"`                 // 促销信息
 	ShipmentsAt      *time.Time             `json:"shipments_at" bson:"shipments_at"`                     // 发货时间
 	CommentedAt      *time.Time             `json:"commented_at" bson:"commented_at"`                     // 评价时间
 	CloseReason      *string                `json:"close_reason,omitempty" bson:"close_reason,omitempty"` // 订单取消原因
+}
+
+// 订单是否可以退款
+func (o Order) CanApplyRefund() error {
+	if o.Status == OrderStatusPreSend && o.RefundChannel == true {
+		return nil
+	}
+	if o.RefundChannel {
+		return err2.Err422.F("当前订单不允许退款，退款通道已关闭")
+	}
+	return err2.Err422.F("当前订单不允许退款")
 }
 
 // 订单缩略图
@@ -55,7 +88,6 @@ func (o Order) GetAvatar() string {
 }
 
 // 订单第一件
-
 type AggregateUnitLogistics struct {
 	Items        *LogisticsItem `json:"items"`
 	NoDelivery   bool           `json:"no_delivery" bson:"no_delivery"`     // 是否无需物流
@@ -96,10 +128,12 @@ func (o Order) StatusText() string {
 		return "等待发货"
 	case OrderStatusPreConfirm:
 		return "已发货"
-	case OrderStatusDone:
-		return "交易完成"
+	case OrderStatusConfirm:
+		return "已收货"
 	case OrderStatusPreEvaluate:
 		return "待评价"
+	case OrderStatusDone:
+		return "交易完成"
 	}
 	return "N/A"
 }
@@ -143,6 +177,7 @@ func (o Order) GoodsName(limit int) string {
 	return fmt.Sprintf("%s", name)
 }
 
+// 订单是否已关闭
 func (o *Order) StatusIsFailed() bool {
 	return o.Status == OrderStatusFailed
 }
@@ -158,7 +193,7 @@ func (o *Order) StatusToFailed() error {
 
 // 判断是否能评论
 func (o Order) CanComment() bool {
-	if (o.Status == OrderStatusPreEvaluate || o.Status == OrderStatusDone) && o.CommentedAt == nil {
+	if (o.Status == OrderStatusPreEvaluate || o.Status == OrderStatusConfirm) && o.CommentedAt == nil {
 		return true
 	}
 	return false

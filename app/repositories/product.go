@@ -64,7 +64,6 @@ func (this *ProductRep) WithItems(ctx context.Context, id string) (product *mode
 	return product, nil
 }
 
-
 // 重写delete方法
 func (this *ProductRep) Delete(ctx context.Context, id string) <-chan error {
 	result := make(chan error)
@@ -200,6 +199,7 @@ func (this *ProductRep) Restore(ctx context.Context, id string) <-chan repositor
 }
 
 func (this *ProductRep) AvailableOptionNames(ctx context.Context) (names []string) {
+	names = make([]string, 0)
 	pipline := mongo.Pipeline{
 		bson.D{{"$unwind", "$options"}},
 		bson.D{{"$group", bson.M{

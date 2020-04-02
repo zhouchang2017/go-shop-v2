@@ -1,6 +1,7 @@
 package wechat
 
 import (
+	"errors"
 	wxpay "github.com/iGoogle-ink/gopay/wechat"
 	"net/http"
 	"strconv"
@@ -26,10 +27,11 @@ func (this pay) Refund(opt *RefundOption) (*refundResponse, error) {
 	if refundErr != nil {
 		return nil, refundErr
 	}
-	// return
-	resp := &refundResponse{RefundResponse: wxRsp}
-	resp.setTimeStamp()
-	return resp, nil
+	_, err := wxpay.VerifySign(this.ApiKey, opt.signType, wxRsp)
+	if err != nil {
+		return nil, err
+	}
+	return &refundResponse{RefundResponse: wxRsp}, nil
 }
 
 // 退款通知
@@ -38,6 +40,8 @@ func (this pay) ParseRefundNotifyResult(req *http.Request) (refundNotify *wxpay.
 	if err != nil {
 		return nil, err
 	}
-	return wxpay.DecryptRefundNotifyReqInfo(notifyReq.ReqInfo, this.ApiKey)
+	if notifyReq.ReturnCode == "SUCCESS" {
+		return wxpay.DecryptRefundNotifyReqInfo(notifyReq.ReqInfo, this.ApiKey)
+	}
+	return nil, errors.New(notifyReq.ReturnMsg)
 }
-
