@@ -22,6 +22,10 @@ func (t *Topic) Show(ctx *gin.Context, id string) (res interface{}, err error) {
 	return t.service.FindById(ctx, id)
 }
 
+func (a *Topic) Destroy(ctx *gin.Context, id string) (err error) {
+	return a.service.Delete(ctx, id)
+}
+
 func (t *Topic) Update(ctx *gin.Context, model interface{}, data map[string]interface{}) (redirect string, err error) {
 	option := services.TopicOption{}
 	if err := mapstructure.Decode(data, &option); err != nil {

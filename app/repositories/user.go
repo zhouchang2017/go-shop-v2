@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"errors"
+	log "github.com/sirupsen/logrus"
 	"go-shop-v2/app/models"
 	"go-shop-v2/pkg/auth"
 	"go-shop-v2/pkg/repository"
@@ -10,7 +11,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/x/bsonx"
-	"log"
 	"time"
 )
 
@@ -68,8 +68,7 @@ func NewUserRep(rep repository.IRepository) *UserRep {
 	opts := options.CreateIndexes().SetMaxTime(10 * time.Second)
 	_, err := repository.Collection().Indexes().CreateMany(context.Background(), repository.index(), opts)
 	if err != nil {
-		log.Printf("model [%s] create indexs error:%s\n", repository.TableName(), err)
-		panic(err)
+		log.Panicf("model [%s] create indexs error:%s\n", repository.TableName(), err)
 	}
 	return repository
 }

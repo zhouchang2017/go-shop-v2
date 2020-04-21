@@ -24,6 +24,7 @@ type Vue struct {
 	warps            map[string]*warp
 	customHttpHandle []func(router gin.IRouter)
 	config           map[string]interface{}
+	LoggerMiddleware gin.HandlerFunc
 }
 
 var instance *Vue
@@ -37,6 +38,10 @@ func New() *Vue {
 		cards:  map[string]contracts.Card{},
 	}
 	return instance
+}
+
+func (this *Vue) SetLoggerMiddleware(middle gin.HandlerFunc) {
+	this.LoggerMiddleware = middle
 }
 
 func (this *Vue) WithConfig(key string, value interface{}) *Vue {
@@ -68,7 +73,11 @@ func Cors() gin.HandlerFunc {
 }
 
 func (this *Vue) init() {
-	this.app.Use(gin.Logger())
+	if this.LoggerMiddleware != nil {
+		this.app.Use(this.LoggerMiddleware)
+	} else {
+		this.app.Use(gin.Logger())
+	}
 	this.app.Use(gin.Recovery())
 	this.app.Use(Cors())
 	group := this.app.Group(this.prefix)

@@ -103,7 +103,7 @@ func (p Promotion) findItemByProductId(productId string) *PromotionItem {
 	return nil
 }
 
-func (p *Promotion) addItem(promotionItem *PromotionItem, itemId string, price int64, qty int64) {
+func (p *Promotion) addItem(promotionItem *PromotionItem, itemId string, price uint64, qty uint64) {
 	find := p.findItemByProductId(promotionItem.ProductId)
 	if find != nil {
 		find.addItem(itemId, promotionItem.ProductId, price, qty)
@@ -113,7 +113,7 @@ func (p *Promotion) addItem(promotionItem *PromotionItem, itemId string, price i
 	}
 }
 
-func (p *Promotion) totalItemsAmountAndQty() (amount int64, qty int64) {
+func (p *Promotion) totalItemsAmountAndQty() (amount uint64, qty uint64) {
 	for _, item := range p.Items {
 		for _, i := range item.items {
 			amount += i.qty * i.price
@@ -123,17 +123,17 @@ func (p *Promotion) totalItemsAmountAndQty() (amount int64, qty int64) {
 	return
 }
 
-func (p *Promotion) assignSalePrice(salePrice int64) {
+func (p *Promotion) assignSalePrice(salePrice uint64) {
 	amount, _ := p.totalItemsAmountAndQty()
 	avg := float64(salePrice) / float64(amount)
-	var used int64
+	var used uint64
 	for index, item := range p.Items {
 		for ind, i := range item.items {
 			if index+1 == len(p.Items) && ind+1 == len(item.items) {
 				i.salePrice = salePrice - used
-				i.unitSalePrice = int64(math.Ceil(float64(i.salePrice) / float64(i.qty)))
+				i.unitSalePrice = uint64(math.Ceil(float64(i.salePrice) / float64(i.qty)))
 			} else {
-				i.unitSalePrice = int64(math.Ceil(avg * float64(i.price)))
+				i.unitSalePrice = uint64(math.Ceil(avg * float64(i.price)))
 				i.salePrice = i.unitSalePrice * i.qty
 				used += i.salePrice
 			}
@@ -141,7 +141,7 @@ func (p *Promotion) assignSalePrice(salePrice int64) {
 	}
 }
 
-func (p *Promotion) calculate(salePrices int64) (promotion *Promotion, salePrice int64, accessRule bool) {
+func (p *Promotion) calculate(salePrices uint64) (promotion *Promotion, salePrice uint64, accessRule bool) {
 	amount, qty := p.totalItemsAmountAndQty()
 	amount -= salePrices
 	// 判断规则
@@ -168,7 +168,7 @@ type promotionItem struct {
 }
 
 // 单品促销验证
-func (p Promotion) ValidationItemPrice(itemId string, price int64) bool {
+func (p Promotion) ValidationItemPrice(itemId string, price uint64) bool {
 	for _, product := range p.Items {
 		for _, item := range product.Units {
 			if item.ItemId == itemId {
@@ -180,7 +180,7 @@ func (p Promotion) ValidationItemPrice(itemId string, price int64) bool {
 }
 
 // 单品优惠后价格
-func (p Promotion) getItemSaleAmount(itemId string, originPrice int64) int64 {
+func (p Promotion) getItemSaleAmount(itemId string, originPrice uint64) uint64 {
 	for _, product := range p.Items {
 		for _, item := range product.Units {
 			if item.ItemId == itemId {
@@ -212,10 +212,10 @@ func (p Promotion) itemExistWithProductId(id string, productId string) bool {
 
 type promotionItemItem struct {
 	itemId        string
-	price         int64
-	qty           int64
-	salePrice     int64
-	unitSalePrice int64
+	price         uint64
+	qty           uint64
+	salePrice     uint64
+	unitSalePrice uint64
 }
 
 // 促销计划产品
@@ -229,7 +229,7 @@ type PromotionItem struct {
 }
 
 // 添加受改活动影响商品
-func (p *PromotionItem) addItem(itemId string, productId string, price int64, qty int64) {
+func (p *PromotionItem) addItem(itemId string, productId string, price uint64, qty uint64) {
 	if productId != p.ProductId {
 		// 不符合规则
 		return
@@ -291,21 +291,21 @@ func NewPromotionItem(productId string) *PromotionItem {
 }
 
 // units中最便宜的价格
-func (p *PromotionItem) MinPrice() int64 {
+func (p *PromotionItem) MinPrice() uint64 {
 	var prices []int64
 	for _, item := range p.Units {
-		prices = append(prices, item.Price)
+		prices = append(prices, int64(item.Price))
 	}
-	return utils.Min(prices...)
+	return uint64(utils.Min(prices...))
 }
 
 // units中最贵的价格
-func (p *PromotionItem) MaxPrice() int64 {
+func (p *PromotionItem) MaxPrice() uint64 {
 	var prices []int64
 	for _, item := range p.Units {
-		prices = append(prices, item.Price)
+		prices = append(prices, int64(item.Price))
 	}
-	return utils.Max(prices...)
+	return uint64(utils.Max(prices...))
 }
 
 // 获取item促销价格
@@ -313,13 +313,13 @@ func (p *PromotionItem) MaxPrice() int64 {
 func (p PromotionItem) FindPriceByItemId(id string) int64 {
 	for _, unit := range p.Units {
 		if unit.ItemId == id {
-			return unit.Price
+			return int64(unit.Price)
 		}
 	}
 	return -1
 }
 
-func (p *PromotionItem) AddUnit(item *Item, price int64) error {
+func (p *PromotionItem) AddUnit(item *Item, price uint64) error {
 	if item.Price < price {
 		return fmt.Errorf("价格设置异常,产品定价[%d],促销价格[%d]!!\n", item.Price/100, price/100)
 	}
@@ -396,8 +396,8 @@ func (p PromotionItems) FindById(id string) *PromotionItem {
 type PromotionItemUnit struct {
 	ItemId      string          `json:"item_id" bson:"item_id" form:"item_id"`
 	Item        *AssociatedItem `json:"item" bson:"-"`                    // 冗余数据，不存库
-	Price       int64           `json:"price" bson:"price"`               // 活动价
-	OriginPrice int64           `json:"origin_price" bson:"origin_price"` // 原始价格
+	Price       uint64           `json:"price" bson:"price"`               // 活动价
+	OriginPrice uint64           `json:"origin_price" bson:"origin_price"` // 原始价格
 }
 
 // 促销流程
@@ -417,14 +417,14 @@ type PromotionRule struct {
 }
 
 // 验证是否复合规则
-func (p PromotionRule) verify(amount int64, qty int64) bool {
+func (p PromotionRule) verify(amount uint64, qty uint64) bool {
 	switch p.Type {
 	case 0:
 		return true
 	case 1:
 		return uint64(amount) >= p.Value
 	case 2:
-		return qty >= int64(p.Value)
+		return qty >= uint64(p.Value)
 	}
 	return false
 }
@@ -434,7 +434,7 @@ func (this PromotionRule) Description() string {
 	case 0:
 		return ""
 	case 1:
-		return fmt.Sprintf("订单金额大于%d元", this.Value/100)
+		return fmt.Sprintf("订单金额大于%s元", utils.ToMoneyString(this.Value))
 	case 2:
 		return fmt.Sprintf("单笔订单商品数量大于%d件", this.Value)
 	}
@@ -450,7 +450,7 @@ const (
 // 策略
 type PromotionPolicy struct {
 	Type  int8  `json:"type"`
-	Value int64 `json:"value"`
+	Value uint64 `json:"value"`
 }
 
 func (p PromotionPolicy) Description() string {
@@ -458,14 +458,14 @@ func (p PromotionPolicy) Description() string {
 	case 1:
 		return fmt.Sprintf("享%d折", p.Value/10)
 	case 2:
-		return fmt.Sprintf("优惠%d元", p.Value/100)
+		return fmt.Sprintf("优惠%s元", utils.ToMoneyString(p.Value))
 	case 3:
 		return "免运费"
 	}
 	return ""
 }
 
-func (p PromotionPolicy) calculate(amount int64) (salePrice int64) {
+func (p PromotionPolicy) calculate(amount uint64) (salePrice uint64) {
 	switch p.Type {
 	case 1:
 		salePrice = amount - (amount * p.Value / 100)

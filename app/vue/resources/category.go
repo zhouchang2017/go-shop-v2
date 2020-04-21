@@ -46,6 +46,11 @@ func (c *Category) Update(ctx *gin.Context, model interface{}, data map[string]i
 	return core.UpdatedRedirect(c, category.GetID()), nil
 }
 
+// 删除方法
+func (c *Category) Destroy(ctx *gin.Context, id string) (err error) {
+	return c.service.Delete(ctx, id)
+}
+
 // 详情方法
 func (c *Category) Show(ctx *gin.Context, id string) (res interface{}, err error) {
 	return c.service.FindById(ctx, id)

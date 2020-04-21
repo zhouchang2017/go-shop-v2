@@ -619,7 +619,7 @@ func (this *resourceHttpHandle) resourceUpdateFieldHandle() {
 				fields, panels := resolveUpdateFields(c, resource)
 
 				for _, field := range fields {
-					field.Call()
+					field.Call(resource.Model())
 
 					field.Resolve(c, resource.Model())
 				}
@@ -688,7 +688,7 @@ func (this *resourceHttpHandle) resourceCreationFieldHandle() {
 			fields, panels := resolveCreationFields(c, resource)
 
 			for _, field := range fields {
-				field.Call()
+				field.Call(nil)
 			}
 
 			c.JSON(http.StatusOK, gin.H{

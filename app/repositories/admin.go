@@ -1,11 +1,35 @@
 package repositories
 
 import (
+	"context"
+	"go-shop-v2/app/models"
 	"go-shop-v2/pkg/repository"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type AdminRep struct {
 	repository.IRepository
+}
+
+//
+func (a *AdminRep) FindByNotifies(ctx context.Context, notifies []string, opts ...*options.FindOptions) (admins []*models.Admin, err error) {
+	admins = make([]*models.Admin, 0)
+	if len(notifies) == 0 {
+		return admins, err
+	}
+	cursor, err := a.Collection().Find(ctx, bson.M{
+		"notifies": bson.M{"$in": notifies},
+		"email":    bson.M{"$ne": ""},
+	}, opts...)
+	if err != nil {
+		return admins, err
+	}
+
+	if err := cursor.All(ctx, &admins); err != nil {
+		return admins, err
+	}
+	return admins, nil
 }
 
 //func (this *AdminRep) FindById(ctx context.Context, id string) (admin *models.Admin, err error) {

@@ -48,7 +48,7 @@ func NewFileField(name string, fieldName string, opts ...FieldOption) *File {
 }
 
 // 在创建页、更新页响应JSON格式返还给前端时调用的一个钩子
-func (this *File) Call() {
+func (this *File) Call(model interface{}) {
 	// 目前就只有七牛、暂未抽象。写死了哈
 
 	var token string

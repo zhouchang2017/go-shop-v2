@@ -27,8 +27,8 @@ func (p PayOrderDetail) toJsonString() (string, error) {
 type PayOrderGoodsDetail struct {
 	GoodsId   string `json:"goods_id"`   // 商品编码
 	GoodsName string `json:"goods_name"` // 商品名称
-	Quantity  int64  `json:"quantity"`   // 数量
-	Price     int64  `json:"price"`      // 如果商户有优惠，需传输商户优惠后的单价
+	Quantity  uint64  `json:"quantity"`   // 数量
+	Price     uint64  `json:"price"`      // 如果商户有优惠，需传输商户优惠后的单价
 }
 
 type PayUnifiedOrderOption struct {

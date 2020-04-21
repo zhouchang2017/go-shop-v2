@@ -32,7 +32,7 @@ func NewInventoryService(rep *repositories.InventoryRep, historyRep *repositorie
 }
 
 func (this *InventoryService) FindByIds(ctx context.Context, ids ...string) (inventories []*models.Inventory, err error) {
-	byIds := <-this.rep.FindByIds(ctx, ids...)
+	byIds := <-this.rep.FindByIds(ctx, ids)
 	if byIds.Error != nil {
 		err = byIds.Error
 		return
@@ -73,13 +73,13 @@ func (this *InventoryService) AggregateStockByShops(ctx context.Context, shopIds
 }
 
 // 入库
-func (this *InventoryService) Put(ctx context.Context, shopId string, itemId string, qty int64, status int8, changer models.InventoryChanger) (inventory *models.Inventory, err error) {
+func (this *InventoryService) Put(ctx context.Context, shopId string, itemId string, qty uint64, status int8, changer models.InventoryChanger) (inventory *models.Inventory, err error) {
 	// 检查当前是否存在对应规格产品库存
 	incQtyRes := <-this.rep.IncQty(ctx, bson.M{
 		"shop.id": shopId,
 		"item.id": itemId,
 		"status":  status,
-	}, qty)
+	}, int64(qty))
 	if incQtyRes.Error == nil {
 		return incQtyRes.Result.(*models.Inventory), nil
 	}
@@ -107,7 +107,7 @@ func (this *InventoryService) Put(ctx context.Context, shopId string, itemId str
 	inventory = createdRes.Result.(*models.Inventory)
 
 	// 记录操作日志
-	go this.writeLog(ctx, inventory, qty, changer)
+	go this.writeLog(ctx, inventory, int64(qty), changer)
 
 	return inventory, nil
 }
@@ -132,7 +132,7 @@ func (this *InventoryService) Take(ctx context.Context, id string, qty int64, ch
 		return nil, byIdRes.Error
 	}
 	inventory = byIdRes.Result.(*models.Inventory)
-	if inventory.Qty >= qty {
+	if inventory.Qty >= uint64(qty) {
 		incQtyRes := <-this.rep.IncQty(ctx, bson.M{"_id": inventory.ID}, -qty)
 		if incQtyRes.Error != nil {
 			return nil, incQtyRes.Error

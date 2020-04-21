@@ -1,11 +1,19 @@
 package wechat
 
 import (
+	"bytes"
+	"encoding/base64"
 	"fmt"
 	"github.com/medivhzhan/weapp/v2"
+	"github.com/nfnt/resize"
 	"go-shop-v2/pkg/cache/redis"
+	"image"
+	"image/png"
+	"io/ioutil"
 	"log"
 	"os"
+	"path"
+	"strings"
 	"sync"
 	"time"
 )
@@ -44,6 +52,10 @@ func (this *sdk) Login(code string) (*weapp.LoginResponse, error) {
 
 	return res, nil
 	//fmt.Printf("返回结果: %#v", res)
+}
+
+func (this *sdk) IsProd() bool {
+	return this.config.IsProd
 }
 
 // 解密用户信息
@@ -166,4 +178,62 @@ func (this *sdk) GetDailyVisitTrend(day time.Time) (*weapp.VisitTrend, error) {
 	}
 
 	return trend, nil
+}
+
+func (this *sdk) NewServer() (*weapp.Server, error) {
+	return weapp.NewServer(this.config.AppId, this.config.Token, this.config.EncodingAESKey, Pay.MchId, Pay.ApiKey, false)
+}
+
+// 生成小程序码
+func (this *sdk) UnlimitedQRCode(opt weapp.UnlimitedQRCode) ([]byte, error) {
+	if !this.IsProd() {
+		projectName := "go-shop-v2"
+		configFileName := "static/img/gh_c764313ca22e_344.png"
+		dir, err := os.Getwd()
+		if err != nil {
+			return nil, err
+		}
+		split := strings.Split(dir, projectName)
+
+		filePath := path.Join(split[0], projectName, configFileName)
+		open, err := os.Open(filePath)
+		if err != nil {
+			return nil, err
+		}
+		defer open.Close()
+		img, _, err := image.Decode(open)
+		if err != nil {
+			return nil, err
+		}
+		var width uint
+		if opt.Width == 0 {
+			width = 280
+		} else {
+			width = uint(opt.Width)
+		}
+		resizeImg := resize.Resize(width, width, img, resize.Lanczos3)
+		buf := new(bytes.Buffer)
+		if err := png.Encode(buf, resizeImg); err != nil {
+			return nil, err
+		}
+		base64.StdEncoding.EncodeToString(buf.Bytes())
+		return buf.Bytes(), nil
+	}
+	token, err := this.getAccessToken()
+	if err != nil {
+		return nil, err
+	}
+	resp, res, err := opt.Get(token)
+	if err != nil {
+		// 处理一般错误信息
+		return nil, err
+	}
+
+	if err := res.GetResponseError(); err != nil {
+		// 处理微信返回错误信息
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	return ioutil.ReadAll(resp.Body)
 }

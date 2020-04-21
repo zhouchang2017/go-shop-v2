@@ -2,13 +2,13 @@ package services
 
 import (
 	"context"
+	log "github.com/sirupsen/logrus"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"log"
 )
 
 type ShopService struct {
@@ -23,6 +23,11 @@ func (this *ShopService) Pagination(ctx context.Context, req *request.IndexReque
 	return results.Result.([]*models.Shop), results.Pagination, nil
 }
 
+func (this *ShopService) Delete(ctx context.Context, id string) error {
+	err := <-this.rep.Delete(ctx, id)
+	return err
+}
+
 func (this *ShopService) FindById(ctx context.Context, id string) (shop *models.Shop, err error) {
 	byId := <-this.rep.FindById(ctx, id)
 	if byId.Error != nil {
@@ -33,7 +38,7 @@ func (this *ShopService) FindById(ctx context.Context, id string) (shop *models.
 }
 
 func (this *ShopService) FindByIds(ctx context.Context, ids ...string) (shops []*models.Shop, err error) {
-	byIds := <-this.rep.FindByIds(ctx, ids...)
+	byIds := <-this.rep.FindByIds(ctx, ids)
 	if byIds.Error != nil {
 		return nil, byIds.Error
 	}

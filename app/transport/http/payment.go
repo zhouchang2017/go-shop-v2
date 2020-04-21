@@ -68,7 +68,8 @@ func (p *PaymentController) PayNotify(ctx *gin.Context) {
 // api /wechat/payments/refund/notify
 func (p *PaymentController) RefundNotify(ctx *gin.Context) {
 	log.Print("退款回调")
-	order, refundOn, err := p.refundSrv.RefundNotify(ctx, ctx.Request)
+	refund, err := p.refundSrv.RefundNotify(ctx, ctx.Request)
+	spew.Dump(err)
 	rsp := new(wechat.NotifyResponse) // 回复微信的数据
 	if err != nil {
 		rsp.ReturnCode = gopay.FAIL
@@ -78,10 +79,10 @@ func (p *PaymentController) RefundNotify(ctx *gin.Context) {
 	}
 
 	// 退款成功
-	if order != nil && refundOn != "" {
+	if refund != nil {
 		// 订单退款成功事件
-		rabbitmq.Dispatch(events.NewOrderRefundChangeEvent(order, refundOn))
-		rabbitmq.Dispatch(events.NewOrderRefundDoneEvent(order.GetID()))
+		rabbitmq.Dispatch(events.NewOrderRefundChangeEvent(refund))
+		rabbitmq.Dispatch(events.NewOrderRefundDoneEvent(refund))
 	}
 
 	rsp.ReturnCode = gopay.SUCCESS

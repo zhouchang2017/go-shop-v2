@@ -1,7 +1,15 @@
 package fields
 
+import (
+	"go-shop-v2/pkg/vue/contracts"
+	"go-shop-v2/pkg/vue/helper"
+)
+
 type Text struct {
 	*Field
+	LinkOption   map[string]interface{} `json:"link_option"`
+	LinkResource contracts.Resource
+	Pk           string
 }
 
 // https://element.eleme.cn/#/zh-CN/component/input
@@ -28,6 +36,11 @@ func (this *Text) Text() *Text {
 func (this *Text) Textarea() *Text {
 	this.SetShowOnIndex(false)
 	this.WithMeta("type", "textarea")
+	return this
+}
+
+func (this *Text) Email() *Text {
+	this.WithMeta("type", "email")
 	return this
 }
 
@@ -92,4 +105,29 @@ func (this *Text) Autosize(opts ...AutosizeOpt) *Text {
 	}
 	this.WithMeta("autosize", true)
 	return this
+}
+
+func (this *Text) Link(resource contracts.Resource, pk string) *Text {
+
+	if pk == "" {
+		pk = this.Attribute
+	}
+	this.Pk = pk
+	this.LinkResource = resource
+
+	return this
+}
+
+func (this *Text) Call(model interface{}) {
+	if this.LinkResource != nil {
+		name := helper.DetailRouteName(this.LinkResource)
+		if model != nil {
+			id := getValueByField(model, this.Pk)
+			this.LinkOption = map[string]interface{}{
+				"routeName": name,
+				"id":        id,
+			}
+		}
+
+	}
 }

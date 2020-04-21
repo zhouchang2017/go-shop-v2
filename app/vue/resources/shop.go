@@ -6,12 +6,14 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/services"
+	"go-shop-v2/pkg/db/mongodb"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"go-shop-v2/pkg/vue/contracts"
 	"go-shop-v2/pkg/vue/core"
 	"go-shop-v2/pkg/vue/fields"
 	"go-shop-v2/pkg/vue/panels"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type Shop struct {
@@ -26,6 +28,10 @@ func (s *Shop) Pagination(ctx *gin.Context, req *request.IndexRequest) (res inte
 	return s.service.Pagination(ctx, req)
 }
 
+func (s *Shop) Destroy(ctx *gin.Context, id string) (err error) {
+	return s.service.Delete(ctx, id)
+}
+
 // 实现列表页api
 func (s *Shop) Show(ctx *gin.Context, id string) (res interface{}, err error) {
 	return s.service.FindById(ctx, id)
@@ -38,22 +44,47 @@ func (s *Shop) Store(ctx *gin.Context, data map[string]interface{}) (redirect st
 		return "", err
 	}
 
-	members := []*models.AssociatedAdmin{}
-	if len(form.Members) > 0 {
-		admins, err := s.adminService.FindByIds(ctx, form.Members...)
+	var shop *models.Shop
+	// 开启事务
+	var session mongo.Session
+	if session, err = mongodb.GetConFn().Client().StartSession(); err != nil {
+		return "", err
+	}
+	if err = session.StartTransaction(); err != nil {
+		return "", err
+	}
+	err = mongo.WithSession(ctx, session, func(sessionContext mongo.SessionContext) error {
+		members := make([]*models.AssociatedAdmin, 0)
+		if len(form.Members) > 0 {
+			admins, err := s.adminService.FindByIds(sessionContext, form.Members...)
+			if err != nil {
+				session.AbortTransaction(sessionContext)
+				return err
+			}
+			for _, admin := range admins {
+				members = append(members, admin.ToAssociated())
+			}
+		}
+
+		shop, err = s.service.Create(sessionContext, form, members...)
 		if err != nil {
-			return "", err
+			session.AbortTransaction(sessionContext)
+			return err
 		}
-		for _, admin := range admins {
-			members = append(members, admin.ToAssociated())
+		if err := s.adminService.SyncAssociatedShop(sessionContext, shop); err != nil {
+			session.AbortTransaction(sessionContext)
+			return err
 		}
+		session.CommitTransaction(sessionContext)
+		return nil
+	})
+
+	session.EndSession(ctx)
+	if err != nil {
+		return "", err
 	}
 
-	entity, err := s.service.Create(ctx, form, members...)
-	// 门店创建事件
-	// message.Dispatch(events.ShopCreated{Shop: entity})
-
-	return core.CreatedRedirect(s, entity.GetID()), nil
+	return core.CreatedRedirect(s, shop.GetID()), nil
 }
 
 func (s *Shop) Update(ctx *gin.Context, model interface{}, data map[string]interface{}) (redirect string, err error) {
@@ -62,23 +93,49 @@ func (s *Shop) Update(ctx *gin.Context, model interface{}, data map[string]inter
 		return "", err
 	}
 
-	members := []*models.AssociatedAdmin{}
-	if len(form.Members) > 0 {
-		admins, err := s.adminService.FindByIds(ctx, form.Members...)
+	var shop *models.Shop
+
+	var session mongo.Session
+	if session, err = mongodb.GetConFn().Client().StartSession(); err != nil {
+		return "", err
+	}
+	if err = session.StartTransaction(); err != nil {
+		return "", err
+	}
+	err = mongo.WithSession(ctx, session, func(sessionContext mongo.SessionContext) error {
+		members := make([]*models.AssociatedAdmin, 0)
+
+		if len(form.Members) > 0 {
+			admins, err := s.adminService.FindByIds(sessionContext, form.Members...)
+			if err != nil {
+				session.AbortTransaction(sessionContext)
+				return err
+			}
+			for _, admin := range admins {
+				members = append(members, admin.ToAssociated())
+			}
+		}
+
+		shop, err = s.service.Update(sessionContext, model.(*models.Shop), form, members...)
 		if err != nil {
-			return "", err
+			session.AbortTransaction(sessionContext)
+			return err
 		}
-		for _, admin := range admins {
-			members = append(members, admin.ToAssociated())
+		if err := s.adminService.SyncAssociatedShop(sessionContext, shop); err != nil {
+			session.AbortTransaction(sessionContext)
+			return err
 		}
+
+		session.CommitTransaction(sessionContext)
+		return nil
+	})
+
+	session.EndSession(ctx)
+	if err != nil {
+		return "", err
 	}
 
-	entity, err := s.service.Update(ctx, model.(*models.Shop), form, members...)
-
-	// 门店更新事件
-	// message.Dispatch(events.ShopUpdated{Shop: entity})
-
-	return core.UpdatedRedirect(s, entity.GetID()), nil
+	return core.UpdatedRedirect(s, shop.GetID()), nil
 }
 
 func (s *Shop) Make(model interface{}) contracts.Resource {
@@ -107,7 +164,7 @@ func (s *Shop) Fields(ctx *gin.Context, model interface{}) func() []interface{} 
 				fields.NewTextField("详细地址", "Address.Addr", fields.SetShowOnIndex(false)),
 				fields.NewTextField("联系人", "Address.Name"),
 				fields.NewTextField("电话", "Address.Phone"),
-				fields.NewMapField("位置", "Location"),
+				//fields.NewMapField("位置", "Location"),
 			),
 
 			// 更新&创建页面
@@ -126,7 +183,7 @@ func (s *Shop) Fields(ctx *gin.Context, model interface{}) func() []interface{} 
 
 			fields.NewTable("成员", "Members", func() []contracts.Field {
 				return []contracts.Field{
-					fields.NewTextField("ID", "Id", fields.ExceptOnForms()),
+					fields.NewTextField("ID", "RefundNo", fields.ExceptOnForms()),
 					fields.NewTextField("昵称", "Nickname", fields.ExceptOnForms()),
 				}
 			}),

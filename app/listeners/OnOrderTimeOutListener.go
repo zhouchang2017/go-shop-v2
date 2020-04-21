@@ -4,6 +4,7 @@ import (
 	"context"
 	log "github.com/sirupsen/logrus"
 	"go-shop-v2/app/events"
+	"go-shop-v2/app/models"
 	mp_subscribe "go-shop-v2/app/mp-subscribe"
 	"go-shop-v2/app/services"
 	"go-shop-v2/pkg/rabbitmq"
@@ -33,19 +34,14 @@ func (o OnOrderTimeOutListener) Handler(data []byte) error {
 	if err != nil {
 		return err
 	}
-	if order.StatusIsFailed() {
-		// 订单已经被关闭,不做处理
-		return nil
+	if order.Status == models.OrderStatusPrePay {
+		// 关闭订单
+		updatedOrder, err := o.orderSrv.Cancel(context.Background(), order, "")
+		if err != nil {
+			return err
+		}
+		// 小程序推送
+		return wechat.SDK.SendSubscribeMessage(mp_subscribe.NewOrderClosedNotify(updatedOrder))
 	}
-	if order.StatusIsFailed() {
-		// 已关闭订单，不做处理
-		return nil
-	}
-	// 关闭订单
-	updatedOrder, err := o.orderSrv.Cancel(context.Background(), order, "")
-	if err != nil {
-		return err
-	}
-	// 小程序推送
-	return wechat.SDK.SendSubscribeMessage(mp_subscribe.NewOrderClosedNotify(updatedOrder))
+	return nil
 }

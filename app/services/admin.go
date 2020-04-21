@@ -2,13 +2,13 @@ package services
 
 import (
 	"context"
+	log "github.com/sirupsen/logrus"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"log"
 )
 
 type AdminService struct {
@@ -26,9 +26,11 @@ type AdminCreateOption struct {
 	Username string `json:"username" `
 	Password string `json:"password"`
 	//PasswordConfirmation string                   `json:"password_confirmation" form:"password_confirmation" binding:"required" binding:"eqfield=Password"`
+	Email    string   `json:"email"`
 	Nickname string   `json:"nickname" `
 	Type     string   `json:"type" `
 	Shops    []string `json:"shops" `
+	Notifies []string `json:"notifies"`
 }
 
 // 列表
@@ -43,15 +45,19 @@ func (this *AdminService) Pagination(ctx context.Context, req *request.IndexRequ
 
 // 创建用户
 func (this *AdminService) Create(ctx context.Context, option AdminCreateOption, shops ...*models.AssociatedShop) (admin *models.Admin, err error) {
+	notifies := make([]string, 0)
+	if len(option.Notifies) > 0 {
+		notifies = option.Notifies
+	}
 	model := &models.Admin{
 		Username: option.Username,
 		Nickname: option.Nickname,
+		Email:    option.Email,
 		Type:     option.Type,
+		Notifies: notifies,
 	}
 
 	model.SetPassword(option.Password)
-
-
 	model.Shops = shops
 	created := <-this.rep.Create(ctx, model)
 	if created.Error != nil {
@@ -64,7 +70,7 @@ func (this *AdminService) Create(ctx context.Context, option AdminCreateOption, 
 }
 
 // 更新用户
-func (this *AdminService) Update(ctx context.Context, model *models.Admin, option AdminCreateOption,shops ...*models.AssociatedShop) (admin *models.Admin, err error) {
+func (this *AdminService) Update(ctx context.Context, model *models.Admin, option AdminCreateOption, shops ...*models.AssociatedShop) (admin *models.Admin, err error) {
 
 	if option.Username != "" {
 		model.Username = option.Username
@@ -75,9 +81,12 @@ func (this *AdminService) Update(ctx context.Context, model *models.Admin, optio
 	if option.Password != "" {
 		model.SetPassword(option.Password)
 	}
+	model.Email = option.Email
 	model.Type = option.Type
 
 	model.Shops = shops
+
+	model.Notifies = option.Notifies
 	saved := <-this.rep.Save(ctx, model)
 	if saved.Error != nil {
 		return nil, saved.Error
@@ -172,7 +181,7 @@ func (this *AdminService) FindById(ctx context.Context, id string) (admin *model
 
 // 通过id集合获取
 func (this *AdminService) FindByIds(ctx context.Context, ids ...string) (admins []*models.Admin, err error) {
-	byIds := <-this.rep.FindByIds(ctx, ids...)
+	byIds := <-this.rep.FindByIds(ctx, ids)
 	if byIds.Error != nil {
 		return nil, byIds.Error
 	}

@@ -5,8 +5,13 @@ import (
 	"time"
 )
 
+const (
+	TrackStatusOk = iota
+	TrackStatusCancel
+)
+
 // 物流追踪
-type Trace struct {
+type Track struct {
 	model.MongoModel `inline`
 	OrderNo          string         `json:"order_no" bson:"order_no"`
 	ToUserName       string         `json:"to_user_name" bson:"to_user_name"`
@@ -16,13 +21,14 @@ type Trace struct {
 	Event            string         `json:"event"`
 	DeliveryID       string         `json:"delivery_id" bson:"delivery_id"`
 	WayBillId        string         `json:"way_bill_id" bson:"way_bill_id"`
-	Version          int            `json:"version"`
-	Count            int            `json:"count"`
+	Version          uint           `json:"version"`
+	Count            uint           `json:"count"`
+	Status           int            `json:"status"`
 	Actions          []*TrackAction `json:"actions"`
 }
 type TrackAction struct {
 	ActionTime time.Time `json:"action_time" bson:"action_time"`
-	ActionType string    `json:"action_type" bson:"action_type"`
+	ActionType uint      `json:"action_type" bson:"action_type"`
 	ActionMsg  string    `json:"action_msg" bson:"action_msg"`
 }
 

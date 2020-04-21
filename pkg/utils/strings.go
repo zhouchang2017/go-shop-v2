@@ -1,9 +1,11 @@
 package utils
 
 import (
+	"fmt"
 	"github.com/entropyx/tools/strutils"
 	"github.com/jinzhu/inflection"
 	"reflect"
+	"strconv"
 	"strings"
 	"unicode"
 )
@@ -30,7 +32,7 @@ func StrSlug(str string) string {
 	return string(bytes)
 }
 
-func StrPoint(str string) string  {
+func StrPoint(str string) string {
 	bytes := make([]byte, 0, len(str))
 	for index, ch := range str {
 		if unicode.IsUpper(ch) {
@@ -72,7 +74,6 @@ func StructToName(i interface{}) string {
 	return name
 }
 
-
 func SubString(str string, begin, length int) string {
 	rs := []rune(str)
 	lth := len(rs)
@@ -88,4 +89,22 @@ func SubString(str string, begin, length int) string {
 		end = lth
 	}
 	return string(rs[begin:end])
+}
+
+func ToMoneyString(amount interface{}) string {
+	var price float64
+	switch amount.(type) {
+	case int:
+		price = float64(amount.(int))
+	case uint:
+		price = float64(amount.(uint))
+	case int64:
+		price = float64(amount.(int64))
+	case uint64:
+		price = float64(amount.(uint64))
+	default:
+		price = 0
+	}
+
+	return fmt.Sprintf("￥%s", strconv.FormatFloat(price/100, 'f', 2, 64))
 }

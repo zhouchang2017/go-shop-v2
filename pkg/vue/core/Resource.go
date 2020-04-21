@@ -239,7 +239,7 @@ func SerializeForIndex(ctx *gin.Context, resource contracts.Resource) map[string
 		field.Resolve(ctx, resource.Model())
 		item = append(item, field)
 
-		field.Call()
+		field.Call(resource.Model())
 
 		if id, ok := field.(*fields.ID); ok {
 			maps["id"] = id
@@ -277,7 +277,7 @@ func SerializeForDetail(ctx *gin.Context, resource contracts.Resource) map[strin
 		}
 		field.Resolve(ctx, resource.Model())
 
-		field.Call()
+		field.Call(resource.Model())
 
 		items = append(items, field)
 

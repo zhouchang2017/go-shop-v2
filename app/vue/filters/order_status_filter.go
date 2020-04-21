@@ -1,7 +1,6 @@
 package filters
 
 import (
-	"github.com/davecgh/go-spew/spew"
 	"github.com/gin-gonic/gin"
 	"go-shop-v2/app/models"
 	"go-shop-v2/pkg/request"
@@ -20,7 +19,6 @@ func NewOrderStatusFilter() *OrderStatusFilter {
 
 func (this OrderStatusFilter) Apply(ctx *gin.Context, value interface{}, request *request.IndexRequest) error {
 	status := value.([]interface{})
-	spew.Dump(status)
 	if len(status) > 0 {
 		var orderStatus []float64
 		var refundStatus []string
@@ -41,7 +39,6 @@ func (this OrderStatusFilter) Apply(ctx *gin.Context, value interface{}, request
 			for _, i := range refundStatus {
 				s = append(s, refundStatusToInt(i))
 			}
-			spew.Dump(s)
 			request.AppendFilter("refunds", bson.M{"$elemMatch": bson.M{"status": bson.M{"$in": s}}})
 		}
 	}

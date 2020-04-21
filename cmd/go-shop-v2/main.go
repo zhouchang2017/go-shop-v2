@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
+	"go-shop-v2/app/email"
 	"go-shop-v2/app/lbs"
+	"go-shop-v2/app/listeners"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
 	vue2 "go-shop-v2/app/vue"
@@ -14,6 +16,7 @@ import (
 	"go-shop-v2/pkg/auth"
 	"go-shop-v2/pkg/cache/redis"
 	"go-shop-v2/pkg/db/mongodb"
+	"go-shop-v2/pkg/log"
 	"go-shop-v2/pkg/qiniu"
 	"go-shop-v2/pkg/rabbitmq"
 	"go-shop-v2/pkg/vue/core"
@@ -21,27 +24,25 @@ import (
 	"go-shop-v2/pkg/wechat"
 	"os"
 	"os/signal"
+	"path"
 	"time"
 )
 
 var configPathFlag = flag.String("c", ".config", "get the file path for config to parsed")
 
-func init() {
-	log.SetFormatter(&log.JSONFormatter{})
-}
 func main() {
 	// parse flag
 	flag.Parse()
 
 	// get config path
 	if *configPathFlag == "" {
-		log.Errorf("please use -c to set the config file path or use -h to see more")
+		fmt.Errorf("please use -c to set the config file path or use -h to see more")
 		return
 	}
 	// open file
 	file, openErr := os.Open(*configPathFlag)
 	if openErr != nil {
-		log.Errorf("open config file failed caused of %s", openErr.Error())
+		fmt.Errorf("open config file failed caused of %s", openErr.Error())
 		return
 	}
 	// decode json
@@ -57,6 +58,20 @@ func main() {
 	}
 
 	configs := config.NewConfig()
+	// 邮件服务
+	mail := email.New(configs.EmailCfg)
+
+	getwd, _ := os.Getwd()
+	join := path.Join(getwd, "runtime", "logs", "go-shop-backend.log")
+	// 日志设置
+	log.Setup(log.Option{
+		AppName:      "go-shop-backend",
+		Path:         join,
+		MaxAge:       time.Hour * 24 * 30,
+		RotationTime: time.Hour * 24,
+		Email:        mail,
+		To:           "zhouchangqaz@gmail.com",
+	})
 
 	// 消息队列
 	mq := rabbitmq.New(configs.RabbitmqCfg)
@@ -78,6 +93,8 @@ func main() {
 
 	// 刷新缓存
 	connect.FlushDB()
+
+	listeners.ListenerInit()
 
 	// 库存初始化
 	// inventoryRep := repositories.NewInventoryRep(repositories.NewBasicMongoRepositoryByDefault(&models.Inventory{}, mongodb.GetConFn()))
@@ -109,6 +126,7 @@ func main() {
 
 	// 实例化vue后台组件
 	vue := core.New()
+	vue.SetLoggerMiddleware(log.Logger())
 	// 设置授权守卫
 	vue.SetGuard(adminGuard)
 	// 注册七牛api
@@ -119,6 +137,9 @@ func main() {
 	vue.WithConfig("logistics", models.LogisticsInfos)
 	vue.WithConfig("order_status", models.OrderStatus)
 	vue.WithConfig("refund_status", models.RefundStatus)
+
+	notifications := listeners.GetAppNotifications()
+	vue.WithConfig("notifications", notifications)
 	// vue相关启动项
 	vue2.Boot(vue)
 	// 启动vue后台组件框架
@@ -132,13 +153,13 @@ func main() {
 	quit := make(chan os.Signal)
 	signal.Notify(quit, os.Interrupt)
 	<-quit
-	log.Infof("Shutdown Server ...")
+	logrus.Infof("Shutdown Server ...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	defer cancelFunc()
 	if err := vue.Shutdown(ctx); err != nil {
-		log.Fatal("Server Shutdown:", err)
+		logrus.Fatal("Server Shutdown:", err)
 	}
-	log.Infof("Server exiting")
+	logrus.Infof("Server exiting")
 }

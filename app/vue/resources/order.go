@@ -9,7 +9,6 @@ import (
 	fields2 "go-shop-v2/app/vue/fields"
 	"go-shop-v2/app/vue/filters"
 	"go-shop-v2/app/vue/pages"
-	ctx2 "go-shop-v2/pkg/ctx"
 	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/rabbitmq"
 	"go-shop-v2/pkg/request"
@@ -60,7 +59,7 @@ func (order *Order) Fields(ctx *gin.Context, model interface{}) func() []interfa
 			fields.NewTextField("订单号", "OrderNo", fields.WithMeta("min-width", 150)),
 
 			fields.NewCurrencyField("订单金额", "OrderAmount"),
-			fields.NewCurrencyField("实付金额", "ActualAmount"),
+			fields.NewCurrencyField("应付金额", "ActualAmount"),
 
 			panels.NewPanel("收货信息",
 				fields.NewTextField("收货人", "UserAddress.ContactName", fields.SetShowOnIndex(false)),
@@ -79,16 +78,20 @@ func (order *Order) Fields(ctx *gin.Context, model interface{}) func() []interfa
 				}),
 			),
 
-			//fields.NewTable("支付信息", "Payment", func() []contracts.Field {
-			//	return []contracts.Field{
-			//		fields.NewTextField("支付平台", "Platform"),
-			//		fields.NewTextField("支付单号", "PaymentNo"),
-			//	}
-			//}),
+			panels.NewPanel("支付信息",
+				fields.NewTextField("支付单号", "Payment.PaymentNo", fields.SetShowOnIndex(false)),
+				fields.NewTextField("支付平台", "Payment.Platform", fields.SetShowOnIndex(false)),
+				fields.NewCurrencyField("支付金额", "Payment.Amount", fields.SetShowOnIndex(false)),
+				fields.NewDateTime("创建时间", "Payment.CreatedAt", fields.SetShowOnIndex(false)),
+				fields.NewDateTime("支付时间", "Payment.PaymentAt", fields.SetShowOnIndex(false)),
+			),
+			//fields.NewHasManyField()
 			fields2.NewOrderItemsField(),
 			fields.NewDateTime("创建时间", "CreatedAt", fields.SetShowOnIndex(false)),
 			fields.NewDateTime("更新时间", "UpdatedAt", fields.WithMeta("min-width", 150)),
 			fields2.NewOrderStatusField(),
+
+			fields.NewHasManyField("评论", &Comment{}),
 		}
 	}
 
@@ -146,83 +149,7 @@ func (this *Order) CustomHttpHandle(router gin.IRouter) {
 		rabbitmq.Dispatch(events.NewOrderClosedByAdminEvent(updatedOrder))
 		ctx.JSON(http.StatusNoContent, nil)
 	})
-	// 同意退款
-	router.POST("/api/orders/:Order/refund/agree", func(ctx *gin.Context) {
-		orderId := ctx.Param("Order")
-		if orderId == "" {
-			err2.ErrorEncoder(ctx, err2.Err422.F("缺少order_id"), ctx.Writer)
-			return
-		}
-		form := services.RefundOption{
-			OrderId: orderId,
-		}
-		if err := ctx.ShouldBind(&form); err != nil {
-			err2.ErrorEncoder(ctx, err, ctx.Writer)
-			return
-		}
-		refund, order, err := this.refundSrv.AgreeRefund(ctx, &form)
-		if err != nil {
-			err2.ErrorEncoder(ctx, err, ctx.Writer)
-			return
-		}
-		rabbitmq.Dispatch(events.NewOrderRefundChangeEvent(order, refund.Id))
-		ctx.JSON(http.StatusOK, refund)
-	})
-	// 拒绝退款
-	router.POST("/api/orders/:Order/refund/reject", func(ctx *gin.Context) {
-		orderId := ctx.Param("Order")
-		if orderId == "" {
-			err2.ErrorEncoder(ctx, err2.Err422.F("缺少order_id"), ctx.Writer)
-			return
-		}
-		form := services.RefundOption{
-			OrderId: orderId,
-		}
-		if err := ctx.ShouldBind(&form); err != nil {
-			err2.ErrorEncoder(ctx, err, ctx.Writer)
-			return
-		}
-		refund, order, err := this.refundSrv.RejectRefund(ctx, &form)
-		if err != nil {
-			err2.ErrorEncoder(ctx, err, ctx.Writer)
-			return
-		}
-		rabbitmq.Dispatch(events.NewOrderRefundChangeEvent(order, refund.Id))
-		ctx.JSON(http.StatusOK, order)
-	})
-	// 关闭退款
-	router.PUT("/api/orders/:Order/refund/cancel", func(ctx *gin.Context) {
-		orderId := ctx.Param("Order")
-		if orderId == "" {
-			err2.ErrorEncoder(ctx, err2.Err422.F("缺少order_id"), ctx.Writer)
-			return
-		}
-		form := services.RefundOption{
-			OrderId: orderId,
-		}
-		if err := ctx.ShouldBind(&form); err != nil {
-			err2.ErrorEncoder(ctx, err, ctx.Writer)
-			return
-		}
-		admin := ctx2.GetUser(ctx).(*models.Admin)
-		refund, order, err := this.refundSrv.CancelRefund(ctx, &form, admin, false)
-		if err != nil {
-			err2.ErrorEncoder(ctx, err, ctx.Writer)
-			return
-		}
-		rabbitmq.Dispatch(events.NewOrderRefundChangeEvent(order, refund.Id))
-		ctx.JSON(http.StatusOK, refund)
-	})
-	// 获取退款失败原因
-	router.GET("/api/failed-refunds/:RefundNo", func(ctx *gin.Context) {
-		refundNo := ctx.Param("RefundNo")
-		if refundNo == "" {
-			err2.ErrorEncoder(ctx, err2.Err422.F("缺少refund_no"), ctx.Writer)
-			return
-		}
-		failed, _ := this.refundSrv.FindFailedByRefundNo(ctx, refundNo)
-		ctx.JSON(http.StatusOK, failed)
-	})
+
 }
 
 func (this *Order) Filters(ctx *gin.Context) []contracts.Filter {
@@ -235,6 +162,7 @@ func (this Order) Cards(ctx *gin.Context) []contracts.Card {
 	return []contracts.Card{
 		charts.NewCountOrderPrePayValue(),
 		charts.NewCountOrderPreSendValue(),
+		charts.NewCountOrderRefundingValue(),
 	}
 }
 

@@ -1,7 +1,9 @@
 {
     "weapp_config":{
         "app_id":"wxd2b59e487cbd5998",
-        "app_secret":"47957eb7df2920a84cd9ffd22cdb0424"
+        "app_secret":"47957eb7df2920a84cd9ffd22cdb0424",
+        "is_prod": false,
+        "token": "Gq2l8hEc3wLqMNzn0tABsYzoLZLmRMdj"
     },
     "wechatpay_config":{
         "app_id": "",

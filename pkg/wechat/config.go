@@ -1,8 +1,11 @@
 package wechat
 
 type Config struct {
-	AppId     string `json:"app_id"`
-	AppSecret string `json:"app_secret"`
+	AppId          string `json:"app_id"`
+	AppSecret      string `json:"app_secret"`
+	IsProd         bool   `json:"is_prod"`
+	Token          string `json:"token"`
+	EncodingAESKey string `json:"encoding_aes_key"`
 }
 
 type PayConfig struct {

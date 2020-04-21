@@ -6,30 +6,31 @@ import (
 	"flag"
 	"fmt"
 	"github.com/gin-gonic/gin"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"go-shop-v2/app/email"
 	"go-shop-v2/app/lbs"
+	"go-shop-v2/app/listeners"
 	"go-shop-v2/app/services"
 	http2 "go-shop-v2/app/transport/http"
 	"go-shop-v2/config"
 	"go-shop-v2/pkg/auth"
 	"go-shop-v2/pkg/cache/redis"
 	"go-shop-v2/pkg/db/mongodb"
+	"go-shop-v2/pkg/log"
 	"go-shop-v2/pkg/qiniu"
 	"go-shop-v2/pkg/rabbitmq"
 	"go-shop-v2/pkg/wechat"
 	"net/http"
 	"os"
 	"os/signal"
+	"path"
 	"time"
 )
 
 var configPathFlag = flag.String("c", ".config", "get the file path for config to parsed")
 
 const PORT = 8081
-func init() {
-	log.SetFormatter(&log.JSONFormatter{})
-}
+
 func main() {
 
 	// parse flag
@@ -37,13 +38,13 @@ func main() {
 
 	// get config path
 	if *configPathFlag == "" {
-		log.Errorf("please use -c to set the config file path or use -h to see more")
+		fmt.Errorf("please use -c to set the config file path or use -h to see more")
 		return
 	}
 	// open file
 	file, openErr := os.Open(*configPathFlag)
 	if openErr != nil {
-		log.Errorf("open config file failed caused of %s", openErr.Error())
+		fmt.Errorf("open config file failed caused of %s", openErr.Error())
 		return
 	}
 	// decode json
@@ -54,11 +55,27 @@ func main() {
 	file.Close()
 
 	if decodeErr != nil {
-		log.Errorf("decode config file failed caused of %s", decodeErr.Error())
+		fmt.Errorf("decode config file failed caused of %s", decodeErr.Error())
 		return
 	}
 
 	configs := config.NewConfig()
+
+	// 邮件服务
+	mail := email.New(configs.EmailCfg)
+
+	getwd, _ := os.Getwd()
+	join := path.Join(getwd, "runtime", "logs", "go-shop-api.log")
+	// 日志设置
+	log.Setup(log.Option{
+		AppName:      "go-shop-api",
+		Path:         join,
+		MaxAge:       time.Hour * 24 * 30,
+		RotationTime: time.Hour * 24,
+		Email:        mail,
+		To:           "zhouchangqaz@gmail.com",
+	})
+
 	// 消息队列
 	mq := rabbitmq.New(configs.RabbitmqCfg)
 
@@ -73,8 +90,7 @@ func main() {
 	redis.Connect(configs.RedisConfig())
 	defer redis.Close()
 
-	// 邮件服务
-	email.New(configs.EmailCfg)
+	listeners.ListenerInit()
 
 	// 微信skd
 	wechat.NewSDK(configs.WeappConfig)
@@ -113,12 +129,12 @@ func main() {
 		WriteTimeout:   time.Second * 30,
 		MaxHeaderBytes: 1 << 20,
 	}
-	log.Infof("[info] start http server listening %d", PORT)
+	logrus.Infof("[info] start http server listening %d", PORT)
 
 	go func() {
 		// 服务连接
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("listen: %s\n", err)
+			logrus.Fatalf("listen: %s\n", err)
 		}
 	}()
 
@@ -130,13 +146,13 @@ func main() {
 	quit := make(chan os.Signal)
 	signal.Notify(quit, os.Interrupt)
 	<-quit
-	log.Infof("Shutdown Server ...")
+	logrus.Infof("Shutdown Server ...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	defer cancelFunc()
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatal("Server Shutdown:", err)
+		logrus.Fatal("Server Shutdown:", err)
 	}
-	log.Infof("Server exiting")
+	logrus.Infof("Server exiting")
 }

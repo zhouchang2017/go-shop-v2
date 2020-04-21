@@ -10,18 +10,13 @@ import (
 
 // 买家申请退款通知
 type orderApplyRefundNotify struct {
-	order    *models.Order
-	refundId string
-	subject  string
-	to       string
+	refund  *models.Refund
+	subject string
+	to      string
 }
 
-func OrderApplyRefundNotify(order *models.Order, refundId string, to string) *orderApplyRefundNotify {
-	return &orderApplyRefundNotify{order: order, refundId: refundId, to: to, subject: "买家申请退款通知"}
-}
-
-func (o orderApplyRefundNotify) To() string {
-	return o.to
+func OrderApplyRefundNotify(refund *models.Refund) *orderApplyRefundNotify {
+	return &orderApplyRefundNotify{refund: refund, subject: "买家申请退款通知"}
 }
 
 func (o orderApplyRefundNotify) Subject() string {
@@ -35,14 +30,7 @@ type refund struct {
 }
 
 func (o orderApplyRefundNotify) initData() *refund {
-	ref, _ := o.order.FindRefund(o.refundId)
-	for _, item := range ref.Items {
-		findItem := o.order.FindItem(item.ItemId)
-		if findItem != nil {
-			item.Item = findItem.Item
-		}
-	}
-	return &refund{Title: "买家申请退款通知", Refund: ref, OrderId: o.order.GetID()}
+	return &refund{Title: "买家申请退款通知", Refund: o.refund}
 }
 
 func (o orderApplyRefundNotify) Body() (string, error) {

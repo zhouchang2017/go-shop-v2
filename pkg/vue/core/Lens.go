@@ -47,7 +47,7 @@ func SerializeLens(ctx *gin.Context, lens contracts.Lens, model interface{}) map
 		field.Resolve(ctx, model)
 		fields = append(fields, field)
 
-		field.Call()
+		field.Call(model)
 	}
 	maps["fields"] = fields
 	return maps

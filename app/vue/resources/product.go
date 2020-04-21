@@ -161,7 +161,7 @@ func (this *Product) Fields(ctx *gin.Context, model interface{}) func() []interf
 
 			fields.NewTable("销售属性", "Options", func() []contracts.Field {
 				return []contracts.Field{
-					fields.NewTextField("ID", "Id"),
+					fields.NewTextField("ID", "RefundNo"),
 					fields.NewTextField("属性名", "Name"),
 					//fields.NewStatusField("")
 					fields.NewLabelsFields("属性值", "Values").Label("name"),
@@ -169,6 +169,8 @@ func (this *Product) Fields(ctx *gin.Context, model interface{}) func() []interf
 			}),
 
 			fields2.NewProductSkuDetailField("SKU", "Items"),
+
+			fields.NewHasManyField("评论", &Comment{}),
 
 			fields.NewRichTextField("描述", "Description"),
 			fields.NewTextField("权重", "Sort").Min(0).Max(9999).InputNumber(),

@@ -9,8 +9,10 @@ import (
 	"time"
 )
 
+type Mailer interface {
+	Send(to string, subject string, body string) error
+}
 type Notify interface {
-	To() string                     // 收件人
 	Subject() string                // 主题
 	Body() (body string, err error) // 内容
 }
@@ -19,13 +21,9 @@ type NotifyContentType interface {
 	ContentType() string // 内容类型
 }
 
-type CCItem struct {
-	Address string
-	Name    string
-}
-
-type NotifyCC interface {
-	CC() []*CCItem // 抄送
+type Receiver interface {
+	GetNickname() string
+	GetEmail() string
 }
 
 var instance *email
@@ -53,29 +51,27 @@ type email struct {
 	projectPath string
 }
 
-
 func (e *email) init() {
 	e.Dialer = gomail.NewDialer(e.config.Host, e.config.Port, e.config.Username, e.config.Password)
 }
 
 func (e *email) Send(to string, subject string, body string) error {
 	m := gomail.NewMessage()
-	m.SetHeader("From", instance.config.Sender)
+	m.SetHeader("From", instance.config.Username)
 	m.SetHeader("To", to)
 	m.SetHeader("Subject", subject)
 	m.SetBody("text/html", body)
 	return e.DialAndSend(m)
 }
 
-func Send(notify Notify) error {
+func Send(notify Notify, to string, cc ...Receiver) error {
 	m := gomail.NewMessage()
 	m.SetHeader("From", instance.config.Username)
-	m.SetHeader("To", notify.To())
-	if isCC, ok := notify.(NotifyCC); ok {
-		for _, cc := range isCC.CC() {
-			m.SetAddressHeader("Cc", cc.Address, cc.Name)
-		}
+	m.SetHeader("To", to)
+	for _, c := range cc {
+		m.SetAddressHeader("Cc", c.GetEmail(), c.GetNickname())
 	}
+
 	m.SetHeader("Subject", notify.Subject())
 
 	body, err := notify.Body()
@@ -89,6 +85,16 @@ func Send(notify Notify) error {
 	}
 
 	return instance.DialAndSend(m)
+}
+
+func Sends(notify Notify, receivers ...Receiver) error {
+	to := receivers[0]
+
+	if len(receivers) > 1 {
+		cc := receivers[1:]
+		return Send(notify, to.GetEmail(), cc...)
+	}
+	return Send(notify, to.GetEmail())
 }
 
 // 过滤器

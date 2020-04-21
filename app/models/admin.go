@@ -8,7 +8,6 @@ import (
 
 var adminTypes = []string{"root", "admin", "manager", "salesman"}
 
-
 // 后台用户
 // 用户类型：root、admin、manager、salesman
 type Admin struct {
@@ -18,6 +17,8 @@ type Admin struct {
 	Nickname         string            `json:"nickname"`
 	Type             string            `json:"type"`
 	Shops            []*AssociatedShop `json:"shops" bson:"shops"`
+	Email            string            `json:"email"`
+	Notifies         []string          `json:"notifies"` // 允许接收的消息通知
 }
 
 // 关联简单管理员结构
@@ -59,8 +60,12 @@ func (a *Admin) GetAuthPassword() string {
 	return a.Password
 }
 
-func (a *Admin) GetNickname() string {
+func (a Admin) GetNickname() string {
 	return a.Nickname
+}
+
+func (a Admin) GetEmail() string  {
+	return a.Email
 }
 
 func (a *Admin) IsManager() bool {

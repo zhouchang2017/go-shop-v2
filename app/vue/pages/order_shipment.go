@@ -47,14 +47,48 @@ func (o *orderShipmentPage) HttpHandles(router gin.IRouter) {
 	router.POST("mp/logistics", func(ctx *gin.Context) {
 		var form services.CreateExpressOrderOption
 		if err := ctx.ShouldBind(&form); err != nil {
-			err2.ErrorEncoder(nil,err, ctx.Writer)
+			err2.ErrorEncoder(nil, err, ctx.Writer)
 			return
 		}
-		if err := form.IsValid();err!=nil {
-			err2.ErrorEncoder(nil,err, ctx.Writer)
+		if err := form.IsValid(); err != nil {
+			err2.ErrorEncoder(nil, err, ctx.Writer)
 			return
 		}
-		o.logisticsSrv.AddOrder(ctx,form)
+		order, err := o.logisticsSrv.AddOrder(ctx, form)
+		if err != nil {
+			err2.ErrorEncoder(nil, err, ctx.Writer)
+			return
+		}
+		ctx.JSON(http.StatusOK, order)
+	})
+	// 查询小程序物流信息
+	router.GET("mp/logistics/get-order", func(ctx *gin.Context) {
+		var form services.GetOrderOption
+		if err := ctx.ShouldBind(&form); err != nil {
+			err2.ErrorEncoder(nil, err, ctx.Writer)
+			return
+		}
+		order, err := o.logisticsSrv.GetOrder(ctx, &form)
+		if err != nil {
+			err2.ErrorEncoder(nil, err, ctx.Writer)
+			return
+		}
+		ctx.JSON(http.StatusOK, order)
+	})
+	// 取消物流助手下单
+	router.POST("mp/logistics/cancel-order", func(ctx *gin.Context) {
+		var form services.CancelOrderOption
+		if err := ctx.ShouldBind(&form); err != nil {
+			err2.ErrorEncoder(nil, err, ctx.Writer)
+			return
+		}
+
+		err := o.logisticsSrv.CancelExpressOrder(ctx, &form)
+		if err != nil {
+			err2.ErrorEncoder(nil, err, ctx.Writer)
+			return
+		}
+		ctx.JSON(http.StatusNoContent, nil)
 	})
 	// 发货
 	router.POST("orders/:Order/shipment", func(ctx *gin.Context) {

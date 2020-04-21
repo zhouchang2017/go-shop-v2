@@ -47,24 +47,24 @@ func (this *tbResponseBody) parseMockData() {
 	}
 }
 
-func (this *tbResponseBody) GetProductPrice() int64 {
+func (this *tbResponseBody) GetProductPrice() uint64 {
 	this.parseMockData()
 
 	if this.Data != nil {
 		if price, err := utils.MapGet(this.Data, "skuCore.sku2info.0.price.priceMoney"); err == nil {
-			return int64(price.(float64))
+			return uint64(price.(float64))
 		}
 	}
 
 	return 0
 }
 
-func (this *tbResponseBody) GetItemPrice(itemId string) int64 {
+func (this *tbResponseBody) GetItemPrice(itemId string) uint64 {
 	this.parseMockData()
 	if this.Data != nil {
 		key := fmt.Sprintf("skuCore.sku2info.%s.price.priceMoney", itemId)
 		if price, err := utils.MapGet(this.Data, key); err == nil {
-			return int64(price.(float64))
+			return uint64(price.(float64))
 		}
 	}
 

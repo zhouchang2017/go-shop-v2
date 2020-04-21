@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	log "github.com/sirupsen/logrus"
 	"go-shop-v2/app/models"
 	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/repository"
@@ -12,12 +13,22 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/x/bsonx"
-	"log"
 	"time"
 )
 
 type OrderRep struct {
 	repository.IRepository
+}
+
+// 退款中的订单
+func (this *OrderRep) RefundingCount(ctx context.Context) (count int64) {
+	result := <-this.Count(ctx, bson.M{
+		"refunds": bson.M{"$elemMatch": bson.M{"status": bson.M{"$in": models.RefundingStatus}}},
+	})
+	if result.Error != nil {
+		return 0
+	}
+	return result.Result
 }
 
 // 根据状态统计
@@ -138,8 +149,7 @@ func NewOrderRep(rep repository.IRepository) *OrderRep {
 	opts := options.CreateIndexes().SetMaxTime(10 * time.Second)
 	_, err := repository.Collection().Indexes().CreateMany(context.Background(), repository.index(), opts)
 	if err != nil {
-		log.Printf("model [%s] create indexs error:%s\n", repository.TableName(), err)
-		panic(err)
+		log.Panicf("model [%s] create indexs error:%s\n", repository.TableName(), err)
 	}
 	return repository
 }

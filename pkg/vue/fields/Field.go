@@ -46,7 +46,7 @@ type Field struct {
 	resolveForDisplay func(ctx *gin.Context, model interface{}) interface{}
 }
 
-func (this Field) Call() {
+func (this Field) Call(model interface{}) {
 
 }
 
@@ -179,7 +179,12 @@ func (this *Field) Resolve(ctx *gin.Context, model interface{}) {
 }
 
 func (this Field) resolveAttribute(ctx *gin.Context, model interface{}) interface{} {
-	return getValueByField(model, this.fieldName)
+	value := getValueByField(model, this.fieldName)
+	if value == nil {
+		return this.NullValue
+	}
+	return value
+
 }
 
 func (this *Field) SetPanel(name string) {

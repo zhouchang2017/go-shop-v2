@@ -8,12 +8,11 @@ import (
 )
 
 type OrderRefundCancelByUser struct {
-	Order    *models.Order
-	RefundId string
+	refund *models.Refund
 }
 
-func NewOrderRefundCancelByUserEvent(order *models.Order, refundId string) *OrderRefundCancelByUser {
-	return &OrderRefundCancelByUser{Order: order, RefundId: refundId}
+func NewOrderRefundCancelByUserEvent(refund *models.Refund) *OrderRefundCancelByUser {
+	return &OrderRefundCancelByUser{refund}
 }
 
 func (o OrderRefundCancelByUser) Delay() time.Duration {
@@ -21,7 +20,7 @@ func (o OrderRefundCancelByUser) Delay() time.Duration {
 }
 
 func (o OrderRefundCancelByUser) Body() []byte {
-	marshal, err := json.Marshal(o)
+	marshal, err := json.Marshal(o.refund)
 	if err != nil {
 		log.Errorf("OrderRefundChange json marshal error:%s", err)
 	}

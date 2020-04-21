@@ -8,6 +8,7 @@ import (
 	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
+	"go-shop-v2/pkg/utils"
 	"go-shop-v2/pkg/vue/contracts"
 	"go-shop-v2/pkg/vue/core"
 	"go-shop-v2/pkg/vue/fields"
@@ -83,7 +84,7 @@ func (p Promotion) Fields(ctx *gin.Context, model interface{}) func() []interfac
 					promotion:=model.(*models.Promotion)
 					if promotion!=nil {
 						if promotion.Rule.Type == 1 {
-							return promotion.Rule.Value / 100
+							return utils.ToMoneyString(promotion.Rule.Value )
 						}
 						if promotion.Rule.Type == 2 {
 							return promotion.Rule.Value
@@ -106,7 +107,7 @@ func (p Promotion) Fields(ctx *gin.Context, model interface{}) func() []interfac
 							return promotion.Policy.Value / 10
 						}
 						if promotion.Policy.Type == 2 {
-							return promotion.Policy.Value / 100
+							return utils.ToMoneyString(promotion.Policy.Value )
 						}
 					}
 					return nil

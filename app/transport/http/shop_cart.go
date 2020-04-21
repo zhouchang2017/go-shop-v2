@@ -16,7 +16,7 @@ type ShopCartController struct {
 
 type shopCartForm struct {
 	ItemId string `json:"item_id" form:"item_id"`
-	Qty    int64  `json:"qty"`
+	Qty    uint64  `json:"qty"`
 }
 
 // 个人购物车列表
@@ -60,7 +60,7 @@ func (this *ShopCartController) Add(ctx *gin.Context) {
 
 type updateShopCartForm struct {
 	ItemId *string `json:"item_id" form:"item_id"`
-	Qty    int64   `json:"qty"`
+	Qty    uint64   `json:"qty"`
 }
 
 // 更新购物车

@@ -17,5 +17,5 @@ func (o OrderTimeOut) Body() []byte {
 }
 
 func (o OrderTimeOut) Delay() time.Duration {
-	return time.Minute * 3
+	return time.Minute * 30
 }

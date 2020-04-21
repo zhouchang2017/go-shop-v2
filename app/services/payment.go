@@ -112,7 +112,7 @@ func (srv *PaymentService) setUnifiedOrderOption(order *models.Order, openId str
 				GoodsId:   item.Item.Id,
 				GoodsName: item.Item.Product.Name,
 				Quantity:  item.Count,
-				Price:     item.Amount,
+				Price:     item.TotalAmount,
 			})
 		}
 		opt.Detail = detail
@@ -203,7 +203,7 @@ func (srv *PaymentService) PayNotify(ctx context.Context, req *http.Request) (or
 				"$set": bson.M{
 					"status":         models.OrderStatusPreSend,
 					"payment":        updatePayment.ToAssociated(),
-					"refund_channel": true,
+					"refund_channel": true, 	// 支付成功，开启退款通道
 				},
 			})
 			if updateRes.Error != nil {

@@ -1,8 +1,8 @@
 package listeners
 
 import (
-	"context"
 	"encoding/json"
+	"github.com/davecgh/go-spew/spew"
 	log "github.com/sirupsen/logrus"
 	"go-shop-v2/app/email"
 	"go-shop-v2/app/events"
@@ -13,7 +13,40 @@ import (
 	"go-shop-v2/pkg/wechat"
 )
 
+// 退款状态变化监听
+type OrRefundChangeListener struct {
+	orderSrv  *services.OrderService
+	refundSrv *services.RefundService
+}
+
+func (o OrRefundChangeListener) Make() rabbitmq.Listener {
+	return &OrRefundChangeListener{orderSrv: services.MakeOrderService(), refundSrv: services.MakeRefundService()}
+}
+
+func (o OrRefundChangeListener) Event() rabbitmq.Event {
+	return events.OrderRefundChange{}
+}
+
+func (o OrRefundChangeListener) OnError(payload []byte, err error) {
+	log.Errorf("OrRefundChangeListener Error:%s\n", err)
+}
+
+func (o OrRefundChangeListener) Handler(data []byte) error {
+	var refund models.Refund
+	if err := json.Unmarshal(data, &refund); err != nil {
+		return err
+	}
+	spew.Dump(refund)
+	//o.refundSrv.FindRefundByOrderId(context.Background(),refund.OrderId)
+	//panic("implement me")
+	return nil
+}
+
 type OnOrderApplyRefundListener struct {
+}
+
+func (o OnOrderApplyRefundListener) Name() string {
+	return "订单申请退款通知"
 }
 
 func (o OnOrderApplyRefundListener) Make() rabbitmq.Listener {
@@ -29,16 +62,16 @@ func (o OnOrderApplyRefundListener) OnError(payload []byte, err error) {
 }
 
 func (o OnOrderApplyRefundListener) Handler(data []byte) error {
-	var event events.OrderApplyRefund
-	if err := json.Unmarshal(data, &event); err != nil {
+	var refund models.Refund
+	if err := json.Unmarshal(data, &refund); err != nil {
 		return err
 	}
-	return o.sendEmailNotifyAdmin(event.Order, event.RefundId)
+	return o.sendEmailNotifyAdmin(&refund)
 }
 
-func (o OnOrderApplyRefundListener) sendEmailNotifyAdmin(order *models.Order, refundId string) error {
+func (o OnOrderApplyRefundListener) sendEmailNotifyAdmin(refund *models.Refund) error {
 	log.Printf("订单申请退款通知，发送邮件")
-	return email.Send(email.OrderApplyRefundNotify(order, refundId, "zhouchangqaz@gmail.com"))
+	return sendEmail(o.Event(), email.OrderApplyRefundNotify(refund))
 }
 
 type OnOrderRefundChangeListener struct {
@@ -57,19 +90,23 @@ func (o OnOrderRefundChangeListener) OnError(payload []byte, err error) {
 }
 
 func (o OnOrderRefundChangeListener) Handler(data []byte) error {
-	var event events.OrderRefundChange
-	if err := json.Unmarshal(data, &event); err != nil {
+	var refund models.Refund
+	if err := json.Unmarshal(data, &refund); err != nil {
 		return err
 	}
-	return o.sendWechatNotifyUser(event.Order, event.RefundId)
+	return o.sendWechatNotifyUser(&refund)
 }
 
-func (o OnOrderRefundChangeListener) sendWechatNotifyUser(order *models.Order, refundId string) error {
+func (o OnOrderRefundChangeListener) sendWechatNotifyUser(refund *models.Refund) error {
 	log.Printf("退款订单状态变动，微信推送给用户")
-	return wechat.SDK.SendSubscribeMessage(mp_subscribe.NewOrderRefundChangeNotify(order, refundId))
+	return wechat.SDK.SendSubscribeMessage(mp_subscribe.NewOrderRefundChangeNotify(refund))
 }
 
 type OnOrderRefundCancelByUserListener struct {
+}
+
+func (o OnOrderRefundCancelByUserListener) Name() string {
+	return "用户取消退款通知"
 }
 
 func (o OnOrderRefundCancelByUserListener) Make() rabbitmq.Listener {
@@ -85,41 +122,14 @@ func (o OnOrderRefundCancelByUserListener) OnError(payload []byte, err error) {
 }
 
 func (o OnOrderRefundCancelByUserListener) Handler(data []byte) error {
-	var event events.OrderRefundCancelByUser
-	if err := json.Unmarshal(data, &event); err != nil {
+	var refund models.Refund
+	if err := json.Unmarshal(data, &refund); err != nil {
 		return err
 	}
-	return o.sendEmailNotifyAdmin(event.Order, event.RefundId)
+	return o.sendEmailNotifyAdmin(&refund)
 }
 
-func (o OnOrderRefundCancelByUserListener) sendEmailNotifyAdmin(order *models.Order, refundId string) error {
+func (o OnOrderRefundCancelByUserListener) sendEmailNotifyAdmin(refund *models.Refund) error {
 	log.Printf("订单申请退款通知，发送邮件")
-	return email.Send(email.OrderApplyRefundNotify(order, refundId, "zhouchangqaz@gmail.com"))
-}
-
-type OnOrderRefundDoneListener struct {
-	orderSrv *services.OrderService
-}
-
-func (o OnOrderRefundDoneListener) Make() rabbitmq.Listener {
-	return &OnOrderRefundDoneListener{orderSrv: services.MakeOrderService()}
-}
-
-func (o OnOrderRefundDoneListener) Event() rabbitmq.Event {
-	return events.OrderRefundDone{}
-}
-
-func (o OnOrderRefundDoneListener) OnError(payload []byte, err error) {
-	log.Errorf("OnOrderRefundDoneListener Error:%s\n", err)
-}
-
-func (o OnOrderRefundDoneListener) Handler(data []byte) error {
-	orderId := string(data)
-	order, err := o.orderSrv.FindById(context.Background(), orderId)
-	if err != nil {
-		return err
-	}
-	order.RefreshStatus()
-	_, err = o.orderSrv.Save(context.Background(), order)
-	return err
+	return sendEmail(o.Event(), email.OrderApplyRefundNotify(refund))
 }

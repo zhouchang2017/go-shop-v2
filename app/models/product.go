@@ -16,17 +16,17 @@ type Product struct {
 	Options          []*ProductOption    `json:"options,omitempty" bson:"options"`
 	Items            []*Item             `json:"items,omitempty" bson:"-"`
 	Description      string              `json:"description,omitempty" bson:"description"`
-	Price            int64               `json:"price" bson:"price"`
-	PromotionPrice   int64               `json:"promotion_price" bson:"-"` // 促销价，显示items 最低价格
-	TotalSalesQty    int64               `json:"total_sales_qty" bson:"total_sales_qty"`
-	FakeSalesQty     int64               `json:"fake_sales_qty,omitempty" bson:"fake_sales_qty"`
+	Price            uint64               `json:"price" bson:"price"`
+	PromotionPrice   uint64               `json:"promotion_price" bson:"-"` // 促销价，显示items 最低价格
+	TotalSalesQty    uint64               `json:"total_sales_qty" bson:"total_sales_qty"`
+	FakeSalesQty     uint64               `json:"fake_sales_qty,omitempty" bson:"fake_sales_qty"`
 	Images           []qiniu.Image       `json:"images,omitempty" bson:"images"`
 	Avatar           *qiniu.Image        `json:"avatar,omitempty" bson:"avatar"`
 	OnSale           bool                `json:"on_sale" bson:"on_sale"`
 	Sort             int64               `json:"sort"` // 排序权重
-	Qty              int64               `json:"qty" bson:"-"`
-	CollectCount     int64               `json:"collect_count" bson:"collect_count"` // 累计收藏
-	ShareCount       int64               `json:"share_count" bson:"share_count"`     // 累计分享
+	Qty              uint64               `json:"qty" bson:"-"`
+	CollectCount     uint64               `json:"collect_count" bson:"collect_count"` // 累计收藏
+	ShareCount       uint64               `json:"share_count" bson:"share_count"`     // 累计分享
 }
 
 func NewProduct() *Product {
@@ -41,7 +41,7 @@ type AssociatedProduct struct {
 	Brand    *AssociatedBrand    `json:"brand"`
 	Category *AssociatedCategory `json:"category"`
 	Avatar   *qiniu.Image        `json:"avatar"`
-	Price    int64               `json:"price"`
+	Price    uint64               `json:"price"`
 }
 
 func (this Product) GetSort() int64 {

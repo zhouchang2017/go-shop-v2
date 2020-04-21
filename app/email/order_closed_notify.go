@@ -15,12 +15,8 @@ type orderClosedNotify struct {
 	to      string
 }
 
-func OrderClosedNotify(order *models.Order, to string) *orderClosedNotify {
-	return &orderClosedNotify{order: order, to: to, subject: "买家取消订单通知",}
-}
-
-func (o orderClosedNotify) To() string {
-	return o.to
+func OrderClosedNotify(order *models.Order) *orderClosedNotify {
+	return &orderClosedNotify{order: order,  subject: "买家取消订单通知",}
 }
 
 func (o orderClosedNotify) Subject() string {

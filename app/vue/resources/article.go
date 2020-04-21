@@ -33,6 +33,10 @@ func (a *Article) Store(ctx *gin.Context, data map[string]interface{}) (redirect
 	return core.CreatedRedirect(a, article.GetID()), nil
 }
 
+func (a *Article) Destroy(ctx *gin.Context, id string) (err error) {
+	return a.service.Delete(ctx, id)
+}
+
 func (a *Article) Update(ctx *gin.Context, model interface{}, data map[string]interface{}) (redirect string, err error) {
 	option := services.ArticleOption{}
 	if err := mapstructure.Decode(data, &option); err != nil {
@@ -64,7 +68,9 @@ func (a Article) Fields(ctx *gin.Context, model interface{}) func() []interface{
 	return func() []interface{} {
 		return []interface{}{
 			fields.NewIDField(),
-			fields.NewTextField("标题", "Title"),
+			fields.NewTextField("标题", "Title", fields.SetRules([]*fields.FieldRule{
+				{Rule: "required"},
+			})),
 			fields.NewTextField("副标题", "ShortTitle").Textarea(),
 			fields.NewImageField("图集", "Photos").Multiple().Limit(5).Rounded().URL(),
 			fields.NewRichTextField("正文", "Content").UseQiniu(),

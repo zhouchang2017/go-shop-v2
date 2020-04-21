@@ -9,18 +9,12 @@ import (
 )
 
 type orderRefundClosedNotify struct {
-	order    *models.Order
-	refundId string
-	subject  string
-	to       string
+	refund  *models.Refund
+	subject string
 }
 
-func OrderRefundClosedNotify(order *models.Order, refundId string, to string) *orderRefundClosedNotify {
-	return &orderRefundClosedNotify{order: order, refundId: refundId, to: to, subject: "买家关闭退款通知"}
-}
-
-func (o orderRefundClosedNotify) To() string {
-	return o.to
+func OrderRefundClosedNotify(refund *models.Refund) *orderRefundClosedNotify {
+	return &orderRefundClosedNotify{refund: refund, subject: "买家关闭退款通知"}
 }
 
 func (o orderRefundClosedNotify) Subject() string {
@@ -28,14 +22,7 @@ func (o orderRefundClosedNotify) Subject() string {
 }
 
 func (o orderRefundClosedNotify) initData() *refund {
-	ref, _ := o.order.FindRefund(o.refundId)
-	for _, item := range ref.Items {
-		findItem := o.order.FindItem(item.ItemId)
-		if findItem != nil {
-			item.Item = findItem.Item
-		}
-	}
-	return &refund{Title: "买家关闭退款通知", Refund: ref, OrderId: o.order.GetID()}
+	return &refund{Title: "买家关闭退款通知", Refund: o.refund, OrderId: o.refund.OrderId}
 }
 
 func (o orderRefundClosedNotify) Body() (string, error) {

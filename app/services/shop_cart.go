@@ -17,7 +17,7 @@ type ShopCartService struct {
 }
 
 // 加入到购物车
-func (this *ShopCartService) Add(ctx context.Context, userId string, itemId string, qty int64) (shopCartItem *models.ShopCartItem, err error) {
+func (this *ShopCartService) Add(ctx context.Context, userId string, itemId string, qty uint64) (shopCartItem *models.ShopCartItem, err error) {
 	item, promotions, err := this.findItem(ctx, itemId)
 	if err != nil {
 		return
@@ -54,7 +54,7 @@ func (this *ShopCartService) findItem(ctx context.Context, id string) (item *mod
 		if promotions[0].Promotion.Type == models.UnitSale {
 			price := promotions[0].FindPriceByItemId(item.GetID())
 			if price != -1 {
-				item.PromotionPrice = price
+				item.PromotionPrice = uint64(price)
 			}
 		}
 	}
@@ -64,7 +64,7 @@ func (this *ShopCartService) findItem(ctx context.Context, id string) (item *mod
 // 更新购物车商品itemId
 // status = 1，直接更新
 // status = 2, 购物车存在重复商品，进行覆盖，之前的被删除
-func (this *ShopCartService) Update(ctx context.Context, userId string, beforeItemId string, afterItemId string, qty int64) (status int64, shopCartItem *models.ShopCartItem, err error) {
+func (this *ShopCartService) Update(ctx context.Context, userId string, beforeItemId string, afterItemId string, qty uint64) (status int64, shopCartItem *models.ShopCartItem, err error) {
 	afterItem, promotions, err := this.findItem(ctx, afterItemId)
 	if err != nil {
 		return
@@ -84,7 +84,7 @@ func (this *ShopCartService) Update(ctx context.Context, userId string, beforeIt
 }
 
 // 购物车中物品数量增加
-func (this *ShopCartService) UpdateQty(ctx context.Context, userId string, itemId string, qty int64) (shopCartItem *models.ShopCartItem, err error) {
+func (this *ShopCartService) UpdateQty(ctx context.Context, userId string, itemId string, qty uint64) (shopCartItem *models.ShopCartItem, err error) {
 	item, promotions, err := this.findItem(ctx, itemId)
 	if err != nil {
 		return
@@ -139,7 +139,7 @@ func (this *ShopCartService) Index(ctx context.Context, userId string, page int6
 	}
 	// 加载软删除变体，前端标记为已失效
 	withTrashedCtx := ctx2.WithTrashed(ctx, true)
-	result := <-this.itemRep.FindByIds(withTrashedCtx, itemIds...)
+	result := <-this.itemRep.FindByIds(withTrashedCtx, itemIds)
 	if result.Error != nil {
 		err = result.Error
 		return
@@ -154,10 +154,10 @@ func (this *ShopCartService) Index(ctx context.Context, userId string, page int6
 			item.Item = resolveItem
 			// 设置默认促销价格
 			item.Item.PromotionPrice = item.Item.Price
-			//if _, ok := productIdsMap[item.Item.Product.Id]; ok {
-			//	productIdsMap[item.Item.Product.Id] = append(productIdsMap[item.Item.Product.Id], item)
+			//if _, ok := productIdsMap[item.Item.Product.RefundNo]; ok {
+			//	productIdsMap[item.Item.Product.RefundNo] = append(productIdsMap[item.Item.Product.RefundNo], item)
 			//} else {
-			//	productIdsMap[item.Item.Product.Id] = []*models.ShopCartItem{item}
+			//	productIdsMap[item.Item.Product.RefundNo] = []*models.ShopCartItem{item}
 			//}
 		}
 	}
@@ -196,7 +196,7 @@ type shopCartItemsDetail struct {
 
 // 获取checked商品的详细信息
 func (this *ShopCartService) GetShopCartItemsDetail(ctx context.Context, userId string, itemIds ...string) (details map[string]*shopCartItemsDetail, err error) {
-	result := <-this.itemRep.FindByIds(ctx, itemIds...)
+	result := <-this.itemRep.FindByIds(ctx, itemIds)
 	if result.Error != nil {
 		err = result.Error
 		return
@@ -231,7 +231,7 @@ func (this *ShopCartService) GetShopCartItemsDetail(ctx context.Context, userId 
 				if promotionItems[0].Promotion.Type == models.UnitSale {
 					price := promotionItems[0].FindPriceByItemId(item.Item.GetID())
 					if price != -1 {
-						item.Item.PromotionPrice = price
+						item.Item.PromotionPrice = uint64(price)
 					}
 				}
 			}

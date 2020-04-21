@@ -17,6 +17,10 @@ type OrderPaidNotifyToAdmin struct {
 	orderSrv *services.OrderService
 }
 
+func (o OrderPaidNotifyToAdmin) Name() string {
+	return "订单付款通知"
+}
+
 func (o OrderPaidNotifyToAdmin) Make() rabbitmq.Listener {
 	return &OrderPaidNotifyToAdmin{orderSrv: services.MakeOrderService()}
 }
@@ -31,7 +35,6 @@ func (o OrderPaidNotifyToAdmin) OnError(payload []byte, err error) {
 
 // data为订单号
 func (o OrderPaidNotifyToAdmin) Handler(data []byte) error {
-	log.Printf("订单付款事件，处理")
 	orderNo := string(data)
 	if orderNo != "" {
 		order, err := o.orderSrv.FindByNo(context.Background(), orderNo)
@@ -44,8 +47,7 @@ func (o OrderPaidNotifyToAdmin) Handler(data []byte) error {
 }
 
 func (o OrderPaidNotifyToAdmin) sendEmailNotifyAdmin(order *models.Order) error {
-	log.Printf("订单付款通知，发送邮件")
-	return email.Send(email.OrderPaidNotify(order, "zhouchangqaz@gmail.com"))
+	return sendEmail(o.Event(),email.OrderPaidNotify(order))
 }
 
 // 订单付款，通知用户
@@ -68,7 +70,6 @@ func (o OrderPaidNotifyToUser) OnError(payload []byte, err error) {
 }
 
 func (o OrderPaidNotifyToUser) Handler(data []byte) error {
-	log.Printf("订单付款事件，处理")
 	orderNo := string(data)
 	if orderNo != "" {
 		order, err := o.orderSrv.FindByNo(context.Background(), orderNo)
@@ -81,6 +82,5 @@ func (o OrderPaidNotifyToUser) Handler(data []byte) error {
 }
 
 func (o OrderPaidNotifyToUser) sendWxPush(order *models.Order) error {
-	log.Printf("订单付款通知，微信推送给用户")
 	return wechat.SDK.SendSubscribeMessage(mp_subscribe.NewOrderPaidNotify(order))
 }

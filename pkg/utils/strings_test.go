@@ -15,9 +15,10 @@ func TestStructToName(t *testing.T) {
 }
 
 func TestStrToPlural(t *testing.T) {
-
-	spew.Dump(StrPoint("orderCreated"))
-	spew.Dump(TodayEnd())
+	n := Int64AvgN(500, 3)
+	spew.Dump(n)
+	randomString := RandomString(32)
+	spew.Dump(randomString)
 }
 
 

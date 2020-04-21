@@ -8,19 +8,22 @@ import (
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
 	"go-shop-v2/pkg/cache/redis"
+	"go-shop-v2/pkg/db/mongodb"
 	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/wechat"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 	"time"
 )
 
 // 微信小程序物流服务
 type LogisticsService struct {
 	orderRep *repositories.OrderRep
-	traceRep *repositories.TraceRep
+	trackRep *repositories.TrackRep
 }
 
-func NewLogisticsService(orderRep *repositories.OrderRep, traceRep *repositories.TraceRep) *LogisticsService {
-	return &LogisticsService{orderRep: orderRep, traceRep: traceRep}
+func NewLogisticsService(orderRep *repositories.OrderRep, traceRep *repositories.TrackRep) *LogisticsService {
+	return &LogisticsService{orderRep: orderRep, trackRep: traceRep}
 }
 
 const logisticsCacheKey = "go-shop-my-delivery"
@@ -112,7 +115,7 @@ type CreateExpressOrderOption struct {
 
 type createExpressOrderItemOption struct {
 	ItemId string `json:"item_id" form:"item_id" binding:"required"`
-	Count  int64  `json:"count" form:"count" binding:"required,min=1"`
+	Count  uint64  `json:"count" form:"count" binding:"required,min=1"`
 }
 
 func (c CreateExpressOrderOption) IsValid() error {
@@ -235,81 +238,123 @@ func (this *LogisticsService) AddOrder(ctx context.Context, opt CreateExpressOrd
 
 	expressOrder.Cargo = cargo
 
-	addExpressOrder, err := wechat.SDK.AddExpressOrder(wechat.CreateExpressOrderOption{
+	addExpressOrder, err := wechat.SDK.AddExpressOrder(&wechat.CreateExpressOrderOption{
 		ExpressOrder: &expressOrder,
 		AddSource:    0,
 		ExpectTime:   uint(opt.ExpectTime.Unix()),
-	}, true)
+	})
 
 	if err != nil {
 		return nil, err
 	}
 
-	var waybillData []*models.WaybillDataItem
-
-	for _, billData := range addExpressOrder.WaybillData {
-		waybillData = append(waybillData, &models.WaybillDataItem{
-			Key:   billData.Key,
-			Value: billData.Value,
-		})
+	// 开启事务
+	var session mongo.Session
+	if session, err = mongodb.GetConFn().Client().StartSession(); err != nil {
+		return nil, err
 	}
-
-	var items []*models.LogisticsItem
-
-	for _, o := range opt.Items {
-		items = append(items, &models.LogisticsItem{
-			ItemId: o.ItemId,
-			Count:  o.Count,
-			ShopId: opt.Shop.GetID(),
-		})
+	if err = session.StartTransaction(); err != nil {
+		return nil, err
 	}
+	err = mongo.WithSession(ctx, session, func(sessionContext mongo.SessionContext) error {
 
-	l := &models.LogisticsOption{
-		NoDelivery:  false,
-		DeliveryId:  opt.DeliveryId,
-		ShopId:      opt.Shop.GetID(),
-		Items:       items,
-		WaybillID:   addExpressOrder.WaybillID,
-		WaybillData: waybillData,
-	}
-
-	// 写入订单物流
-	if err := order.Shipment(l); err != nil {
-		// 写入订单物流异常，
-		// 取消发货单
-		_, err := this.CancelOrder(wechat.CancelExpressOrderOption{
-			OrderId:    order.OrderNo,
-			OpenId:     order.User.WechatMiniId,
-			DeliveryId: opt.DeliveryId,
-			WaybillId:  addExpressOrder.WaybillID,
-		})
-		if err != nil {
-			return nil, err
+		// 下单成功记录
+		// 生成物流跟踪记录
+		if _, err := this.storeLogisticTrack(sessionContext, order.OrderNo, addExpressOrder.WaybillID, opt.DeliveryId); err != nil {
+			session.AbortTransaction(sessionContext)
+			return err
 		}
 
-	}
+		waybillData := make([]*models.WaybillDataItem, 0)
 
-	// 保存订单
-	saved := <-this.orderRep.Save(ctx, order)
-	if saved.Error != nil {
-		// 保存订单失败
-		// 取消发货运单
-		_, err := this.CancelOrder(wechat.CancelExpressOrderOption{
-			OrderId:    order.OrderNo,
-			OpenId:     order.User.WechatMiniId,
-			DeliveryId: opt.DeliveryId,
-			WaybillId:  addExpressOrder.WaybillID,
-		})
-		if err != nil {
-			return nil, err
+		for _, billData := range addExpressOrder.WaybillData {
+			waybillData = append(waybillData, &models.WaybillDataItem{
+				Key:   billData.Key,
+				Value: billData.Value,
+			})
 		}
-	}
-	return addExpressOrder, nil
+
+		items := make([]*models.LogisticsItem, 0)
+
+		for _, o := range opt.Items {
+			items = append(items, &models.LogisticsItem{
+				ItemId: o.ItemId,
+				Count:  o.Count,
+				ShopId: opt.Shop.GetID(),
+			})
+		}
+
+		l := &models.LogisticsOption{
+			NoDelivery:  false,
+			DeliveryId:  opt.DeliveryId,
+			ShopId:      opt.Shop.GetID(),
+			Items:       items,
+			WaybillID:   addExpressOrder.WaybillID,
+			WaybillData: waybillData,
+		}
+
+		// 写入订单物流
+		if err := order.Shipment(l); err != nil {
+			// 写入订单物流异常，
+			// 取消发货单
+			// todo 写入物流单失败，写日志
+			if _, err := this.cancelOrder(order.User.WechatMiniId, &CancelOrderOption{
+				OrderNo:    order.OrderNo,
+				DeliveryId: opt.DeliveryId,
+				WaybillId:  addExpressOrder.WaybillID,
+			}); err != nil {
+				// todo 取消物流下单失败写日志，发邮件
+				session.AbortTransaction(sessionContext)
+				return err
+			}
+			session.AbortTransaction(sessionContext)
+			return err
+		}
+
+		// 保存订单
+		saved := <-this.orderRep.Save(ctx, order)
+		if saved.Error != nil {
+			// 保存订单失败
+			// todo 保存订单失败，写日志
+			// 取消发货运单
+
+			if _, err := this.cancelOrder(order.User.WechatMiniId, &CancelOrderOption{
+				OrderNo:    order.OrderNo,
+				DeliveryId: opt.DeliveryId,
+				WaybillId:  addExpressOrder.WaybillID,
+			}); err != nil {
+				session.AbortTransaction(sessionContext)
+				return err
+
+				// todo 取消物流单失败，写日志，发邮件
+			}
+
+			session.AbortTransaction(sessionContext)
+			return saved.Error
+		}
+		session.CommitTransaction(sessionContext)
+		return nil
+	})
+
+	session.EndSession(ctx)
+	return addExpressOrder, err
+}
+
+type CancelOrderOption struct {
+	OrderNo    string `json:"order_no" form:"order_no" binding:"required"`
+	DeliveryId string `json:"delivery_id" form:"delivery_id" binding:"required"`
+	WaybillId  string `json:"waybill_id" form:"waybill_id" binding:"required"`
 }
 
 // 取消运单
-func (this *LogisticsService) CancelOrder(opt wechat.CancelExpressOrderOption) (*weapp.CommonError, error) {
-	order, err := wechat.SDK.CancelOrder(opt)
+func (this *LogisticsService) cancelOrder(openId string, opt *CancelOrderOption) (*weapp.CommonError, error) {
+	option := wechat.CancelExpressOrderOption{
+		OrderId:    opt.OrderNo,
+		OpenId:     openId,
+		DeliveryId: opt.DeliveryId,
+		WaybillId:  opt.WaybillId,
+	}
+	order, err := wechat.SDK.CancelOrder(&option)
 	if err != nil {
 		return nil, err
 	}
@@ -317,4 +362,130 @@ func (this *LogisticsService) CancelOrder(opt wechat.CancelExpressOrderOption) (
 		return nil, err
 	}
 	return order, nil
+}
+
+// 取消运单2
+func (this *LogisticsService) CancelExpressOrder(ctx context.Context, opt *CancelOrderOption) (err error) {
+	orderNo := opt.OrderNo
+	order, err := this.orderRep.FindByOrderNo(ctx, orderNo)
+	if err != nil {
+
+	}
+	cancelOrder, err := this.cancelOrder(order.User.WechatMiniId, opt)
+	if err != nil {
+		return err
+	}
+	if cancelOrder.ErrCode == 0 {
+		// 成功
+		// 开启事务
+		var session mongo.Session
+		if session, err = mongodb.GetConFn().Client().StartSession(); err != nil {
+			return err
+		}
+		if err = session.StartTransaction(); err != nil {
+			return err
+		}
+		err = mongo.WithSession(ctx, session, func(sessionContext mongo.SessionContext) error {
+			order.RemoveShipment(opt.DeliveryId, opt.WaybillId)
+			saved := <-this.orderRep.Save(sessionContext, order)
+			if saved.Error != nil {
+				session.AbortTransaction(sessionContext)
+				return saved.Error
+			}
+
+			// 更新跟踪状态
+			track, err := this.trackRep.FindByWayBillId(sessionContext, opt.DeliveryId, opt.WaybillId)
+			if err != nil {
+				session.AbortTransaction(sessionContext)
+				return err
+			}
+
+			track.Status = models.TrackStatusCancel
+
+			trackSaved := <-this.trackRep.Save(sessionContext, track)
+
+			if trackSaved.Error != nil {
+				session.AbortTransaction(sessionContext)
+				return trackSaved.Error
+			}
+			session.CommitTransaction(sessionContext)
+			return err
+		})
+		session.EndSession(ctx)
+		return err
+	}
+	return err2.Err422.F("[%d]%s", cancelOrder.ErrCode, cancelOrder.ErrMSG)
+}
+
+// 储存运单轨迹
+func (this *LogisticsService) storeLogisticTrack(ctx context.Context, orderNo string, waybillId string, deliveryId string) (track *models.Track, err error) {
+	created := <-this.trackRep.Create(ctx, &models.Track{
+		OrderNo:    orderNo,
+		DeliveryID: deliveryId,
+		WayBillId:  waybillId,
+	})
+	if created.Error != nil {
+		return nil, err
+	}
+	return created.Result.(*models.Track), nil
+}
+
+// 更新运单轨迹
+func (this *LogisticsService) UpdateTrack(ctx context.Context, response *weapp.ExpressPathUpdateResult) error {
+	filter := bson.M{
+		"way_bill_id": response.WayBillID,
+	}
+	if wechat.SDK.IsProd() {
+		filter["delivery_id"] = response.DeliveryID
+	}
+	track, err := this.trackRep.FindOne(ctx, filter)
+	if err != nil {
+		return err
+	}
+	track.ToUserName = response.ToUserName
+	track.FromUserName = response.FromUserName
+	track.CreateTime = time.Unix(int64(response.CreateTime), 0)
+	track.MsgType = response.MsgType
+	track.Event = string(response.Event)
+	track.Version = response.Version
+	track.Count = response.Count
+	actions := make([]*models.TrackAction, 0)
+	for _, action := range response.Actions {
+		actions = append(actions, &models.TrackAction{
+			ActionTime: time.Unix(int64(action.ActionTime), 0),
+			ActionType: action.ActionType,
+			ActionMsg:  action.ActionMsg,
+		})
+	}
+	track.Actions = actions
+	saved := <-this.trackRep.Save(ctx, track)
+	if saved.Error != nil {
+		return saved.Error
+	}
+	return nil
+}
+
+type GetOrderOption struct {
+	OrderNo    string `json:"order_no" form:"order_no" binding:"required"`
+	DeliveryId string `json:"delivery_id" form:"delivery_id" binding:"required"`
+	WaybillId  string `json:"waybill_id" form:"waybill_id" binding:"required"`
+}
+
+// 获取运单信息
+func (this *LogisticsService) GetOrder(ctx context.Context, opt *GetOrderOption) (*weapp.GetExpressOrderResponse, error) {
+	order, err := this.orderRep.FindByOrderNo(ctx, opt.OrderNo)
+	if err != nil {
+		// 订单不存在
+		return nil, err
+	}
+	getOrder, err := wechat.SDK.GetOrder(wechat.GetterExpressOrderOption{
+		OrderID:    order.GetID(),
+		OpenID:     order.User.WechatMiniId,
+		DeliveryID: opt.DeliveryId,
+		WaybillID:  opt.WaybillId,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return getOrder, nil
 }

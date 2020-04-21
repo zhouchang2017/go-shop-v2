@@ -2,6 +2,8 @@ package contracts
 
 import "github.com/gin-gonic/gin"
 
+
+
 // 字段接口
 type Field interface {
 	Element
@@ -14,7 +16,7 @@ type Field interface {
 	GetPanel() string
 	GetRules() []FieldRule
 	GetAttribute() string
-	Call()
+	Call(model interface{})
 	// Fill(ctx *gin.Context, data map[string]interface{}, model interface{})
 }
 

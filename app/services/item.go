@@ -24,7 +24,7 @@ func (this *ItemService) DecQty(ctx context.Context, itemId string, qty int64) e
 }
 
 // 加库存
-func (this *ItemService) IncQty(ctx context.Context, itemId string, qty int64) error {
+func (this *ItemService) IncQty(ctx context.Context, itemId string, qty uint64) error {
 	return this.rep.IncQty(ctx, itemId, qty)
 }
 
@@ -124,7 +124,7 @@ func (this *ItemService) Restore(ctx context.Context, id string) (item *models.I
 }
 
 func (this *ItemService) FindByIds(ctx context.Context, ids ...string) (items []*models.Item, err error) {
-	results := <-this.rep.FindByIds(ctx, ids...)
+	results := <-this.rep.FindByIds(ctx, ids)
 	if results.Error != nil {
 		err = results.Error
 		return

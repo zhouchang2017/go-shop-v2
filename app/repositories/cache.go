@@ -135,7 +135,7 @@ func (this RedisCache) FindById(ctx context.Context, id string) <-chan repositor
 }
 
 func (this RedisCache) FindByIds(ctx context.Context, ids ...string) <-chan repository.QueryResult {
-	return this.rep.FindByIds(ctx, ids...)
+	return this.rep.FindByIds(ctx, ids)
 }
 
 func (this RedisCache) FindOne(ctx context.Context, credentials map[string]interface{}) <-chan repository.QueryResult {

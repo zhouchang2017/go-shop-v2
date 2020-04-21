@@ -4,13 +4,16 @@ import (
 	"context"
 	"github.com/gin-gonic/gin"
 	"github.com/mitchellh/mapstructure"
+	"go-shop-v2/app/listeners"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/services"
+	"go-shop-v2/pkg/db/mongodb"
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"go-shop-v2/pkg/vue/contracts"
 	"go-shop-v2/pkg/vue/core"
 	"go-shop-v2/pkg/vue/fields"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type Admin struct {
@@ -37,29 +40,48 @@ func (a *Admin) Store(ctx *gin.Context, data map[string]interface{}) (redirect s
 		return "", err
 	}
 
-	// 查找管理门店
-	associatedShops := []*models.AssociatedShop{}
+	var admin *models.Admin
 
-	if len(option.Shops) > 0 {
-		shops, err := a.shopService.FindByIds(ctx, option.Shops...)
-		if err != nil {
-			return "", err
-		}
-		for _, shop := range shops {
-			associatedShops = append(associatedShops, shop.ToAssociated())
-		}
+	// 开启事务
+	var session mongo.Session
+	if session, err = mongodb.GetConFn().Client().StartSession(); err != nil {
+		return "", err
 	}
+	if err = session.StartTransaction(); err != nil {
+		return "", err
+	}
+	err = mongo.WithSession(ctx, session, func(sessionContext mongo.SessionContext) error {
+		// 查找管理门店
+		associatedShops := make([]*models.AssociatedShop, 0)
+		if len(option.Shops) > 0 {
+			shops, err := a.shopService.FindByIds(sessionContext, option.Shops...)
+			if err != nil {
+				session.AbortTransaction(sessionContext)
+				return err
+			}
+			for _, shop := range shops {
+				associatedShops = append(associatedShops, shop.ToAssociated())
+			}
+		}
 
-	admin, err := a.service.Create(ctx, option, associatedShops...)
+		admin, err = a.service.Create(sessionContext, option, associatedShops...)
 
+		if err != nil {
+			session.AbortTransaction(sessionContext)
+			return err
+		}
+
+		if err := a.shopService.SyncAssociatedMembers(sessionContext, admin); err != nil {
+			session.AbortTransaction(sessionContext)
+			return err
+		}
+		session.CommitTransaction(sessionContext)
+		return nil
+	})
+	session.EndSession(ctx)
 	if err != nil {
 		return "", err
 	}
-
-	// 同步门店
-	defer func() {
-		// message.Dispatch(events.AdminCreated{Admin: admin})
-	}()
 
 	return core.CreatedRedirect(a, admin.GetID()), nil
 }
@@ -71,31 +93,51 @@ func (a *Admin) Update(ctx *gin.Context, model interface{}, data map[string]inte
 		return "", err
 	}
 
-	admin := model.(*models.Admin)
+	var admin *models.Admin
+	admin = model.(*models.Admin)
 
-	// 查找管理门店
-	associatedShops := []*models.AssociatedShop{}
-
-	if len(option.Shops) > 0 {
-		shops, err := a.shopService.FindByIds(ctx, option.Shops...)
-		if err != nil {
-			return "", err
-		}
-		for _, shop := range shops {
-			associatedShops = append(associatedShops, shop.ToAssociated())
-		}
+	// 开启事务
+	var session mongo.Session
+	if session, err = mongodb.GetConFn().Client().StartSession(); err != nil {
+		return "", err
 	}
+	if err = session.StartTransaction(); err != nil {
+		return "", err
+	}
+	err = mongo.WithSession(ctx, session, func(sessionContext mongo.SessionContext) error {
+		// 查找管理门店
+		associatedShops := make([]*models.AssociatedShop, 0)
+		if len(option.Shops) > 0 {
+			shops, err := a.shopService.FindByIds(sessionContext, option.Shops...)
+			if err != nil {
+				session.AbortTransaction(sessionContext)
+				return err
+			}
+			for _, shop := range shops {
+				associatedShops = append(associatedShops, shop.ToAssociated())
+			}
+		}
 
-	admin2, err := a.service.Update(ctx, admin, option, associatedShops...)
+		admin, err = a.service.Update(sessionContext, admin, option, associatedShops...)
+		if err != nil {
+			session.AbortTransaction(sessionContext)
+			return err
+		}
+
+		if err := a.shopService.SyncAssociatedMembers(sessionContext, admin); err != nil {
+			session.AbortTransaction(sessionContext)
+			return err
+		}
+		session.CommitTransaction(sessionContext)
+		return nil
+	})
+
+	session.EndSession(ctx)
 	if err != nil {
 		return "", err
 	}
 
-	defer func() {
-		// message.Dispatch(events.AdminUpdated{Admin: admin2})
-	}()
-
-	return core.UpdatedRedirect(a, admin2.GetID()), nil
+	return core.UpdatedRedirect(a, admin.GetID()), nil
 }
 
 // 实现删除
@@ -154,6 +196,11 @@ func (a *Admin) Fields(ctx *gin.Context, model interface{}) func() []interface{}
 				{Rule: "max:20"},
 			}), fields.SetShowOnIndex(false)),
 
+			fields.NewTextField("Email", "Email", fields.SetRules([]*fields.FieldRule{
+				{Rule: "required"},
+				{Rule: "email"},
+			})).Email(),
+
 			fields.NewCheckboxGroup("所属门店", "Shops", fields.OnlyOnForm()).Key("id").CallbackOptions(func() []*fields.CheckboxGroupOption {
 				associatedShops, _ := a.shopService.AllAssociatedShops(context.Background())
 				var shopOptions []*fields.CheckboxGroupOption
@@ -165,12 +212,22 @@ func (a *Admin) Fields(ctx *gin.Context, model interface{}) func() []interface{}
 				}
 				return shopOptions
 			}),
+			fields.NewCheckboxGroup("通知设置", "Notifies").CallbackOptions(func() []*fields.CheckboxGroupOption {
+				var options []*fields.CheckboxGroupOption
+				for _, notify := range listeners.GetAppNotifications() {
+					options = append(options, &fields.CheckboxGroupOption{
+						Label: notify["name"],
+						Value: notify["key"],
+					})
+				}
+				return options
+			}),
 
 			fields.NewDateTime("创建时间", "CreatedAt"),
 			fields.NewDateTime("更新时间", "UpdatedAt"),
 			fields.NewTable("所属门店", "Shops", func() []contracts.Field {
 				return []contracts.Field{
-					fields.NewTextField("ID", "Id"),
+					fields.NewTextField("ID", "RefundNo"),
 					fields.NewTextField("门店", "Name"),
 				}
 			}),
@@ -199,7 +256,7 @@ func (a *Admin) SetModel(model interface{}) {
 }
 
 func (a Admin) Title() string {
-	return "用户"
+	return "管理员"
 }
 
 func (Admin) Icon() string {

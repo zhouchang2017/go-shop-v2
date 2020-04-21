@@ -5,6 +5,11 @@ import (
 	"go-shop-v2/pkg/db/mongodb"
 )
 
+func MakeAdminRep() *AdminRep {
+	rep := NewBasicMongoRepositoryByDefault(&models.Admin{}, mongodb.GetConFn())
+	return NewAdminRep(rep)
+}
+
 func MakeProductRep() *ProductRep {
 	rep := NewBasicMongoRepositoryByDefault(&models.Product{}, mongodb.GetConFn())
 	return NewProductRep(rep, MakeItemRep())
@@ -35,10 +40,6 @@ func MakeRefundRep() *RefundRep {
 	return NewRefundRep(refundMongoRep)
 }
 
-func MakeFailedRefundRep() *FailedRefundRep {
-	rep := NewBasicMongoRepositoryByDefault(&models.FailedRefund{}, mongodb.GetConFn())
-	return NewFailedRefundRep(rep)
-}
 
 func MakeCommentRep() *CommentRep {
 	rep := NewBasicMongoRepositoryByDefault(&models.Comment{}, mongodb.GetConFn())
@@ -50,7 +51,7 @@ func MakePaymentRep() *PaymentRep {
 	return NewPaymentRep(rep)
 }
 
-func MakeTraceRep() *TraceRep {
-	rep := NewBasicMongoRepositoryByDefault(&models.Trace{}, mongodb.GetConFn())
-	return NewTraceRep(rep)
+func MakeTrackRep() *TrackRep {
+	rep := NewBasicMongoRepositoryByDefault(&models.Track{}, mongodb.GetConFn())
+	return NewTrackRep(rep)
 }

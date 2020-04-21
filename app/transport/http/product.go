@@ -24,7 +24,7 @@ func (this *ProductController) Show(ctx *gin.Context) {
 	}
 
 	var items []map[string]interface{}
-	var qty int64
+	var qty uint64
 	for _, item := range product.Items {
 		items = append(items, map[string]interface{}{
 			"id":              item.GetID(),

@@ -9,16 +9,15 @@ import (
 
 // 退款变动提醒
 type OrderRefundChangeNotify struct {
-	order    *models.Order
-	refundId string
+	refund *models.Refund
 }
 
-func NewOrderRefundChangeNotify(order *models.Order, refundId string) *OrderRefundChangeNotify {
-	return &OrderRefundChangeNotify{order: order, refundId: refundId}
+func NewOrderRefundChangeNotify(refund *models.Refund) *OrderRefundChangeNotify {
+	return &OrderRefundChangeNotify{refund}
 }
 
 func (o OrderRefundChangeNotify) To() string {
-	return o.order.User.WechatMiniId
+	return o.refund.OpenId
 }
 
 func (o OrderRefundChangeNotify) TemplateID() string {
@@ -26,16 +25,15 @@ func (o OrderRefundChangeNotify) TemplateID() string {
 }
 
 func (o OrderRefundChangeNotify) Page() string {
-	return fmt.Sprintf("pages/home/order/detail?id=%s", o.order.GetID())
+	return fmt.Sprintf("pages/home/order/detail?id=%s", o.refund.OrderId)
 }
 
 func (o OrderRefundChangeNotify) Data() weapp.SubscribeMessageData {
-	refund, _ := o.order.FindRefund(o.refundId)
 	return weapp.SubscribeMessageData{
-		"character_string4": {Value: o.order.OrderNo},
-		"thing5":            {Value: refund.GoodsName(20, o.order)},
-		"thing1":            {Value: utils.SubString(refund.RefundDesc, 0, 20)},
-		"amount2":           {Value: refund.GetActualAmount()},
-		"thing6":            {Value: refund.StatusText()},
+		"character_string4": {Value: o.refund.OrderNo},
+		"thing5":            {Value: o.refund.GoodsName(20)},
+		"thing1":            {Value: utils.SubString(o.refund.RefundDesc, 0, 20)},
+		"amount2":           {Value: o.refund.GetActualAmount()},
+		"thing6":            {Value: o.refund.StatusText()},
 	}
 }

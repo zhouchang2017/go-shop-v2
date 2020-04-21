@@ -50,27 +50,27 @@ func subNumberSlice(nums promotions) []promotions {
 type PromotionOrderItem struct {
 	ItemId              string
 	ProductId           string
-	Qty                 int64
+	Qty                 uint64
 	UnMutexPromotions   []*PromotionItem
 	MutexPromotion      *PromotionItem
 	promotions          []*PromotionItem
 	MutexPromotionId    *string
 	UnMutexPromotionIds []string
-	Price               int64
+	Price               uint64
 }
 
 type PromotionInfo struct {
 	Promotion *Promotion
-	SalePrice int64
+	SalePrice uint64
 }
 
 type PromotionResult struct {
-	SalePrices int64
+	SalePrices uint64
 	Infos      []*PromotionInfo
 }
 
 type PromotionOverView struct {
-	SalePrices int64                    `json:"sale_prices"` // 优惠总额
+	SalePrices uint64                    `json:"sale_prices"` // 优惠总额
 	Infos      []*PromotionOverViewItem `json:"infos"`       // 优惠项目
 }
 
@@ -78,7 +78,7 @@ type PromotionOverViewItem struct {
 	Id          string `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
-	SalePrice   int64  `json:"sale_price" bson:"sale_price"`
+	SalePrice   uint64  `json:"sale_price" bson:"sale_price"`
 }
 
 // 获取优惠总览
@@ -140,8 +140,8 @@ func (p *PromotionResult) Detail() ItemPromotionInfos {
 type ItemPromotionInfo struct {
 	ItemId         string           `json:"item_id" bson:"-"`
 	Infos          []*ItemPromotion `json:"infos"`                                    // 优惠明细
-	SalePrices     int64            `json:"sale_prices" bson:"sale_prices"`           // 总优惠金额
-	UnitSalePrices int64            `json:"unit_sale_prices" bson:"unit_sale_prices"` // 单件优惠金额
+	SalePrices     uint64            `json:"sale_prices" bson:"sale_prices"`           // 总优惠金额
+	UnitSalePrices uint64            `json:"unit_sale_prices" bson:"unit_sale_prices"` // 单件优惠金额
 }
 
 type ItemPromotionInfos []*ItemPromotionInfo
@@ -160,8 +160,8 @@ type ItemPromotion struct {
 	Id            string `json:"id"`
 	Name          string `json:"name"`
 	Description   string `json:"description"`
-	SalePrice     int64  `json:"sale_price" bson:"sale_price"`
-	UnitSalePrice int64  `json:"unit_sale_price" bson:"unit_sale_price"`
+	SalePrice     uint64  `json:"sale_price" bson:"sale_price"`
+	UnitSalePrice uint64  `json:"unit_sale_price" bson:"unit_sale_price"`
 }
 
 func promotionMax(arr []*PromotionResult) *PromotionResult {
@@ -204,7 +204,7 @@ func PromotionCalculate(items ...*PromotionOrderItem) *PromotionResult {
 	}
 	permute := promotions.permute()
 	for _, items := range permute {
-		var salePrices int64 = 0   //优惠总额
+		var salePrices uint64 = 0   //优惠总额
 		var infos []*PromotionInfo // 优惠信息
 		for _, item := range items {
 			if promotionItem, salePrice, ok := item.calculate(salePrices); ok {

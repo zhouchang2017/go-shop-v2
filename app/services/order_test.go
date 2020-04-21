@@ -107,7 +107,7 @@ func TestOrderService_ApplyRefund(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	refund, err := service.ApplyRefund(context.Background(), order,"我不想要了")
+	refund, _, err := service.ApplyRefund(context.Background(), order, "我不想要了")
 	if err != nil {
 		panic(err)
 	}

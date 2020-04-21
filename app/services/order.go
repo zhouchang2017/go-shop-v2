@@ -3,11 +3,9 @@ package services
 import (
 	"context"
 	"fmt"
-	"github.com/davecgh/go-spew/spew"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
 	"go-shop-v2/pkg/auth"
-	ctx2 "go-shop-v2/pkg/ctx"
 	"go-shop-v2/pkg/db/mongodb"
 	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/qiniu"
@@ -17,6 +15,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"time"
 )
 
 // create struct
@@ -41,8 +40,8 @@ type orderUserAddress struct {
 type OrderItemCreateOption struct {
 	ItemId            string `json:"item_id" form:"item_id"`
 	ProductId         string
-	Qty               int64    `json:"qty" form:"qty"`                             // 购买数量
-	Price             int64    `json:"price" form:"price"`                         // 商品价格
+	Qty               uint64   `json:"qty" form:"qty"`                             // 购买数量
+	Price             uint64   `json:"price" form:"price"`                         // 商品价格
 	MutexPromotion    *string  `json:"mutexPromotion" form:"mutexPromotion"`       // 参加的互斥活动，互斥活动只允许同时参加一个
 	UnMutexPromotions []string `json:"unMutexPromotions" form:"unMutexPromotions"` // 参加的非互斥活动
 }
@@ -121,10 +120,11 @@ type OrderService struct {
 	//orderInventoryLogRep *repositories.OrderInventoryLogRep
 	promotionSrv *PromotionService
 	productSrv   *ProductService
+	refundRep    *repositories.RefundRep
 }
 
-func NewOrderService(orderRep *repositories.OrderRep, promotionSrv *PromotionService, productSrv *ProductService) *OrderService {
-	return &OrderService{orderRep: orderRep, promotionSrv: promotionSrv, productSrv: productSrv}
+func NewOrderService(orderRep *repositories.OrderRep, promotionSrv *PromotionService, productSrv *ProductService, commentRep *repositories.CommentRep, refundRep *repositories.RefundRep) *OrderService {
+	return &OrderService{orderRep: orderRep, promotionSrv: promotionSrv, productSrv: productSrv, commentRep: commentRep, refundRep: refundRep}
 }
 
 func (srv *OrderService) Save(ctx context.Context, entity *models.Order) (order *models.Order, err error) {
@@ -137,7 +137,6 @@ func (srv *OrderService) Save(ctx context.Context, entity *models.Order) (order 
 
 // 列表
 func (srv *OrderService) Pagination(ctx context.Context, req *request.IndexRequest) (orders []*models.Order, pagination response.Pagination, err error) {
-	spew.Dump(req)
 	results := <-srv.orderRep.Pagination(ctx, req)
 	if results.Error != nil {
 		err = results.Error
@@ -224,8 +223,7 @@ func (srv *OrderService) Create(ctx context.Context, userInfo *models.User, opt 
 	// create order and deduct/lock inventory
 	var orderRes *models.Order
 	err = mongo.WithSession(ctx, session, func(sessionContext mongo.SessionContext) error {
-		// define
-		// itemInventoryLog := make([]*models.ItemInventoryLog, 0)
+
 		// create order
 		created := <-srv.orderRep.Create(sessionContext, order)
 		if created.Error != nil {
@@ -233,37 +231,19 @@ func (srv *OrderService) Create(ctx context.Context, userInfo *models.User, opt 
 			return created.Error
 		}
 		orderRes = created.Result.(*models.Order)
-		// deduct / lock inventory
-		//addressLocation, _ := order.UserAddress.Location()
+
 		for _, orderItem := range order.OrderItems {
 			// 直接扣库存
-			if err := srv.productSrv.itemRep.DecQty(sessionContext, orderItem.Item.Id, orderItem.Count); err != nil {
+			if err := srv.productSrv.itemRep.DecQty(sessionContext, orderItem.Item.Id, int64(orderItem.Count)); err != nil {
 				// 扣库存失败
 				session.AbortTransaction(sessionContext)
 				return err
 			}
-			//itemInventory, lockErr := srv.inventoryRep.LockByItemId(sessionContext, orderItem.Item.Id, orderItem.Count, 0, addressLocation)
-			//if lockErr != nil {
-			//	session.AbortTransaction(sessionContext)
-			//	return lockErr
-			//}
-			// fill item inventory log
-			//itemInventoryLog = append(itemInventoryLog, &models.ItemInventoryLog{
-			//	ItemId: orderItem.Item.Id,
-			//	//InventoryId: itemInventory.GetID(),
-			//})
+			// 添加销量
+			srv.productSrv.UpdateSalesQty(sessionContext, orderItem.Item.Id, int64(orderItem.Count))
+
 		}
-		// create order inventory log
-		//orderInventoryLog := &models.OrderInventoryLog{
-		//	OrderNo:          order.OrderNo,
-		//	ItemInventoryLog: itemInventoryLog,
-		//}
-		//logCreated := <-srv.orderInventoryLogRep.Create(sessionContext, orderInventoryLog)
-		//if logCreated.Error != nil {
-		//	session.AbortTransaction(sessionContext)
-		//	return logCreated.Error
-		//}
-		// return
+
 		session.CommitTransaction(sessionContext)
 		return nil
 	})
@@ -285,30 +265,41 @@ func (srv *OrderService) generateOrder(user *models.User, opt *OrderCreateOption
 	if detail := promotionResult.Detail(); detail != nil {
 		for _, item := range orderItems {
 			if info := detail.FindByItemId(item.Item.Id); info != nil {
+
 				item.PromotionInfo = info
-				item.Amount = item.Price - info.UnitSalePrices
+				payAmount := item.Price*item.Count - info.SalePrices
+				// 子订单支付总金额
+				item.TotalAmount = payAmount
+				item.RemainderAmount = payAmount
 			} else {
-				item.Amount = item.Price
+				payAmount := item.Price * item.Count
+				item.TotalAmount = payAmount
+				item.RemainderAmount = payAmount
 			}
+			item.RemainderQty = item.Count
 		}
 	} else {
 		for _, item := range orderItems {
-			item.Amount = item.Price
+			payAmount := item.Price * item.Count
+			item.TotalAmount = payAmount
+			item.RemainderAmount = payAmount
+			item.RemainderQty = item.Count
 		}
 	}
 
-	var itemCount int64
+	var itemCount uint64
 	for _, orderItem := range opt.OrderItems {
 		itemCount += orderItem.Qty
 	}
 	// build model of order
 	resOrder := &models.Order{
-		OrderNo:      utils.RandomOrderNo(""),
-		ItemCount:    itemCount,
-		OrderAmount:  opt.OrderAmount,
-		ActualAmount: opt.ActualAmount,
-		OrderItems:   orderItems,
-		User:         user.ToAssociated(),
+		OrderNo:         utils.RandomOrderNo(""),
+		ItemCount:       itemCount,
+		OrderAmount:     opt.OrderAmount,
+		ActualAmount:    opt.ActualAmount,
+		RemainderAmount: opt.ActualAmount,
+		OrderItems:      orderItems,
+		User:            user.ToAssociated(),
 		UserAddress: &models.AssociatedUserAddress{
 			Id:           opt.UserAddress.Id,
 			ContactName:  opt.UserAddress.ContactName,
@@ -319,41 +310,13 @@ func (srv *OrderService) generateOrder(user *models.User, opt *OrderCreateOption
 			Addr:         opt.UserAddress.Addr,
 		},
 		TakeGoodType:  opt.TakeGoodType,
-		Logistics:     nil,                        // todo: confirm how different between using nil and &models.Logistics
-		Payment:       nil,                        // todo: same with above
-		PromotionInfo: promotionResult.Overview(), // 促销总览
+		Logistics:     make([]*models.Logistics, 0), // todo: confirm how different between using nil and &models.Logistics
+		Payment:       nil,                          // todo: same with above
+		PromotionInfo: promotionResult.Overview(),   // 促销总览
 		Status:        models.OrderStatusPrePay,
 	}
 	// return
 	return resOrder
-}
-
-// 整单申请退款
-func (srv *OrderService) ApplyRefund(ctx context.Context, order *models.Order, desc string) (refund *models.Refund, model *models.Order, err error) {
-	if err = order.CanApplyRefund(); err != nil {
-		return nil, nil, err
-	}
-	// 生成退款单
-	opt := models.RefundOption{Desc: desc}
-	var items []*models.RefundItem
-	for _, item := range order.OrderItems {
-		items = append(items, &models.RefundItem{
-			ItemId: item.Item.Id,
-			Qty:    uint64(item.Count),
-			Amount: uint64(item.Amount),
-		})
-	}
-	opt.Items = items
-
-	refund, err = order.MakeRefund(opt)
-	if err != nil {
-		return nil, nil, err
-	}
-	saved := <-srv.orderRep.Save(ctx, order)
-	if saved.Error != nil {
-		return nil, nil, saved.Error
-	}
-	return refund, saved.Result.(*models.Order), nil
 }
 
 // 发货
@@ -369,71 +332,53 @@ func (srv *OrderService) Deliver(ctx context.Context, order *models.Order, opt *
 }
 
 // 确认收货
-func (srv *OrderService) Confirm(ctx context.Context, opt *ConfirmOption) error {
-	if err := opt.IsValid(); err != nil {
-		return err
-	}
-	// 获取用户
-	authUser := ctx2.GetUser(ctx)
-	userInfo, ok := authUser.(*models.User)
-	if !ok {
-		return err2.Err422.F("invalid user who is unauthenticated")
-	}
+func (srv *OrderService) Confirm(ctx context.Context, orderNo string) (order *models.Order, err error) {
 	// 查询订单并校验状态
-	orderRes := <-srv.orderRep.FindOne(ctx, map[string]interface{}{
-		"order_no": opt.OrderNo,
-	})
-	if orderRes.Error != nil {
-		return orderRes.Error
+	order, err = srv.orderRep.FindByOrderNo(ctx, orderNo)
+	if err != nil {
+		return nil, err
 	}
-	order := orderRes.Result.(*models.Order)
 	if order.Status != models.OrderStatusPreConfirm {
-		return err2.Err422.F(fmt.Sprintf("order %s can not be comfirm caused of not pre confirm status", opt.OrderNo))
-	}
-	// 校验是否为用户本人
-	if order.User.Id != userInfo.GetID() {
-		return err2.Err422.F(fmt.Sprintf("order %s can not be comfirm caused of invalid user", opt.OrderNo))
+		return nil, err2.Err422.F("order [%s] can not be comfirm caused of not pre confirm status", orderNo)
 	}
 	// 更新
 	updated := <-srv.orderRep.Update(ctx, order.GetID(), bson.M{
 		"$set": bson.M{
-			"status": models.OrderStatusPreEvaluate,
+			"status":          models.OrderStatusPreEvaluate,
+			"refund_channel":  false,
+			"comment_channel": true,
 		},
 	})
 	if updated.Error != nil {
-		return updated.Error
+		return nil, updated.Error
 	}
 	// return
-	return nil
+	return updated.Result.(*models.Order), nil
 }
 
 type OrderCommentOption struct {
-	Rate      float64        `json:"rate"`
-	ProductId string         `json:"product_id" form:"product_id"`
-	ItemId    string         `json:"item_id" form:"item_id"`
-	Content   string         `json:"content"`
-	Images    []*qiniu.Image `json:"images"`
+	Rate    uint           `json:"rate"`
+	Content string         `json:"content"`
+	Images  []*qiniu.Image `json:"images"`
 }
 
 // 评价
-func (srv *OrderService) Comment(ctx context.Context, order *models.Order, user *models.User, opts []*OrderCommentOption) error {
+func (srv *OrderService) Comment(ctx context.Context, order *models.Order, user *models.User, opt *OrderCommentOption) (*models.Order, error) {
+	var err error
 	// 验证
 	if order.User.Id != user.GetID() {
-		return err2.Err422.F("评论失败")
+		return nil, err2.Err422.F("评论失败")
 	}
 	// 状态
 	if !order.CanComment() {
-		return err2.Err422.F("评论失败")
+		return nil, err2.Err422.F("评论失败")
 	}
 	var comments []*models.Comment
-	for _, opt := range opts {
-		if find := order.FindItem(opt.ItemId); find == nil {
-			return err2.Err422.F("评论失败")
-		}
+
+	for _, id := range order.GetProductIds() {
 		comments = append(comments, &models.Comment{
-			ProductId: opt.ProductId,
-			ItemId:    opt.ItemId,
-			OrderId:   order.GetID(),
+			ProductId: id,
+			OrderNo:   order.OrderNo,
 			User: &models.CommentUser{
 				UserId:   user.GetID(),
 				Avatar:   user.Avatar.Src(),
@@ -445,13 +390,40 @@ func (srv *OrderService) Comment(ctx context.Context, order *models.Order, user 
 		})
 	}
 
-	for _, com := range comments {
-		created := <-srv.commentRep.Create(ctx, com)
-		if created.Error != nil {
-			// 写日志
-		}
+	// 开启事务
+	var session mongo.Session
+	if session, err = mongodb.GetConFn().Client().StartSession(); err != nil {
+		return nil, err
 	}
-	return nil
+	if err = session.StartTransaction(); err != nil {
+		return nil, err
+	}
+	err = mongo.WithSession(ctx, session, func(sessionContext mongo.SessionContext) error {
+		if err := srv.commentRep.CreateMany(sessionContext, comments); err != nil {
+			session.AbortTransaction(sessionContext)
+			return err
+		}
+
+		// 关闭评论通道,交易完成
+		updated := <-srv.orderRep.Update(sessionContext, order.GetID(), bson.M{
+			"$set": bson.M{
+				"comment_channel": false,
+				"commented_at":    time.Now(),
+				"status":          models.OrderStatusDone,
+			},
+		})
+		if updated.Error != nil {
+			session.AbortTransaction(sessionContext)
+			return updated.Error
+		}
+		order = updated.Result.(*models.Order)
+		session.CommitTransaction(sessionContext)
+		return nil
+	})
+
+	session.EndSession(ctx)
+
+	return order, err
 }
 
 // 取消订单
@@ -475,7 +447,10 @@ func (srv *OrderService) Cancel(ctx context.Context, order *models.Order, reason
 				session.AbortTransaction(sessionContext)
 				return err
 			}
+			// 退回销量
+			srv.productSrv.UpdateSalesQty(sessionContext, item.Item.Id, int64(-item.Count))
 		}
+
 		// 保存订单状态
 		saved := <-srv.orderRep.Save(sessionContext, order)
 		if saved.Error != nil {
@@ -529,4 +504,9 @@ func (srv *OrderService) AggregateOrderItem(ctx context.Context, req *request.In
 
 	}
 	return srv.orderRep.AggregateOrderItem(ctx, req)
+}
+
+// 退款中的订单数量
+func (srv *OrderService) RefundingCount(ctx context.Context) int64 {
+	return srv.orderRep.RefundingCount(ctx)
 }

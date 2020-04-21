@@ -14,10 +14,6 @@ type orderCreatedNotify struct {
 	to      string
 }
 
-func (this *orderCreatedNotify) To() string {
-	return this.to
-}
-
 func (this *orderCreatedNotify) Body() (string, error) {
 	getwd, _ := os.Getwd()
 	fileName := "order_created_notify.html"
@@ -37,11 +33,10 @@ func (this *orderCreatedNotify) Body() (string, error) {
 	return body.String(), nil
 }
 
-func OrderCreatedNotify(order *models.Order, to string) *orderCreatedNotify {
+func OrderCreatedNotify(order *models.Order) *orderCreatedNotify {
 	return &orderCreatedNotify{
 		order:   order,
 		subject: "新订单通知",
-		to:      to,
 	}
 }
 

@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	log "github.com/sirupsen/logrus"
 	"go-shop-v2/app/models"
 	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/repository"
@@ -9,16 +10,15 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/x/bsonx"
-	"log"
 	"time"
 )
 
-type TraceRep struct {
+type TrackRep struct {
 	repository.IRepository
 }
 
-func (this *TraceRep) FindByOrderNo(ctx context.Context, orderOn string) (traces []*models.Trace, err error) {
-	traces = make([]*models.Trace, 0)
+func (this *TrackRep) FindByOrderNo(ctx context.Context, orderOn string) (traces []*models.Track, err error) {
+	traces = make([]*models.Track, 0)
 	cursor, err := this.Collection().Find(ctx, bson.M{
 		"order_no": orderOn,
 	})
@@ -31,19 +31,31 @@ func (this *TraceRep) FindByOrderNo(ctx context.Context, orderOn string) (traces
 	return traces, nil
 }
 
-func (this *TraceRep) FindByWayBillId(ctx context.Context, deliveryId string, wayBillId string, ) (trace *models.Trace, err error) {
-	one := this.Collection().FindOne(ctx, bson.M{"delivery_id": deliveryId, "way_bill_id": wayBillId})
+func (this *TrackRep) FindOne(ctx context.Context, filter bson.M, opts ...*options.FindOneOptions) (trace *models.Track, err error) {
+	one := this.Collection().FindOne(ctx, filter, opts...)
 	if one.Err() != nil {
 		return nil, err2.Err404
 	}
-	trace = &models.Trace{}
+	trace = &models.Track{}
 	if err := one.Decode(trace); err != nil {
 		return nil, err
 	}
 	return trace, nil
 }
 
-func (this *TraceRep) index() []mongo.IndexModel {
+func (this *TrackRep) FindByWayBillId(ctx context.Context, deliveryId string, wayBillId string) (trace *models.Track, err error) {
+	one := this.Collection().FindOne(ctx, bson.M{"delivery_id": deliveryId, "way_bill_id": wayBillId})
+	if one.Err() != nil {
+		return nil, err2.Err404
+	}
+	trace = &models.Track{}
+	if err := one.Decode(trace); err != nil {
+		return nil, err
+	}
+	return trace, nil
+}
+
+func (this *TrackRep) index() []mongo.IndexModel {
 	return []mongo.IndexModel{
 		{
 			Keys: bsonx.Doc{
@@ -61,13 +73,12 @@ func (this *TraceRep) index() []mongo.IndexModel {
 	}
 }
 
-func NewTraceRep(IRepository repository.IRepository) *TraceRep {
-	repository := &TraceRep{IRepository: IRepository}
+func NewTrackRep(IRepository repository.IRepository) *TrackRep {
+	repository := &TrackRep{IRepository: IRepository}
 	opts := options.CreateIndexes().SetMaxTime(10 * time.Second)
 	_, err := repository.Collection().Indexes().CreateMany(context.Background(), repository.index(), opts)
 	if err != nil {
-		log.Printf("model [%s] create indexs error:%s\n", repository.TableName(), err)
-		panic(err)
+		log.Panicf("model [%s] create indexs error:%s\n", repository.TableName(), err)
 	}
 	return repository
 }

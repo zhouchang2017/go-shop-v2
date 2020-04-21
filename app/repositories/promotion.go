@@ -127,7 +127,7 @@ func (this *PromotionRep) FindProductsPrice(ctx context.Context, productIds ...s
 			}
 			var p []int64
 			for _, item := range promotionItem.Units {
-				p = append(p, item.Price)
+				p = append(p, int64(item.Price))
 			}
 			minPrice := utils.Min(p...)
 			prices[id] = minPrice

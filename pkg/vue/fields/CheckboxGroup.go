@@ -15,9 +15,10 @@ type CheckboxGroupOption struct {
 func NewCheckboxGroup(name string, fieldName string, opts ...FieldOption) *CheckboxGroup {
 	var options = []FieldOption{
 		SetPrefixComponent(true),
-		SetShowOnIndex(true),
+		SetShowOnIndex(false),
 		SetShowOnDetail(true),
 		SetShowOnCreation(true),
+		SetShowOnUpdate(true),
 		WithComponent("checkbox-group-field"),
 		SetTextAlign("left"),
 	}

@@ -40,9 +40,9 @@ func NewInventoryHistory(inventory *Inventory, qty int64, origin InventoryChange
 		InventoryId: inventory.GetID(),
 		ShopId:      inventory.Shop.Id,
 		ItemId:      inventory.Item.Id,
-		BeforeQty:   inventory.Qty - qty,
-		AfterQty:    inventory.Qty,
-		Value:       qty,
+		BeforeQty:   int64(inventory.Qty) - int64(qty),
+		AfterQty:    int64(inventory.Qty),
+		Value:       int64(qty),
 	}
 	if admin, ok := user.(*Admin); ok {
 		log.User = admin.ToAssociated()

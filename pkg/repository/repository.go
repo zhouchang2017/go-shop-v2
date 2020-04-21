@@ -6,6 +6,7 @@ import (
 	"go-shop-v2/pkg/response"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type InsertResult struct {
@@ -33,11 +34,11 @@ type QueryPaginationResult struct {
 type IRepository interface {
 	TableName() string
 	Collection() *mongo.Collection
-	FindById(ctx context.Context, id string) <-chan QueryResult
-	FindByIds(ctx context.Context, ids ...string) <-chan QueryResult
-	FindOne(ctx context.Context, credentials map[string]interface{}) <-chan QueryResult
+	FindById(ctx context.Context, id string, opts ...*options.FindOneOptions) <-chan QueryResult
+	FindByIds(ctx context.Context, ids []string, opts ...*options.FindOptions) <-chan QueryResult
+	FindOne(ctx context.Context, credentials map[string]interface{}, opts ...*options.FindOneOptions) <-chan QueryResult
 	FindAll(ctx context.Context) <-chan QueryResult
-	FindMany(ctx context.Context, credentials map[string]interface{}) <-chan QueryResult
+	FindMany(ctx context.Context, credentials map[string]interface{}, opts ...*options.FindOptions) <-chan QueryResult
 	Count(ctx context.Context, filter interface{}) <-chan CountResult
 	Pagination(ctx context.Context, req *request.IndexRequest) <-chan QueryPaginationResult
 	AggregatePagination(ctx context.Context, entities interface{}, req *request.IndexRequest, pipe ...bson.D) <-chan QueryPaginationResult

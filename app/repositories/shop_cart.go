@@ -63,7 +63,7 @@ func (this *ShopCartRep) Index(ctx context.Context, userId string, page int64, p
 }
 
 // 添加数量
-func (this *ShopCartRep) UpdateQty(ctx context.Context, userId string, item *models.Item, qty int64) (err error) {
+func (this *ShopCartRep) UpdateQty(ctx context.Context, userId string, item *models.Item, qty uint64) (err error) {
 	arrayFilters := []interface{}{
 		bson.M{
 			"elem.item_id": item.GetID(),
@@ -92,7 +92,7 @@ func (this *ShopCartRep) UpdateQty(ctx context.Context, userId string, item *mod
 // deleted = true 说明之前的被删除
 
 // 更新itemId
-func (this *ShopCartRep) Update(ctx context.Context, userId string, beforeItemId string, afterItem *models.Item, qty int64) (status int64, err error) {
+func (this *ShopCartRep) Update(ctx context.Context, userId string, beforeItemId string, afterItem *models.Item, qty uint64) (status int64, err error) {
 	result := this.Collection().FindOne(ctx,
 		bson.M{
 			"user_id": userId,
@@ -140,7 +140,7 @@ func (this *ShopCartRep) Update(ctx context.Context, userId string, beforeItemId
 }
 
 // 添加
-func (this *ShopCartRep) Add(ctx context.Context, userId string, item *models.Item, qty int64) (err error) {
+func (this *ShopCartRep) Add(ctx context.Context, userId string, item *models.Item, qty uint64) (err error) {
 
 	result := this.Collection().FindOne(ctx,
 		bson.M{

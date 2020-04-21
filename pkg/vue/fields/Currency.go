@@ -15,6 +15,7 @@ func NewCurrencyField(name string, fieldName string, opts ...FieldOption) *Curre
 		SetShowOnUpdate(true),
 		WithComponent("currency-field"),
 		SetTextAlign("left"),
+		SetNullValue(0),
 	}
 	options = append(options, opts...)
 

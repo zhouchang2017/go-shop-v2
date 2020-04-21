@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	log "github.com/sirupsen/logrus"
 	"go-shop-v2/app/models"
 	"go-shop-v2/pkg/repository"
 	"go.mongodb.org/mongo-driver/bson"
@@ -9,12 +10,30 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/x/bsonx"
-	"log"
 	"time"
 )
 
 type ItemRep struct {
 	repository.IRepository
+}
+
+// 修改销量
+func (this *ItemRep) UpdateSalesQty(ctx context.Context, id string, count int64) (item *models.Item, err error) {
+	byId := <-this.FindById(ctx, id)
+	if byId.Error != nil {
+		return nil, byId.Error
+	}
+	item = byId.Result.(*models.Item)
+
+	qty := int64(item.SalesQty) + count
+	if qty < 0 {
+		item.SalesQty = 0
+	} else {
+		item.SalesQty = uint64(qty)
+	}
+
+	<-this.Save(ctx, item)
+	return item, nil
 }
 
 // 批量创建
@@ -55,7 +74,7 @@ func (this *ItemRep) DecQty(ctx context.Context, itemId string, qty int64) error
 }
 
 // 增减库存
-func (this *ItemRep) IncQty(ctx context.Context, itemId string, qty int64) error {
+func (this *ItemRep) IncQty(ctx context.Context, itemId string, qty uint64) error {
 	objId, err := primitive.ObjectIDFromHex(itemId)
 	if err != nil {
 		return err
@@ -136,8 +155,7 @@ func NewItemRep(rep repository.IRepository) *ItemRep {
 	opts := options.CreateIndexes().SetMaxTime(10 * time.Second)
 	_, err := repository.Collection().Indexes().CreateMany(context.Background(), repository.index(), opts)
 	if err != nil {
-		log.Printf("model [%s] create indexs error:%s\n", repository.TableName(), err)
-		panic(err)
+		log.Panicf("model [%s] create indexs error:%s\n", repository.TableName(), err)
 	}
 	return repository
 }

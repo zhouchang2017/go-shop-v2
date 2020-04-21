@@ -28,6 +28,8 @@ func registerResources() {
 		resources2.NewTopicResource(),
 		resources2.NewPromotionResource(),
 		resources2.NewPromotionItemResource(),
+		resources2.NewRefundResource(),
+		resources2.NewCommentResource(),
 	}
 }
 
@@ -69,4 +71,5 @@ func Boot(vue *core.Vue) {
 	vue.RegisterCard(charts.NewCountOrderPrePayValue())
 	vue.RegisterCard(charts.NewCountOrderPreSendValue())
 	vue.RegisterCard(charts.NewPaymentLine())
+	vue.RegisterCard(charts.NewCountOrderRefundingValue())
 }

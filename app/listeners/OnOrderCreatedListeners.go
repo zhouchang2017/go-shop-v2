@@ -12,6 +12,10 @@ import (
 type OnOrderCreatedListener struct {
 }
 
+func (o OnOrderCreatedListener) Name() string {
+	return "新订单通知"
+}
+
 func (o OnOrderCreatedListener) Make() rabbitmq.Listener {
 	return &OnOrderCreatedListener{}
 }
@@ -31,7 +35,6 @@ func (o OnOrderCreatedListener) Event() rabbitmq.Event {
 
 // 处理逻辑
 func (o OnOrderCreatedListener) Handler(data []byte) error {
-	log.Printf("新订单事件，处理")
 	var order models.Order
 	err := json.Unmarshal(data, &order)
 	if err != nil {
@@ -42,6 +45,5 @@ func (o OnOrderCreatedListener) Handler(data []byte) error {
 
 // 发送邮件给管理员
 func (o OnOrderCreatedListener) sendEmailNotifyAdmin(order *models.Order) error {
-	log.Printf("新订单通知，发送邮件")
-	return email.Send(email.OrderCreatedNotify(order, "zhouchangqaz@gmail.com"))
+	return sendEmail(o.Event(),email.OrderCreatedNotify(order))
 }

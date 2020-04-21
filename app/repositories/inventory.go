@@ -496,8 +496,8 @@ func (this *InventoryRep) SearchByItemId(ctx context.Context, id string) (count 
 		return 0, 0
 	}
 	for _, inventory := range result.Result {
-		count += inventory.Qty
-		locked += inventory.LockedQty
+		count += int64(inventory.Qty)
+		locked += int64(inventory.LockedQty)
 	}
 	return count, locked
 }

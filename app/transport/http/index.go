@@ -1,21 +1,25 @@
 package http
 
 import (
+	"encoding/json"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/gin-gonic/gin"
 	"go-shop-v2/app/services"
 	"go-shop-v2/app/usecases"
 	err2 "go-shop-v2/pkg/err"
 	"go-shop-v2/pkg/request"
+	"go.mongodb.org/mongo-driver/bson"
 	"math"
 	"net/http"
 	"sort"
 )
 
 type IndexController struct {
-	productSrv *services.ProductService
-	topicSrv   *services.TopicService
-	articleSrv *services.ArticleService
+	productSrv  *services.ProductService
+	topicSrv    *services.TopicService
+	articleSrv  *services.ArticleService
+	categorySrv *services.CategoryService
+	brandSrv    *services.BrandService
 }
 
 type IndexMorph interface {
@@ -36,6 +40,24 @@ func (d dataSlice) Swap(i, j int) {
 	d[i], d[j] = d[j], d[i]
 }
 
+// 获取所有分类以及品牌
+func (this *IndexController) CategoriesAndBrands(ctx *gin.Context) {
+	i := &request.IndexRequest{}
+	i.Page = -1
+	i.AddOnly("name")
+	brands, _, _ := this.brandSrv.Pagination(ctx, i)
+	categories, _, _ := this.categorySrv.Pagination(ctx, i)
+	ctx.JSON(http.StatusOK, gin.H{
+		"brands":     brands,
+		"categories": categories,
+	})
+}
+
+type indexQueryFilter struct {
+	Brand    []string `json:"brand"`
+	Category []string `json:"category"`
+}
+
 // morph index,include product、article、topic
 func (this *IndexController) Index(ctx *gin.Context) {
 	// 处理函数
@@ -46,10 +68,21 @@ func (this *IndexController) Index(ctx *gin.Context) {
 	}
 	form.AppendFilter("on_sale", true)
 	var data dataSlice
-
 	// 不展现 description,attributes,options
 	form.Hidden = "description,attributes,options,images"
-
+	query := ctx.Query("option")
+	if query != "" {
+		var filter indexQueryFilter
+		if err := json.Unmarshal([]byte(query), &filter); err != nil {
+			spew.Dump(err)
+		}
+		if len(filter.Brand) > 0 {
+			form.AppendFilter("brand.id", bson.M{"$in": filter.Brand})
+		}
+		if len(filter.Category) > 0 {
+			form.AppendFilter("category.id", bson.M{"$in": filter.Category})
+		}
+	}
 	products, pagination, err := this.productSrv.Pagination(ctx, form)
 
 	if err != nil {

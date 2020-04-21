@@ -70,19 +70,19 @@ func (this *Inventory) Fields(ctx *gin.Context, model interface{}) func() []inte
 			fields.NewTextField("锁定库存", "LockedQty"),
 
 			panels.NewPanel("门店信息",
-				fields.NewTextField("门店ID", "Shop.Id", fields.OnlyOnDetail()),
+				fields.NewTextField("门店ID", "Shop.RefundNo", fields.OnlyOnDetail()),
 				fields.NewTextField("门店", "Shop.Name", fields.OnlyOnDetail()),
 			),
 
 			panels.NewPanel("产品信息",
-				fields.NewTextField("产品ID", "Item.Product.Id", fields.OnlyOnDetail()),
+				fields.NewTextField("产品ID", "Item.Product.RefundNo", fields.OnlyOnDetail()),
 				fields.NewTextField("产品货号", "Item.Product.Code", fields.OnlyOnDetail()),
 				fields.NewTextField("产品名称", "Item.Product.Name", fields.OnlyOnDetail()),
 			),
 
 
 			panels.NewPanel("商品信息",
-				fields.NewTextField("商品ID", "Item.Id", fields.OnlyOnDetail()),
+				fields.NewTextField("商品ID", "Item.RefundNo", fields.OnlyOnDetail()),
 				fields.NewTextField("商品货号", "Item.Code", fields.OnlyOnDetail()),
 				fields.NewLabelsFields("属性值", "Item.OptionValues").Label("name"),
 

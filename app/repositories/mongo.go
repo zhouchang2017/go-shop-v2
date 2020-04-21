@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"errors"
+	log "github.com/sirupsen/logrus"
 	ctx2 "go-shop-v2/pkg/ctx"
 	"go-shop-v2/pkg/db/mongodb"
 	err2 "go-shop-v2/pkg/err"
@@ -10,7 +11,6 @@ import (
 	"go-shop-v2/pkg/request"
 	"go-shop-v2/pkg/response"
 	"go-shop-v2/pkg/utils"
-	"log"
 	"strings"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -54,7 +54,7 @@ func (this *mongoRep) Collection() *mongo.Collection {
 	return this.con.Collection(this.table)
 }
 
-func (this *mongoRep) FindMany(ctx context.Context, credentials map[string]interface{}) <-chan repository.QueryResult {
+func (this *mongoRep) FindMany(ctx context.Context, credentials map[string]interface{}, opts ...*options.FindOptions) <-chan repository.QueryResult {
 	output := make(chan repository.QueryResult)
 	trashed := ctx2.GetTrashed(ctx)
 	go func() {
@@ -67,7 +67,7 @@ func (this *mongoRep) FindMany(ctx context.Context, credentials map[string]inter
 		for k, v := range credentials {
 			filter[k] = v
 		}
-		cursor, err := this.Collection().Find(ctx, filter)
+		cursor, err := this.Collection().Find(ctx, filter, opts...)
 		if err != nil {
 			output <- repository.QueryResult{Error: err}
 			return
@@ -85,7 +85,7 @@ func (this *mongoRep) FindMany(ctx context.Context, credentials map[string]inter
 	}()
 	return output
 }
-func (this *mongoRep) FindOne(ctx context.Context, credentials map[string]interface{}) <-chan repository.QueryResult {
+func (this *mongoRep) FindOne(ctx context.Context, credentials map[string]interface{}, opts ...*options.FindOneOptions) <-chan repository.QueryResult {
 	output := make(chan repository.QueryResult)
 	trashed := ctx2.GetTrashed(ctx)
 	go func() {
@@ -98,7 +98,7 @@ func (this *mongoRep) FindOne(ctx context.Context, credentials map[string]interf
 		for k, v := range credentials {
 			filter[k] = v
 		}
-		one := this.Collection().FindOne(ctx, filter)
+		one := this.Collection().FindOne(ctx, filter, opts...)
 		if one.Err() != nil {
 			if one.Err() == mongo.ErrNoDocuments {
 				output <- repository.QueryResult{Error: err2.Err404}
@@ -118,7 +118,7 @@ func (this *mongoRep) FindOne(ctx context.Context, credentials map[string]interf
 	return output
 }
 
-func (this *mongoRep) FindById(ctx context.Context, id string) <-chan repository.QueryResult {
+func (this *mongoRep) FindById(ctx context.Context, id string, opts ...*options.FindOneOptions) <-chan repository.QueryResult {
 	output := make(chan repository.QueryResult)
 	trashed := ctx2.GetTrashed(ctx)
 	go func() {
@@ -134,7 +134,7 @@ func (this *mongoRep) FindById(ctx context.Context, id string) <-chan repository
 			filter["deleted_at"] = bson.D{{"$eq", nil}}
 		}
 
-		one := this.Collection().FindOne(ctx, filter)
+		one := this.Collection().FindOne(ctx, filter, opts...)
 		if one.Err() != nil {
 			if one.Err() == mongo.ErrNoDocuments {
 				output <- repository.QueryResult{Error: err2.Err404}
@@ -155,7 +155,7 @@ func (this *mongoRep) FindById(ctx context.Context, id string) <-chan repository
 	return output
 }
 
-func (this *mongoRep) FindByIds(ctx context.Context, ids ...string) <-chan repository.QueryResult {
+func (this *mongoRep) FindByIds(ctx context.Context, ids []string, opts ...*options.FindOptions) <-chan repository.QueryResult {
 	output := make(chan repository.QueryResult)
 	trashed := ctx2.GetTrashed(ctx)
 	go func() {
@@ -177,7 +177,7 @@ func (this *mongoRep) FindByIds(ctx context.Context, ids ...string) <-chan repos
 			filter["deleted_at"] = bson.D{{"$eq", nil}}
 		}
 
-		cursor, err := this.Collection().Find(ctx, filter)
+		cursor, err := this.Collection().Find(ctx, filter, opts...)
 		if err != nil {
 			output <- repository.QueryResult{Error: err}
 			return

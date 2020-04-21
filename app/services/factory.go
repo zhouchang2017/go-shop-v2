@@ -107,6 +107,8 @@ func MakeOrderService() *OrderService {
 		repositories.MakeOrderRep(),
 		MakePromotionService(),
 		MakeProductService(),
+		repositories.MakeCommentRep(),
+		repositories.MakeRefundRep(),
 	)
 }
 
@@ -130,9 +132,13 @@ func MakePaymentService() *PaymentService {
 }
 
 func MakeRefundService() *RefundService {
-	return NewRefundService(repositories.MakeFailedRefundRep(), repositories.MakeOrderRep())
+	return NewRefundService(repositories.MakeRefundRep(), repositories.MakeOrderRep())
 }
 
 func MakeLogisticsService() *LogisticsService {
-	return NewLogisticsService(repositories.MakeOrderRep(), repositories.MakeTraceRep())
+	return NewLogisticsService(repositories.MakeOrderRep(), repositories.MakeTrackRep())
+}
+
+func MakeCommentService() *CommentService {
+	return NewCommentService(repositories.MakeCommentRep())
 }

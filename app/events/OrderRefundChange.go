@@ -8,12 +8,11 @@ import (
 )
 
 type OrderRefundChange struct {
-	Order    *models.Order
-	RefundId string
+	Refund *models.Refund
 }
 
-func NewOrderRefundChangeEvent(order *models.Order, refundId string) *OrderRefundChange {
-	return &OrderRefundChange{Order: order, RefundId: refundId}
+func NewOrderRefundChangeEvent(refund *models.Refund) *OrderRefundChange {
+	return &OrderRefundChange{refund}
 }
 
 func (o OrderRefundChange) Delay() time.Duration {
@@ -21,7 +20,7 @@ func (o OrderRefundChange) Delay() time.Duration {
 }
 
 func (o OrderRefundChange) Body() []byte {
-	marshal, err := json.Marshal(o)
+	marshal, err := json.Marshal(o.Refund)
 	if err != nil {
 		log.Errorf("OrderRefundChange json marshal error:%s", err)
 	}

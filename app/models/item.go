@@ -10,12 +10,12 @@ type Item struct {
 	model.MongoModel `inline`
 	Code             string             `json:"code" bson:"code"`
 	Product          *AssociatedProduct `json:"product,omitempty" bson:"product,omitempty"`
-	Price            int64              `json:"price,omitempty" bson:"price"`
-	PromotionPrice   int64              `json:"promotion_price" bson:"-"` // 促销价
+	Price            uint64              `json:"price,omitempty" bson:"price"`
+	PromotionPrice   uint64              `json:"promotion_price" bson:"-"` // 促销价
 	OptionValues     []*OptionValue     `json:"option_values" bson:"option_values" form"option_values" `
 	OnSale           bool               `json:"on_sale" bson:"on_sale"` // 上/下架 受product影响
-	SalesQty         int64              `json:"sales_qty,omitempty" bson:"sales_qty" form"sales_qty" `
-	Qty              int64              `json:"qty" bson:"qty"` // 可售数量
+	SalesQty         uint64              `json:"sales_qty,omitempty" bson:"sales_qty" form"sales_qty" `
+	Qty              uint64              `json:"qty" bson:"qty"` // 可售数量
 	Inventories      []*Inventory       `json:"inventories,omitempty" bson:"-"`
 	Avatar           *qiniu.Image       `json:"avatar,omitempty" bson:"avatar"`
 }
@@ -43,7 +43,7 @@ type AssociatedItem struct {
 	Code         string             `json:"code"`                               // sku码
 	Avatar       *qiniu.Image       `json:"avatar"`                             // 图
 	Product      *AssociatedProduct `json:"product"`                            // 冗余产品信息
-	Price        int64              `json:"price"`                              // 价格
+	Price        uint64              `json:"price"`                              // 价格
 	OptionValues []*OptionValue     `json:"option_values" bson:"option_values"` // sku销售属性
 }
 

@@ -231,7 +231,7 @@ func (this *ManualInventoryActionService) Cancel(ctx context.Context, id string)
 func (this *ManualInventoryActionService) putInventory(ctx context.Context, action *models.ManualInventoryAction) error {
 
 	for _, item := range action.Items {
-		_, err := this.inventoryService.Put(ctx, action.Shop.Id, item.Id, item.Qty, int8(item.Status), action)
+		_, err := this.inventoryService.Put(ctx, action.Shop.Id, item.Id, uint64(item.Qty), int8(item.Status), action)
 		if err != nil {
 			return err
 		}
@@ -274,7 +274,7 @@ func (this *ManualInventoryActionService) setItems(ctx context.Context, entity *
 	if len(itemIds) > 0 {
 		// chunk
 		gubrak.From(itemIds).Chunk(50).Each(func(value []string) {
-			result := <-this.productService.itemRep.FindByIds(ctx, value...)
+			result := <-this.productService.itemRep.FindByIds(ctx, value)
 			if result.Error != nil {
 				log.Printf("findByIds error:%s\n", result.Error)
 			}
@@ -359,7 +359,7 @@ func (this *ManualInventoryActionService) FindById(ctx context.Context, id strin
 }
 
 func (this *ManualInventoryActionService) FindByIds(ctx context.Context, ids ...string) (action []*models.ManualInventoryAction, err error) {
-	results := <-this.rep.FindByIds(ctx, ids...)
+	results := <-this.rep.FindByIds(ctx, ids)
 	if results.Error != nil {
 		err = results.Error
 		return

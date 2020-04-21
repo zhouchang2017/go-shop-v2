@@ -3,7 +3,6 @@ package listeners
 import (
 	"context"
 	"encoding/json"
-	"github.com/davecgh/go-spew/spew"
 	log "github.com/sirupsen/logrus"
 	"go-shop-v2/app/email"
 	"go-shop-v2/app/events"
@@ -19,6 +18,10 @@ type OrderCloseNotifyToAdmin struct {
 	orderSrv *services.OrderService
 }
 
+func (o OrderCloseNotifyToAdmin) Name() string {
+	return "用户关闭订单通知"
+}
+
 func (o OrderCloseNotifyToAdmin) Make() rabbitmq.Listener {
 	return &OrderCloseNotifyToAdmin{orderSrv: services.MakeOrderService()}
 }
@@ -28,13 +31,11 @@ func (o OrderCloseNotifyToAdmin) Event() rabbitmq.Event {
 }
 
 func (o OrderCloseNotifyToAdmin) OnError(payload []byte, err error) {
-	log.Error( payload, err)
+	log.Error(payload, err)
 }
 
 func (o OrderCloseNotifyToAdmin) Handler(data []byte) error {
-	log.Infof("订单付款事件，处理")
 	orderNo := string(data)
-	spew.Dump(orderNo)
 	if orderNo != "" {
 		order, err := o.orderSrv.FindByNo(context.Background(), orderNo)
 		if err != nil {
@@ -46,8 +47,7 @@ func (o OrderCloseNotifyToAdmin) Handler(data []byte) error {
 }
 
 func (o OrderCloseNotifyToAdmin) sendEmailNotifyAdmin(order *models.Order) error {
-	log.Printf("订单关闭通知，发送邮件")
-	return email.Send(email.OrderClosedNotify(order, "zhouchangqaz@gmail.com"))
+	return sendEmail(o.Event(),email.OrderClosedNotify(order))
 }
 
 // 管理员关闭订单，通知用户
@@ -67,7 +67,6 @@ func (o OrderClosedNotifyToUser) OnError(data []byte, err error) {
 }
 
 func (o OrderClosedNotifyToUser) Handler(data []byte) error {
-	log.Printf("管理员关闭订单事件，处理")
 	var order models.Order
 	err := json.Unmarshal(data, &order)
 	if err != nil {

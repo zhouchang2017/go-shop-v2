@@ -30,8 +30,8 @@ type Inventory struct {
 	model.MongoModel `inline`
 	Shop             *AssociatedShop `json:"shop" bson:"shop"`             // 门店
 	Item             *AssociatedItem `json:"item"`                         // sku
-	Qty              int64           `json:"qty"`                          // 存量
-	LockedQty        int64           `json:"locked_qty" bson:"locked_qty"` // 锁定库存数量
+	Qty              uint64           `json:"qty"`                          // 存量
+	LockedQty        uint64           `json:"locked_qty" bson:"locked_qty"` // 锁定库存数量
 	Status           InventoryStatus `json:"status"`                       // 状态
 }
 

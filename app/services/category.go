@@ -78,8 +78,8 @@ func (this *CategoryService) Update(ctx context.Context, model *models.Category,
 	//productOptions := []*models.ProductOption{}
 	//for _, option := range opt.Options {
 	//	var productOption *models.ProductOption
-	//	if option.Id != "" {
-	//		productOption = models.MakeProductOption(option.Id, option.Name, option.Sort)
+	//	if option.RefundNo != "" {
+	//		productOption = models.MakeProductOption(option.RefundNo, option.Name, option.Sort)
 	//	} else {
 	//		productOption = models.NewProductOption(option.Name)
 	//		productOption.Sort = option.Sort

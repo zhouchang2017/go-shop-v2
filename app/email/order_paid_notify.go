@@ -11,11 +11,6 @@ import (
 type orderPaidNotify struct {
 	order   *models.Order
 	subject string
-	to      string
-}
-
-func (this *orderPaidNotify) To() string {
-	return this.to
 }
 
 func (this *orderPaidNotify) Body() (string, error) {
@@ -36,11 +31,10 @@ func (this *orderPaidNotify) Body() (string, error) {
 	return body.String(), nil
 }
 
-func OrderPaidNotify(order *models.Order, to string) *orderPaidNotify {
+func OrderPaidNotify(order *models.Order) *orderPaidNotify {
 	return &orderPaidNotify{
 		order:   order,
 		subject: "订单付款通知",
-		to:      to,
 	}
 }
 

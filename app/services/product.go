@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"github.com/davecgh/go-spew/spew"
+	log "github.com/sirupsen/logrus"
 	"go-shop-v2/app/models"
 	"go-shop-v2/app/repositories"
 	"go-shop-v2/pkg/db/mongodb"
@@ -13,7 +14,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"golang.org/x/sync/errgroup"
-	"log"
 )
 
 type ProductService struct {
@@ -30,6 +30,28 @@ func NewProductService(rep *repositories.ProductRep, promotionRep *repositories.
 	}
 }
 
+// 修改销量
+func (this *ProductService) UpdateSalesQty(ctx context.Context, itemId string, count int64) (err error) {
+	item, err := this.itemRep.UpdateSalesQty(ctx, itemId, count)
+	if err == nil {
+		product, err := this.FindById(ctx, item.Product.Id)
+		if err != nil {
+			// 404
+			return nil
+		}
+		qty := int64(product.TotalSalesQty) + count
+		if qty < 0 {
+			product.TotalSalesQty = 0
+		} else {
+			product.TotalSalesQty = uint64(qty)
+		}
+
+		<-this.rep.Save(ctx, product)
+	}
+
+	return nil
+}
+
 func (this *ProductService) FindItemById(ctx context.Context, id string) (item *models.Item, err error) {
 	item, err = this.rep.FindItemById(ctx, id)
 	if err != nil {
@@ -39,7 +61,7 @@ func (this *ProductService) FindItemById(ctx context.Context, id string) (item *
 	if err == nil {
 		price := promotionItem.FindPriceByItemId(item.GetID())
 		if price != -1 {
-			item.PromotionPrice = price
+			item.PromotionPrice = uint64(price)
 			return item, nil
 		}
 	}
@@ -73,7 +95,7 @@ func (this *ProductService) FindByIdWithItems(ctx context.Context, id string) (p
 		if promotionItem != nil {
 			itemPromotionPrice := promotionItem.FindPriceByItemId(item.GetID())
 			if itemPromotionPrice != -1 {
-				item.PromotionPrice = itemPromotionPrice
+				item.PromotionPrice = uint64(itemPromotionPrice)
 				continue
 			}
 		}
@@ -111,7 +133,7 @@ func (this *ProductService) List(ctx context.Context, req *request.IndexRequest)
 }
 
 func (this *ProductService) FindByIds(ctx context.Context, ids []string) (products []*models.Product, err error) {
-	results := <-this.rep.FindByIds(ctx, ids...)
+	results := <-this.rep.FindByIds(ctx, ids)
 	if results.Error != nil {
 		err = results.Error
 		return
@@ -208,7 +230,7 @@ func (this *ProductService) Pagination(ctx context.Context, req *request.IndexRe
 						if promotionItem != nil {
 							itemPromotionPrice := promotionItem.FindPriceByItemId(item.GetID())
 							if itemPromotionPrice != -1 {
-								item.PromotionPrice = itemPromotionPrice
+								item.PromotionPrice = uint64(itemPromotionPrice)
 								continue
 							}
 						}
@@ -240,8 +262,8 @@ type ProductCreateOption struct {
 	Options      []*productOptionCreateOption `json:"options" form:"options"`
 	Items        []*productItemCreateOption   `json:"items"`
 	Description  string                       `json:"description"`
-	Price        int64                        `json:"price"`
-	FakeSalesQty int64                        `json:"fake_sales_qty" form:"fake_sales_qty"`
+	Price        uint64                       `json:"price"`
+	FakeSalesQty uint64                       `json:"fake_sales_qty" form:"fake_sales_qty"`
 	Images       []qiniu.Image                `json:"images" form:"images"`
 	OnSale       bool                         `json:"on_sale" form:"on_sale"`
 	Sort         int64                        `json:"sort" form:"sort"`
@@ -265,10 +287,10 @@ type productOptionValueCreateOption struct {
 type productItemCreateOption struct {
 	Id           string                            `json:"id"`
 	Code         string                            `json:"code"`
-	Price        int64                             `json:"price,omitempty"`
+	Price        uint64                            `json:"price,omitempty"`
 	OptionValues []*productOptionValueCreateOption `json:"option_values" form:"option_values" `
 	OnSale       bool                              `json:"on_sale" form:"on_sale"` // 上/下架 受product影响
-	Qty          int64                             `json:"qty" `                   // 可售数量
+	Qty          uint64                            `json:"qty" `                   // 可售数量
 }
 
 // 创建
@@ -440,8 +462,6 @@ func (this *ProductService) Update(ctx context.Context, model *models.Product, o
 		newItems = append(newItems, newItem)
 	}
 
-
-
 	// 被移除的item
 	var deleteItemIds []string
 	for _, item := range productItems {
@@ -475,7 +495,7 @@ func (this *ProductService) Update(ctx context.Context, model *models.Product, o
 				// 新增变体
 				created := <-this.itemRep.Create(sessionContext, item)
 				if created.Error != nil {
-					log.Printf("update product %s add item error:%s", product.GetID(), created.Error)
+					log.Errorf("update product %s add item error:%s", product.GetID(), created.Error)
 					session.AbortTransaction(sessionContext)
 					return created.Error
 				}
@@ -483,7 +503,7 @@ func (this *ProductService) Update(ctx context.Context, model *models.Product, o
 			} else {
 				saved := <-this.itemRep.Save(sessionContext, item)
 				if saved.Error != nil {
-					log.Printf("update product %s save item[%s] error:%s", product.GetID(), item.GetID(), saved.Error)
+					log.Errorf("update product %s save item[%s] error:%s", product.GetID(), item.GetID(), saved.Error)
 					session.AbortTransaction(sessionContext)
 					return saved.Error
 				}

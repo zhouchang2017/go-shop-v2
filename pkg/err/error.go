@@ -104,6 +104,6 @@ func Convert(err error) *Status {
 	case validator.ValidationErrors:
 		return NewFromCode(http.StatusUnprocessableEntity).Data(err)
 	default:
-		return NewFromCode(500).Data(err)
+		return NewFromCode(500).Data(err).F(err.Error())
 	}
 }
