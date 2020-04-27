@@ -3,18 +3,21 @@ module go-shop-v2
 go 1.12
 
 require (
+	github.com/Abramovic/logrus_influxdb v0.0.0-20191225071031-ec7855d61bb9
 	github.com/DataDog/zstd v1.4.4 // indirect
 	github.com/bwmarrin/snowflake v0.3.0
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/entropyx/tools v0.0.0-20190821201549-24af18665e91
+	github.com/fsnotify/fsnotify v1.4.7
 	github.com/gin-gonic/gin v1.5.0
 	github.com/go-playground/universal-translator v0.17.0 // indirect
 	github.com/go-redis/redis/v7 v7.2.0
 	github.com/iGoogle-ink/gopay v1.5.6
+	github.com/influxdata/influxdb-client-go v1.0.0 // indirect
+	github.com/influxdata/influxdb1-client v0.0.0-20191209144304-8bf82d3c094d // indirect
 	github.com/jinzhu/gorm v1.9.11
 	github.com/jinzhu/inflection v1.0.0
-	github.com/json-iterator/go v1.1.8 // indirect
 	github.com/leodido/go-urn v1.2.0 // indirect
 	github.com/lestrrat-go/file-rotatelogs v2.3.0+incompatible
 	github.com/lestrrat-go/strftime v1.0.1 // indirect
@@ -23,15 +26,14 @@ require (
 	github.com/medivhzhan/weapp/v2 v2.0.1
 	github.com/mitchellh/mapstructure v1.1.2
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
-	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
 	github.com/novalagung/gubrak v0.0.0-20191124134517-4b3f8b243afd
-	github.com/pkg/errors v0.8.1
+	github.com/pkg/errors v0.9.1
 	github.com/qiniu/api.v7 v7.2.5+incompatible
 	github.com/qiniu/x v7.0.8+incompatible // indirect
 	github.com/satori/go.uuid v1.2.0
 	github.com/sirupsen/logrus v1.5.0
-	github.com/smartystreets/goconvey v1.6.4 // indirect
+	github.com/spf13/viper v1.6.3
 	github.com/streadway/amqp v0.0.0-20200108173154-1c71cc93ed71
 	github.com/stretchr/testify v1.4.0
 	github.com/thedevsaddam/govalidator v1.9.9

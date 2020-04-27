@@ -30,11 +30,10 @@ var instance *email
 var once sync.Once
 
 type Config struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Host     string `json:"host"`
-	Port     int    `json:"port"`
-	Sender   string `json:"sender"`
+	Username string `json:"username" mapstructure:"username"`
+	Password string `json:"password" mapstructure:"password"`
+	Host     string `json:"host" mapstructure:"host"`
+	Port     int    `json:"port" mapstructure:"port"`
 }
 
 func New(c Config) *email {

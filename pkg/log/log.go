@@ -3,6 +3,7 @@ package log
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/Abramovic/logrus_influxdb"
 	"github.com/gin-gonic/gin"
 	rotatelogs "github.com/lestrrat-go/file-rotatelogs"
 	"github.com/sirupsen/logrus"
@@ -15,12 +16,13 @@ import (
 const format = "2006-01-02 15:04:05"
 
 type Option struct {
-	AppName      string
-	Path         string
-	MaxAge       time.Duration
-	RotationTime time.Duration
-	Email        email.Mailer
-	To           string
+	AppName        string
+	Path           string
+	MaxAge         time.Duration
+	RotationTime   time.Duration
+	Email          email.Mailer
+	To             string
+	InfluxDBConfig *logrus_influxdb.Config
 }
 
 func isProd() bool {
@@ -32,7 +34,8 @@ func Setup(opt Option) {
 		TimestampFormat: format,
 	})
 	logrus.SetReportCaller(true)
-
+	hook := logHook{}
+	logrus.AddHook(hook)
 	if isProd() {
 		writer, _ := rotatelogs.New(
 			opt.Path+".%Y%m%d%H%M",
@@ -46,10 +49,40 @@ func Setup(opt Option) {
 	if opt.Email != nil {
 		logrus.AddHook(&emailHook{opt})
 	}
+
+	if opt.InfluxDBConfig != nil {
+		hook, err := logrus_influxdb.NewInfluxDB(opt.InfluxDBConfig)
+		if err == nil {
+			logrus.AddHook(hook)
+		} else {
+			logrus.Error(err)
+		}
+	}
 }
 
 type emailHook struct {
 	opt Option
+}
+type logHook struct {
+}
+
+func (e logHook) Levels() []logrus.Level {
+	return []logrus.Level{
+		logrus.PanicLevel,
+		logrus.FatalLevel,
+		logrus.ErrorLevel,
+	}
+}
+
+func (e logHook) Fire(entry *logrus.Entry) error {
+	var fileInfo []byte
+	if entry.Caller != nil {
+		fileInfo, _ = json.MarshalIndent(entry.Caller, "", "\t")
+		entry.WithFields(logrus.Fields{
+			"fileInfo": string(fileInfo),
+		})
+	}
+	return nil
 }
 
 func (e emailHook) Levels() []logrus.Level {
@@ -104,15 +137,16 @@ func Logger() gin.HandlerFunc {
 		}
 
 		entry := logrus.WithFields(logrus.Fields{
-			"hostname":   hostname,
-			"statusCode": statusCode,
-			"latency":    latency, // time to process
-			"clientIP":   clientIP,
-			"method":     c.Request.Method,
-			"path":       path,
-			"referer":    referer,
-			"dataLength": dataLength,
-			"userAgent":  clientUserAgent,
+			"hostname":    hostname,
+			"statusCode":  statusCode,
+			"latency":     latency, // time to process
+			"clientIP":    clientIP,
+			"method":      c.Request.Method,
+			"path":        path,
+			"referer":     referer,
+			"dataLength":  dataLength,
+			"userAgent":   clientUserAgent,
+			"measurement": "access_log",
 		})
 
 		if len(c.Errors) > 0 {

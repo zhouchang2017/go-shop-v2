@@ -33,13 +33,13 @@ func TestConnect() {
 }
 
 type Config struct {
-	Host       string          `json:"host"`
-	Port       string          `json:"port"`
-	Database   string          `json:"database"`
-	Username   string          `json:"username"`
-	Password   string          `json:"password"`
-	AuthSource string          `json:"auth_source"`
-	ReplicaSet string          `json:"replica_set"`
+	Host       string          `json:"host" mapstructure:"host"`
+	Port       string          `json:"port" mapstructure:"port"`
+	Database   string          `json:"database" mapstructure:"database"`
+	Username   string          `json:"username" mapstructure:"username"`
+	Password   string          `json:"password" mapstructure:"password"`
+	AuthSource string          `json:"auth_source" mapstructure:"auth_source"`
+	ReplicaSet string          `json:"replica_set" mapstructure:"replica_set"`
 	Ctx        context.Context `json:"-"`
 }
 

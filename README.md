@@ -8,7 +8,48 @@
 docker-compose up -d rabbitmq
 ```
 
+
+```
+docker swarm join --advertise-addr 150.158.121.107 --data-path-addr 150.158.121.107 --token SWMTKN-1-5srsj49v8js9r2lwmbnbmomxs5mna3g68ar4bojdrc4ok0gubk-d92i3bq59h7oczmpjzrpakpsw 106.54.17.169:2377
+```
+
+grafana
+```
+    # sudo mkdir -p /srv/docker/grafana/data; chown 472:472 /srv/docker/grafana/data
+
+docker run -d --name=grafana --network=overlay --restart=always -v $HOME/configs/grafana:/var/lib/grafana -p 13000:3000 grafana/grafana
+```
+
+influxdb
+```
+docker run -d --name=influxdb --network=influxdb -e INFLUXDB_HTTP_AUTH_ENABLED=true -e INFLUXDB_ADMIN_USER=root -e INFLUXDB_ADMIN_PASSWORD=12345678 --restart=always -v $PWD/influxdb:/var/lib/influxdb -p 8086:8086 influxdb
+```
 MongoDB 
+
+```
+docker service create --replicas 1 \
+--network overlay --mount type=volume,source=rsdata1,target=/data/db \
+--mount type=bind,source=$HOME/mongod-keyfile,target=/etc/mongod-keyfile,readonly \
+--constraint 'node.labels.mongo.rs==1' -p 27017:27017 \
+-e MONGO_INITDB_ROOT_USERNAME=root -e MONGO_INITDB_ROOT_PASSWORD=12345678 \
+--name mongo_rs1 mongo:latest mongod --bind_ip_all --replSet rs0 --auth --keyFile /etc/mongod-keyfile
+
+service create --replicas 1 --network overlay --constraint 'node.labels.mongo.rs==2' --name tool busybox
+
+docker service create --replicas 1 \
+--network overlay --mount type=volume,source=rsdata2,target=/data/db \
+--mount type=bind,source=$HOME/mongod-keyfile,target=/etc/mongod-keyfile,readonly \
+-e MONGO_INITDB_ROOT_USERNAME=root -e MONGO_INITDB_ROOT_PASSWORD=12345678 \
+--constraint 'node.labels.mongo.rs==1' \
+--name mongo_rs2 mongo:latest mongod --bind_ip_all --replSet rs0 --auth --keyFile /etc/mongod-keyfile
+
+docker service create --replicas 1 \
+--network overlay --mount type=volume,source=rsdata4,target=/data/db \
+--mount type=bind,source=$HOME/mongod-keyfile,target=/etc/mongod-keyfile,readonly \
+-e MONGO_INITDB_ROOT_USERNAME=root -e MONGO_INITDB_ROOT_PASSWORD=12345678 \
+--constraint 'node.labels.mongo.rs==3' \
+--name mongo_rs3 mongo:latest mongod --bind_ip_all --replSet rs0 --auth --keyFile /etc/mongod-keyfile
+```
 
 keyfile
 ```shell script
@@ -34,6 +75,9 @@ $ sudo vim /etc/hosts
 docker-compose exec mongodb-primary mongo --port 30000 -uroot -p12345678 /root/000_init_replSet.js
 ```
 
+```
+docker run -it --rm -p 5050:5050 --name test-app -e DB_HOST=mongo_rs1 -e DB_NAME=go-shop -e DB_USERNAME=root -e DB_PASSWORD=12345678 -e DB_REPLICA_SET=rs0 zhouchang2018/test-demo:v2
+```
 
 - 列表页 index
 - 专题页 topic

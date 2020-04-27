@@ -67,12 +67,12 @@ func Dispatch(event Event) error {
 }
 
 type Config struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Host     string `json:"host"`
-	Port     string `json:"port"`
-	VHost    string `json:"vhost"`
-	Exchange string `json:"exchange"`
+	Username string `json:"username" mapstructure:"username"`
+	Password string `json:"password" mapstructure:"password"`
+	Host     string `json:"host" mapstructure:"host"`
+	Port     string `json:"port" mapstructure:"port"`
+	VHost    string `json:"vhost" mapstructure:"vhost"`
+	Exchange string `json:"exchange" mapstructure:"exchange"`
 }
 
 func (c Config) URI() string {

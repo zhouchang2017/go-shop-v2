@@ -66,14 +66,19 @@ func main() {
 
 	getwd, _ := os.Getwd()
 	join := path.Join(getwd, "runtime", "logs", "go-shop-api.log")
+	influxdbConf := configs.InfluxDbCfg
+	if influxdbConf != nil {
+		influxdbConf.AppName = "api"
+	}
 	// 日志设置
 	log.Setup(log.Option{
-		AppName:      "go-shop-api",
-		Path:         join,
-		MaxAge:       time.Hour * 24 * 30,
-		RotationTime: time.Hour * 24,
-		Email:        mail,
-		To:           "zhouchangqaz@gmail.com",
+		AppName:        "go-shop-api",
+		Path:           join,
+		MaxAge:         time.Hour * 24 * 30,
+		RotationTime:   time.Hour * 24,
+		Email:          mail,
+		To:             "zhouchangqaz@gmail.com",
+		InfluxDBConfig: influxdbConf,
 	})
 
 	// 消息队列
@@ -115,9 +120,8 @@ func main() {
 	})
 
 	app := gin.New()
-	app.Use(gin.Logger())
+	app.Use(log.Logger())
 	app.Use(gin.Recovery())
-
 	http2.SetGuard(guard)
 
 	http2.Register(app)

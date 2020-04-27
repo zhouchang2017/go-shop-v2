@@ -1,0 +1,29 @@
+version: "3.4"
+
+services:
+  influxdb:
+    image: influxdb
+    ports:
+      - 18086:8086
+    environment:
+      INFLUXDB_ADMIN_USER: root
+      INFLUXDB_ADMIN_PASSWORD: 12345678
+    volumes:
+      - $PWD/data:/var/lib/influxdb
+    networks:
+      - overlay
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      placement:
+        constraints: [node.labels.mongo.rs==3]
+
+
+networks:
+  overlay:
+    external: true

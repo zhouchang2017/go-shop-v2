@@ -36,7 +36,7 @@ func (o orderApplyRefundNotify) initData() *refund {
 func (o orderApplyRefundNotify) Body() (string, error) {
 	getwd, _ := os.Getwd()
 	fileName := "order_apply_refund_notify.html"
-	filePath := path.Join(getwd, "app", "email", "template", fileName)
+	filePath := path.Join(getwd, "static", "template", fileName)
 	content, err := template.New(fileName).Funcs(o.funcMap()).ParseFiles(filePath)
 	if err != nil {
 		return "", err

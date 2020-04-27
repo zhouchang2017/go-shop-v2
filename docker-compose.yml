@@ -1,23 +1,32 @@
-version: "3.3"
+version: "3.4"
 
 services:
   rabbitmq:
-    container_name: rabbitmq
-    hostname: rabbitmq
-    build: ./docker_init/rabbitmq/.
+    image: zhouchang2018/rabbitmq:3.8.3-management
     ports:
       - 15672:15672
       - 5672:5672
-    restart: always
     environment:
       RABBITMQ_DEFAULT_USER: root
       RABBITMQ_DEFAULT_PASS: 12345678
     volumes:
       - ./docker/rabbitmq:/var/lib/rabbitmq
+    networks:
+      - overlay
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      placement:
+        constraints:
+          - node.role == manager
 
   redis:
     image: redis
-    restart: always
     ports:
       - 63790:6379
     environment:
@@ -25,14 +34,25 @@ services:
     volumes:
       # - /etc/localtime:/etc/localtime:ro # 设置容器时区与宿主机保持一致
       - ./docker/redis/data:/data
+    networks:
+      - overlay
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      placement:
+        constraints:
+          - node.role == manager
 
 
   # MongoDB ReplicaSet
-  mongodb-primary:
+  mongo_rs1:
     image: mongo:latest
-    container_name: mongodb-primary
-    hostname: mongodb-primary
-    command: --port 30000 --bind_ip_all --replSet rs0 --auth --keyFile /etc/mongod-keyfile
+    command: --bind_ip_all --replSet rs0 --auth --keyFile /etc/mongod-keyfile
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: 12345678
@@ -41,18 +61,28 @@ services:
       - ./docker_init/mongodb/cmd:/root:ro # Initialize script
       - ./docker_init/mongodb/etc/mongod-keyfile:/etc/mongod-keyfile:ro # Permission: 600
       - ./docker/mongodb-primary/data:/data/db
+    networks:
+      - overlay
     ports:
-      - 30000:30000
+      - 27017:27017
     depends_on:
-      - mongodb-secondary
-      - mongodb-arbiter
-    restart: always
+      - mongo_rs2
+      - mongo_rs3
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      placement:
+        constraints:
+          - node.role == manager
 
-  mongodb-secondary:
+  mongo_rs2:
     image: mongo:latest
-    container_name: mongodb-secondary
-    hostname: mongodb-secondary
-    command: --port 30001 --bind_ip_all --replSet rs0 --auth --keyFile /etc/mongod-keyfile
+    command: --bind_ip_all --replSet rs0 --auth --keyFile /etc/mongod-keyfile
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: 12345678
@@ -61,16 +91,26 @@ services:
       - ./docker_init/mongodb/etc/mongod-keyfile:/etc/mongod-keyfile:ro # Permission: 600
       - ./docker/mongodb-secondary/data:/data/db
     ports:
-      - 30001:30001
+      - 27018:27017
+    networks:
+      - overlay
     depends_on:
       - mongodb-arbiter
-    restart: always
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      placement:
+        constraints:
+          - node.role == manager
 
-  mongodb-arbiter:
+  mongo_rs3:
     image: mongo:latest
-    container_name: mongodb-arbiter
-    hostname: mongodb-arbiter
-    command: --port 30002 --bind_ip_all --replSet rs0 --auth --keyFile /etc/mongod-keyfile
+    command: --bind_ip_all --replSet rs0 --auth --keyFile /etc/mongod-keyfile
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: 12345678
@@ -78,6 +118,21 @@ services:
     volumes:
       - ./docker_init/mongodb/etc/mongod-keyfile:/etc/mongod-keyfile:ro # Permission: 600
       - ./docker/mongodb-arbiter/data:/data/db
+    networks:
+      - overlay
     ports:
-      - 30002:30002
-    restart: always
+      - 27019:27017
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      placement:
+        constraints:
+          - node.role == manager
+networks:
+  overlay:
+    external: true

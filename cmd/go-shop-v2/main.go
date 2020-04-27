@@ -2,9 +2,7 @@ package main
 
 import (
 	"context"
-	"encoding/json"
-	"flag"
-	"fmt"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/sirupsen/logrus"
 	"go-shop-v2/app/email"
 	"go-shop-v2/app/lbs"
@@ -28,41 +26,21 @@ import (
 	"time"
 )
 
-var configPathFlag = flag.String("c", ".config", "get the file path for config to parsed")
 
 func main() {
-	// parse flag
-	flag.Parse()
 
-	// get config path
-	if *configPathFlag == "" {
-		fmt.Errorf("please use -c to set the config file path or use -h to see more")
-		return
-	}
-	// open file
-	file, openErr := os.Open(*configPathFlag)
-	if openErr != nil {
-		fmt.Errorf("open config file failed caused of %s", openErr.Error())
-		return
-	}
-	// decode json
-	decoder := json.NewDecoder(file)
+	configs := config.New()
 
-	decodeErr := decoder.Decode(&config.Config)
-
-	file.Close()
-
-	if decodeErr != nil {
-		fmt.Printf("decode config file failed caused of %s", decodeErr.Error())
-		return
-	}
-
-	configs := config.NewConfig()
+	spew.Dump(configs)
 	// 邮件服务
 	mail := email.New(configs.EmailCfg)
 
 	getwd, _ := os.Getwd()
 	join := path.Join(getwd, "runtime", "logs", "go-shop-backend.log")
+	influxdbConf := configs.InfluxDbCfg
+	if influxdbConf != nil {
+		influxdbConf.AppName = "backend"
+	}
 	// 日志设置
 	log.Setup(log.Option{
 		AppName:      "go-shop-backend",
@@ -71,6 +49,7 @@ func main() {
 		RotationTime: time.Hour * 24,
 		Email:        mail,
 		To:           "zhouchangqaz@gmail.com",
+		InfluxDBConfig: influxdbConf,
 	})
 
 	// 消息队列

@@ -60,6 +60,11 @@ func main() {
 
 	getwd, _ := os.Getwd()
 	join := path.Join(getwd, "runtime", "logs", "go-shop-worker.log")
+
+	influxdbConf := configs.InfluxDbCfg
+	if influxdbConf != nil {
+		influxdbConf.AppName = "worker"
+	}
 	// 日志设置
 	log.Setup(log.Option{
 		AppName:      "go-shop-worker",
@@ -68,6 +73,7 @@ func main() {
 		RotationTime: time.Hour * 24,
 		Email:        mail,
 		To:           "zhouchangqaz@gmail.com",
+		InfluxDBConfig: influxdbConf,
 	})
 
 	// 消息队列
